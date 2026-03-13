@@ -1,0 +1,25 @@
+{
+  "name": "hospital-ready",
+  "description": "Jogador colocado no hospital para validar tratamento e consumíveis.",
+  "extends": ["starter-pack"],
+  "defaults": {
+    "addiction": 25,
+    "hospitalMinutes": 30,
+    "hp": 25
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "player",
+      "description": "Deixa o jogador machucado e internado.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "set-hp", "value": "$hp" },
+        { "type": "set-addiction", "value": "$addiction" },
+        { "type": "set-hospital-minutes", "value": "$hospitalMinutes" }
+      ]
+    }
+  ]
+}

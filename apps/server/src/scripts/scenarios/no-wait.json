@@ -1,0 +1,24 @@
+{
+  "name": "no-wait",
+  "description": "Preset enxuto para zerar espera de recursos e status do player.",
+  "defaults": {
+    "regionId": "centro"
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "player",
+      "description": "Reseta recursos e limpa prisão/hospital.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "full-resources" },
+        { "type": "clear-prison" },
+        { "type": "clear-hospital" },
+        { "type": "set-region", "value": "$regionId" },
+        { "type": "move-to-region-spawn" }
+      ]
+    }
+  ]
+}

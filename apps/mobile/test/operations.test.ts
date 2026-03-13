@@ -1,0 +1,192 @@
+import { RegionId, type OwnedPropertySummary, PROPERTY_DEFINITIONS } from '@cs-rio/shared';
+import { describe, expect, it } from 'vitest';
+
+import {
+  countOperationalAlerts,
+  countReadyOperations,
+  filterPropertiesByTab,
+  resolvePropertyOperationSnapshot,
+  resolvePropertyUtilityLines,
+  sumCollectableCash,
+  sumPropertyPrestige,
+  type OperationsDashboardData,
+} from '../src/features/operations';
+
+describe('operations helpers', () => {
+  it('splits business and patrimony properties while summing prestige', () => {
+    const boca = buildOwnedProperty('boca');
+    const mansion = buildOwnedProperty('mansion');
+
+    expect(filterPropertiesByTab([boca, mansion], 'business').map((property) => property.type)).toEqual(['boca']);
+    expect(filterPropertiesByTab([boca, mansion], 'patrimony').map((property) => property.type)).toEqual(['mansion']);
+    expect(sumPropertyPrestige([boca, mansion])).toBe(248);
+  });
+
+  it('describes patrimonial utility and counts operational pressure', () => {
+    const beachHouse = buildOwnedProperty('beach_house', {
+      economics: { effectivePrestigeScore: 95 },
+      protection: { invasionRisk: 24, robberyRisk: 26, takeoverRisk: 0 },
+    });
+    const car = buildOwnedProperty('car', {
+      maintenanceStatus: { blocked: true },
+      protection: { invasionRisk: 12, robberyRisk: 36, takeoverRisk: 0 },
+    });
+
+    expect(resolvePropertyUtilityLines(beachHouse.definition)).toContain('+8 slots no inventário');
+    expect(resolvePropertyUtilityLines(car.definition)).toContain('Mobilidade terrestre');
+    expect(countOperationalAlerts([beachHouse, car])).toBe(1);
+  });
+
+  it('builds collect snapshots and counts ready operations', () => {
+    const boca = buildOwnedProperty('boca');
+    const factory = buildOwnedProperty('factory');
+    const dashboard: OperationsDashboardData = {
+      bocaBook: {
+        bocas: [
+          {
+            cashbox: {
+              availableToCollect: 5400,
+              grossRevenueLifetime: 15000,
+              lastCollectedAt: null,
+              lastSaleAt: '2026-03-10T13:00:00.000Z',
+              totalFactionCommission: 648,
+            },
+            economics: {
+              cycleMinutes: 60,
+              effectiveFactionCommissionRate: 0.12,
+              estimatedHourlyGrossRevenue: 2700,
+              locationMultiplier: 1.15,
+              npcDemandPerCycle: 18,
+              profitable: true,
+            },
+            favelaId: 'favela-centro-1',
+            id: boca.id,
+            level: 1,
+            maintenanceStatus: {
+              blocked: false,
+              lastMaintenanceAt: '2026-03-10T12:00:00.000Z',
+              moneySpentOnSync: 0,
+              overdueDays: 0,
+            },
+            regionId: RegionId.Centro,
+            status: 'active',
+            stock: [],
+            stockUnits: 45,
+          },
+        ],
+      },
+      factoryBook: {
+        availableRecipes: [],
+        factories: [
+          {
+            baseProduction: 3,
+            blockedReason: null,
+            createdAt: '2026-03-10T11:00:00.000Z',
+            cycleMinutes: 45,
+            dailyMaintenanceCost: 900,
+            drugId: 'drug-cocaina',
+            drugName: 'Cocaina',
+            id: factory.id,
+            maintenanceStatus: {
+              blocked: false,
+              moneySpentOnSync: 0,
+              overdueDays: 0,
+            },
+            multipliers: {
+              impulse: 1.1,
+              intelligence: 1.2,
+              universityProduction: 1,
+              vocation: 1,
+            },
+            outputPerCycle: 4,
+            regionId: RegionId.Centro,
+            requirements: [],
+            storedOutput: 8,
+          },
+        ],
+      },
+      frontStoreBook: {
+        frontStores: [],
+        kinds: [],
+      },
+      propertyBook: {
+        availableProperties: [],
+        ownedProperties: [boca, factory],
+        soldierTemplates: [],
+      },
+      puteiroBook: {
+        puteiros: [],
+        templates: [],
+      },
+      raveBook: {
+        raves: [],
+      },
+      slotMachineBook: {
+        slotMachines: [],
+      },
+    };
+
+    const bocaSnapshot = resolvePropertyOperationSnapshot(boca, dashboard);
+    const factorySnapshot = resolvePropertyOperationSnapshot(factory, dashboard);
+
+    expect(bocaSnapshot?.readyToCollect).toBe(true);
+    expect(bocaSnapshot?.collectTone).toBe('cash');
+    expect(factorySnapshot?.collectTone).toBe('inventory');
+    expect(factorySnapshot?.collectableLabel).toBe('8x Cocaina');
+    expect(sumCollectableCash(dashboard)).toBe(5400);
+    expect(countReadyOperations(dashboard)).toBe(2);
+  });
+});
+
+function buildOwnedProperty(
+  type: OwnedPropertySummary['type'],
+  overrides: Partial<{
+    economics: Partial<OwnedPropertySummary['economics']>;
+    maintenanceStatus: Partial<OwnedPropertySummary['maintenanceStatus']>;
+    protection: Partial<OwnedPropertySummary['protection']>;
+  }> = {},
+): OwnedPropertySummary {
+  const definition = PROPERTY_DEFINITIONS.find((entry) => entry.type === type);
+
+  if (!definition) {
+    throw new Error(`Property definition not found for ${type}`);
+  }
+
+  return {
+    createdAt: '2026-03-10T12:00:00.000Z',
+    definition,
+    economics: {
+      effectiveFactionCommissionRate: definition.factionCommissionRate,
+      effectivePrestigeScore: definition.prestigeScore,
+      profitable: definition.profitable,
+      totalDailyUpkeep: definition.baseDailyMaintenanceCost,
+      ...overrides.economics,
+    },
+    favelaId: null,
+    id: `property-${type}`,
+    level: 1,
+    maintenanceStatus: {
+      blocked: false,
+      lastMaintenanceAt: '2026-03-10T12:00:00.000Z',
+      moneySpentOnSync: 0,
+      overdueDays: 0,
+      ...overrides.maintenanceStatus,
+    },
+    protection: {
+      defenseScore: definition.baseProtectionScore,
+      factionProtectionActive: false,
+      invasionRisk: 20,
+      robberyRisk: 20,
+      soldiersPower: 0,
+      takeoverRisk: definition.profitable ? 12 : 0,
+      territoryControlRatio: 0,
+      territoryTier: 'none',
+      ...overrides.protection,
+    },
+    regionId: RegionId.Centro,
+    soldierRoster: [],
+    soldiersCount: 0,
+    status: 'active',
+    type,
+  };
+}

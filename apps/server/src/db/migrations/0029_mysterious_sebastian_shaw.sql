@@ -1,0 +1,1 @@
+ALTER TABLE "factions" ADD COLUMN "internal_satisfaction" integer DEFAULT 50 NOT NULL;

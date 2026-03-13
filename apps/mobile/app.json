@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "CS Rio",
+    "slug": "cs-rio",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cesarbrizio.csrio"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#111111"
+      },
+      "package": "com.cesarbrizio.csrio"
+    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-asset",
+      "expo-notifications",
+      "expo-secure-store"
+    ]
+  }
+}

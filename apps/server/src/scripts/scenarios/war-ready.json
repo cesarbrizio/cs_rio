@@ -1,0 +1,56 @@
+{
+  "name": "war-ready",
+  "description": "Dois lados armados e banco pronto para testar declaração de guerra.",
+  "extends": ["starter-pack"],
+  "defaults": {
+    "enemyFactionCode": "tcp",
+    "factionBankMoney": 1500000,
+    "factionCode": "cv",
+    "playerFavelaCode": "cidade_alta",
+    "regionId": "zona_norte",
+    "targetFavelaCode": "complexo_da_penha"
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "world",
+      "description": "Posiciona o jogador como general com caixa suficiente para guerra.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "join-faction", "value": "$factionCode" },
+        { "type": "set-rank", "value": "general" },
+        { "type": "set-faction-bank-money", "value": "$factionBankMoney" },
+        { "type": "set-faction-points", "value": 2500 },
+        { "type": "set-faction-internal-satisfaction", "value": 72 }
+      ]
+    },
+    {
+      "kind": "world",
+      "description": "Garante uma favela-base para a facção do jogador.",
+      "selector": {
+        "favelaCode": "$playerFavelaCode"
+      },
+      "commands": [
+        { "type": "set-favela-controller", "value": "$factionCode" },
+        { "type": "set-favela-state", "value": "controlled" },
+        { "type": "set-favela-satisfaction", "value": 60 }
+      ]
+    },
+    {
+      "kind": "world",
+      "description": "Prepara a favela rival que será alvo da guerra.",
+      "selector": {
+        "favelaCode": "$targetFavelaCode"
+      },
+      "commands": [
+        { "type": "set-favela-controller", "value": "$enemyFactionCode" },
+        { "type": "set-favela-state", "value": "controlled" },
+        { "type": "set-favela-satisfaction", "value": 54 },
+        { "type": "set-bandits", "value": 180 },
+        { "type": "set-max-soldiers", "value": 70 }
+      ]
+    }
+  ]
+}

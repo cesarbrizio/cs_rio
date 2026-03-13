@@ -1,0 +1,21 @@
+{
+  "name": "prison-ready",
+  "description": "Jogador colocado na prisão para validar o loop carcerário.",
+  "extends": ["starter-pack"],
+  "defaults": {
+    "prisonMinutes": 45
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "player",
+      "description": "Força a prisão do jogador por uma janela curta de teste.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "set-prison-minutes", "value": "$prisonMinutes" }
+      ]
+    }
+  ]
+}

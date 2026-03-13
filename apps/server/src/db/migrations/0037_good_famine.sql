@@ -1,0 +1,1 @@
+ALTER TABLE "factions" ADD COLUMN "robbery_policy_json" jsonb DEFAULT '{"global":"allowed","regions":{}}'::jsonb NOT NULL;

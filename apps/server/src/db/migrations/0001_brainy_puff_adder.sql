@@ -1,0 +1,2 @@
+ALTER TABLE "players" ADD COLUMN "appearance_json" jsonb DEFAULT '{"skin":"pele_media","hair":"corte_curto","outfit":"camisa_branca"}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "players" ADD COLUMN "character_created_at" timestamp with time zone;

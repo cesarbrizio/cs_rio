@@ -1,0 +1,36 @@
+{
+  "name": "starter-pack",
+  "description": "Pacote inicial de desenvolvimento para abrir o loop básico do jogador.",
+  "defaults": {
+    "bankMoney": 25000,
+    "conceito": 250,
+    "level": 3,
+    "money": 50000,
+    "regionId": "centro",
+    "vestCode": "colete_de_couro",
+    "weaponCode": "pistola_380"
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "player",
+      "description": "Ajusta progressão, recursos e posição base do jogador.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "set-money", "value": "$money" },
+        { "type": "set-bank-money", "value": "$bankMoney" },
+        { "type": "full-resources" },
+        { "type": "set-level", "value": "$level" },
+        { "type": "set-conceito", "value": "$conceito" },
+        { "type": "set-region", "value": "$regionId" },
+        { "type": "move-to-region-spawn" },
+        { "type": "grant-item", "itemType": "weapon", "codeOrId": "$weaponCode", "quantity": 1 },
+        { "type": "grant-item", "itemType": "vest", "codeOrId": "$vestCode", "quantity": 1 },
+        { "type": "equip-item", "value": { "itemType": "weapon", "identifier": "$weaponCode" } },
+        { "type": "equip-item", "value": { "itemType": "vest", "identifier": "$vestCode" } }
+      ]
+    }
+  ]
+}

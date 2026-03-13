@@ -16,6 +16,11 @@ O jogador é um criminoso tentando sobreviver e ascender no submundo do crime do
 - Ao fim da rodada, o jogador com mais **Conceito** vence
 - Rankings são preservados entre rodadas (Hall da Fama)
 - Ao iniciar nova rodada, os jogadores recomeçam do zero com bônus baseados em conquistas anteriores
+  - No recorte de **Pré-Alpha**, esse bônus herdado é simplificado para um pacote inicial baseado na colocação final da rodada anterior:
+    - **Campeão:** `R$ 15.000` no bolso + `R$ 7.500` no banco
+    - **Top 2-3:** `R$ 10.000` no bolso + `R$ 5.000` no banco
+    - **Top 4-10:** `R$ 5.000` no bolso + `R$ 2.500` no banco
+  - No futuro, esse sistema pode evoluir para heranças mais temáticas por conquista/marco, mas o Pré-Alpha fecha primeiro com herança econômica de ranking
 
 ### 1.2 Ambientação
 
@@ -34,6 +39,58 @@ CS Rio **não é um jogo de ação direta** — é um **jogo estratégico de oti
 - **Tempo** — tudo regenera/decai com o tempo; nunca deixar estamina cheia parada
 
 Jogadores experientes tratam o jogo como uma **planilha de otimização**: calculam risco/recompensa de cada crime, dosam uso de drogas para maximizar estamina sem overdose, escolhem horários estratégicos para atacar e investem em negócios com melhor retorno.
+
+### 1.4 Pilares de Propriedade, Faccao e Territorio
+
+Algumas regras estruturais do jogo orientam toda a economia e a politica do mapa:
+
+- **Toda propriedade pertence ao jogador.** A faccao nunca vira dona direta do ativo.
+- **Faccao funciona como camada de protecao e arrecadacao.** Se o jogador fizer parte de uma faccao, seus negocios lucrativos operam sob protecao dela e repassam comissao fixa para o caixa faccional.
+- **Patrimonio e negocio sao categorias diferentes.**
+  - Patrimonio: casa, carro, barco, iate, joias, obra de arte, helicoptero, aviao, luxo em geral. Nao gera renda direta, mas gera prestigio, conforto, logistica e despesas.
+  - Negocio: boca, rave, fabrica, puteiro, loja de fachada, maquininha e outros ativos operacionais. Gera receita, mas tambem custo, risco e comissao faccional.
+- **Troca de faccao nao transfere posse.** Os ativos continuam com o jogador, mas passam a obedecer a nova camada de protecao/comissao apos um periodo de transicao.
+- **Dominio territorial fortalece, nao blinda.** Controlar todas as favelas de uma regiao reduz risco de invasao, roubo e tomada, melhora protecao e eficiencia, mas nunca torna um ativo invulneravel.
+
+### 1.5 Principio Data-Driven da Rodada
+
+CS Rio deve funcionar como um jogo **vivo por rodada**, e por isso o balanceamento principal nao pode ficar preso a constantes hard-coded espalhadas no codigo.
+
+**Regra de arquitetura de design:**
+
+- Parametros estatisticos e tabelas estruturais do jogo devem ser **database-defined** sempre que forem relevantes para balanceamento ou variacao entre rodadas.
+- Isso inclui, entre outros:
+  - regioes
+  - favelas
+  - faccoes fixas
+  - tipos de roubo/assalto
+  - rotas de roubo de veiculo
+  - tipos de evento
+  - pesos, thresholds, cooldowns, ganhos e perdas por evento
+  - limites de soldados e crescimento de bandidos
+  - multiplicadores economicos e territoriais
+- O codigo pode manter **fallback tecnico** para bootstrap, migracao e seguranca, mas o **banco e a fonte de verdade** para a rodada ativa.
+
+**Escopo operacional dessa configuracao:**
+
+- O jogador comum **nao** tera acesso a isso.
+- Nao deve existir client administrativo por enquanto.
+- Ajustes devem ser feitos por:
+  - seed inicial
+  - alteracao direta no banco
+  - comandos internos/server-side futuramente
+- Cada definicao importante deve poder ser marcada como:
+  - ativa
+  - inativa
+  - valida para a rodada atual
+  - valida apenas para rodadas futuras
+
+**Objetivo pratico:**
+
+- evitar que toda rodada seja sempre igual
+- permitir calibragem rapida sem refactor de codigo
+- possibilitar eventos, pesos e tabelas diferentes entre rodadas
+- preparar o jogo para operacao viva sem reescrever sistemas centrais a cada ajuste
 
 ---
 
@@ -157,9 +214,9 @@ A estamina é o **recurso principal** do jogo. Determina a capacidade de executa
 | Visitar GP | 10% |
 
 **Recuperação passiva:**
-A velocidade de recuperação depende do **moral** (estado de intoxicação). Quanto mais "chapado", mais rápido recupera — mas isso exige uso de drogas, que aumenta o vício.
+A velocidade de recuperação depende do **embalo** (estado temporário de intoxicação/ânimo do jogador). Quanto mais "chapado", mais rápido recupera — mas isso exige uso de drogas, que aumenta o vício.
 
-**Estados de Moral (afetam velocidade de recuperação):**
+**Estados de Embalo (afetam velocidade de recuperação):**
 
 | Estado | Recuperação Passiva | Como Atingir |
 |---|---|---|
@@ -169,9 +226,14 @@ A velocidade de recuperação depende do **moral** (estado de intoxicação). Qu
 | Muito Louco | 1% a cada 3 min | 5-7 doses |
 | Destruído | 1% a cada 2 min | 8+ doses (risco de overdose) |
 
+**Terminologia:**
+- `embalo` é um estado do **jogador**
+- `satisfação dos moradores` é um estado da **favela**
+- `satisfação interna da facção` é um estado da **facção**
+
 **Outras formas de recuperação:**
 - Drogas consumidas em raves/bailes (recuperação instantânea, mas aumenta tolerância e vício)
-- GPs: recuperam estamina + moral (10-20% instantâneo)
+- GPs: recuperam estamina + embalo (10-20% instantâneo)
 - Descanso em casa própria: bônus de +50% na recuperação passiva
 - Itens especiais (Tadalafila, etc.)
 
@@ -201,7 +263,7 @@ Os nervos são um **recurso secundário** que limita crimes mais arriscados. Vai
 - Perde vida em combate PvP, falhas em crimes violentos, incursões policiais, overdose
 - Recupera: passivamente (lento), no Hospital (pago), com itens (Transfusão, Viagra)
 - Se chegar a 0: personagem fica **hospitalizado** (2-12 horas de jogo)
-- Com Plano de Saúde: hospitalização reduzida para 15 minutos de jogo
+- Com Plano de Saúde: hospitalização reduzida em 75%, com mínimo de 15 minutos de jogo
 
 ### 3.6 Vício (Addiction)
 
@@ -218,7 +280,7 @@ O vício é uma **mecânica de risco/recompensa** central no jogo.
 | 41-60% | -10% em atributos, eficiência de drogas reduzida em 25% |
 | 61-80% | -20% em atributos, eficiência de drogas reduzida em 50%, tremores (chance de falhar ações) |
 | 81-99% | -30% em atributos, eficiência de drogas reduzida em 75%, risco de overdose espontânea |
-| 100% | **Overdose automática** — hospitalização, perda de conceito, reset de moral |
+| 100% | **Overdose automática** — hospitalização, perda de conceito, reset de embalo |
 
 **Desintoxicação:**
 - Feita no Hospital
@@ -363,6 +425,88 @@ O jogador vê a **porcentagem estimada** antes de escolher o crime (como no The 
 - Perda de conceito
 - Perda de durabilidade da arma/colete
 
+### 4.4 Sistema de Roubos Estruturados
+
+Roubos formam uma familia propria de atividade criminosa. Eles podem ser executados de duas formas:
+
+- **Pelo jogador**, consumindo estamina/nervos e colocando o proprio personagem em risco.
+- **Pelos bandidos da favela**, usando o efetivo criminal local da faccao em vez do corpo do jogador.
+
+Todo roubo gera cinco resultados-base:
+
+- **dinheiro bruto**
+- **repasse percentual para a faccao**
+- **delta de calor policial**
+- **chance de falha**
+- **chance de prisao ou morte dos executores**
+
+**Tabela de roubos estruturados (balanceamento inicial):**
+
+| Roubo | Executor | Risco Base | Recompensa Base | Calor Policial | Repasse para Faccao |
+|---|---|---|---|---|---|
+| **Roubo a pedestres** | Jogador ou bandidos | Baixo-Medio | Baixa | Baixo | 10% |
+| **Roubo de celulares** | Jogador ou bandidos | Medio | Baixa-Media | Baixo-Medio | 12% |
+| **Roubo de veiculos — resgate** | Jogador ou bandidos | Medio-Alto | Alta | Alto | 20% |
+| **Roubo de veiculos — desmanche** | Jogador ou bandidos | Medio | Baixa | Medio | 15% |
+| **Roubo de veiculos — Paraguai** | Jogador ou bandidos | Alto | Media | Medio-Alto | 18% |
+| **Roubo de caminhao** | Jogador ou bandidos | Alto | Alta | Alto | 22% |
+
+**Regras estruturais:**
+
+- Roubo executado pelo **jogador** pode prender, hospitalizar ou matar o proprio personagem, conforme o tipo de roubo e o nivel de calor acumulado.
+- Roubo executado por **bandidos da favela** nao consome estamina do jogador, mas consome disponibilidade do efetivo da favela e aumenta o calor policial territorial.
+- O dinheiro liquido do roubo vai para o executor ou caixa operacional da favela; o **repasse da faccao** entra automaticamente no banco faccional.
+- Roubo repetido na mesma regiao aumenta o risco acumulado de resposta policial.
+
+#### 4.4.1 Roubo de Veiculos
+
+O roubo de veiculos possui tres destinos possiveis:
+
+1. **Devolucao com resgate**
+   - Recompensa alta.
+   - Risco dependente da regiao alvo.
+   - Regioes mais ricas aumentam valor do resgate e tambem elevam calor policial e risco de falha.
+   - Melhor rota para caixa rapido, pior rota para discricao.
+
+2. **Desmanche e venda de pecas**
+   - Recompensa baixa.
+   - Pouca ou nenhuma influencia positiva da riqueza da regiao.
+   - Calor policial medio.
+   - Fluxo mais estavel para mercado negro e oficinas.
+
+3. **Clonagem e venda no Paraguai**
+   - Risco alto independentemente da regiao.
+   - Recompensa media.
+   - Calor policial medio-alto.
+   - Exige cadeia de escoamento mais sofisticada.
+
+#### 4.4.2 Politica de Roubos da Faccao
+
+Toda faccao pode definir politica de roubos em dois niveis:
+
+- **Global**: permite ou proibe roubos em todas as areas sob influencia da faccao.
+- **Regional**: permite ou proibe roubos especificamente em uma regiao.
+
+**Efeito da proibicao regional:**
+
+- Ninguem rouba **naquela regiao**.
+- O roubo passa a ser executado teoricamente em **outra regiao**.
+- Como o percurso e maior, a chance de falha aumenta.
+
+**Multiplicador inicial de percurso para roubos proibidos na regiao de origem:**
+
+| Distancia do alvo | Penalidade de falha |
+|---|---|
+| Regiao adjacente | +10% |
+| Regiao intermediaria | +20% |
+| Regiao distante | +35% |
+
+**Impactos politicos da politica de roubos:**
+
+- Proibir roubos melhora a **satisfacao dos moradores** nas favelas afetadas.
+- Proibir roubos reduz a **satisfacao interna da faccao** entre membros mais ligados a atividade de rua.
+- Liberar roubos aumenta a renda criminal e a satisfacao interna do setor de rua, mas acelera o calor policial.
+
 ---
 
 ## 5. Equipamento e Mercado Negro
@@ -436,6 +580,64 @@ Soldados protegem suas propriedades (bocas, fábricas, puteiros, raves) e territ
 | Segurança armado | 10.000 | $40.000 | 7 |
 | Mercenário | 25.000 | $100.000 | 9 |
 
+#### 5.3.1 Bandidos da Favela (Efetivo de Rua)
+
+**Bandidos** sao diferentes de soldados.
+
+- **Soldados** protegem propriedades, defendem territorio e custam manutencao.
+- **Bandidos** executam roubos, acoes de rua e pressao criminal local, sem custo mensal fixo.
+
+Cada favela controlada possui seu proprio efetivo de bandidos, separado por estado:
+
+- **Ativos**: disponiveis para roubos e acoes de rua
+- **Presos**: recolhidos apos roubos mal sucedidos
+- **Mortos recentemente**: perdas por BOPE, rivalidade ou operacao mal sucedida
+- **Retorno agendado**: presos com data futura de volta para a favela
+
+**Regras estruturais:**
+
+- Bandidos **nao** entram em desenrolo com PM.
+- Bandidos presos retornam automaticamente apos **5 a 30 dias de jogo**.
+- O retorno gera notificacao contextual:
+  - **5 a 10 dias**: `Audiencia de custodia! Os bandidos presos no assalto foram soltos e voltaram para {favela}`
+  - **11 a 20 dias**: `Habeas Corpus! Os bandidos presos no assalto foram soltos e voltaram para {favela}`
+  - **21 a 30 dias**: `Lili cantou! Os bandidos presos no assalto foram soltos e voltaram para {favela}`
+- O evento **Saidinha de Natal** libera imediatamente todos os bandidos presos elegiveis e os devolve para suas favelas.
+
+**Fatores que aumentam o efetivo de bandidos:**
+
+- satisfacao interna alta da faccao
+- periodo longo de roubos bem-sucedidos
+- ausencia de operacoes policiais graves
+- controle territorial estavel
+
+**Fatores que reduzem o efetivo de bandidos:**
+
+- roubos mal sucedidos
+- operacoes policiais e BOPE
+- incursao de faccao rival ou usuarios armados
+- satisfacao interna baixa da faccao
+
+#### 5.3.2 Teto de Soldados por Favela
+
+O jogo usa **dois limites simultaneos**:
+
+- **Capacidade da propriedade**: quantos soldados cabem naquele ativo especifico.
+- **Teto da favela**: quantos soldados podem existir somados em todas as propriedades daquela favela.
+
+**Regra de validacao:**
+
+- contratar soldado exige respeitar o limite da propriedade **e** o limite total da favela.
+- se a favela ja estiver no teto, nenhuma propriedade dela pode contratar mais soldados.
+
+**Balanceamento inicial do teto por favela:**
+
+- Favela pequena: **15-20 soldados**
+- Favela media: **25-40 soldados**
+- Favela grande/estrategica: **45-80 soldados**
+
+O teto da favela e um **hard cap territorial** definido por seed/configuracao da favela. Ja a capacidade da propriedade continua podendo receber bonus de upgrades de faccao.
+
 ### 5.4 Mercado Negro
 
 O Mercado Negro é o hub central de comércio do jogo. Localizado em cada região do mapa.
@@ -452,6 +654,17 @@ O Mercado Negro é o hub central de comércio do jogo. Localizado em cada regiã
 - Preços flutuam com oferta/demanda real dos jogadores
 - Jogadores podem colocar ordens de compra/venda (como um mercado de ações)
 - Itens raros podem ser leiloados (lance mínimo + tempo)
+- O pré-alpha usa um modelo **híbrido**:
+  - **P2P real** entre jogadores para compra, venda e leilão
+  - **Fornecedor da rodada** com estoque limitado de armas, coletes, drogas e insumos
+- Esse fornecedor não é um NPC livre e infinito:
+  - cada item tem lote limitado
+  - o backend faz reposição programada
+  - a oferta pode ser ativada, desativada ou rebalanceada por rodada direto no banco
+- Objetivo desse modelo:
+  - impedir que o mercado nasça vazio
+  - manter circulação real de itens entre jogadores
+  - permitir rounds com oferta mais escassa ou mais abundante sem refactor de código
 
 ---
 
@@ -520,7 +733,7 @@ Disponível a partir do nível 6 (Gerente de Boca).
 
 ### 7.1 Tipos de Drogas
 
-Drogas são consumidas em raves/bailes para recuperar estamina e elevar o moral. Também podem ser produzidas em fábricas e vendidas para lucro. São a **espinha dorsal da economia** do jogo.
+Drogas são consumidas em raves/bailes para recuperar estamina e elevar o embalo. Também podem ser produzidas em fábricas e vendidas para lucro. São a **espinha dorsal da economia** do jogo.
 
 | Droga | Recuperação de Estamina | Aumento de Moral | Preço Base | Nível para Produzir | Bônus de Nervos |
 |---|---|---|---|---|---|
@@ -579,7 +792,7 @@ Produção = Base da Droga × (1 + Inteligência/1000) × Bônus de Impulso × B
 
 ### 7.4 Venda de Drogas
 
-| Canal | Comissão | Volume | Observação |
+| Canal | Taxa do Canal | Volume | Observação |
 |---|---|---|---|
 | Tráfico direto (rua) | 5% | Baixo | Rápido, estamina 5% |
 | Boca de fumo própria | 0% | Médio | Venda automática a NPCs e jogadores |
@@ -587,15 +800,51 @@ Produção = Base da Droga × (1 + Inteligência/1000) × Bônus de Impulso × B
 | Mercado Negro | 5% | Variável | Preço definido por oferta/demanda |
 | Docas (Porto) | 0% | Muito Alto | Preço 50% maior quando navio atraca |
 
+**Importante:** nos canais associados a propriedades lucrativas do jogador, a faccao tambem recebe um **repasse fixo do negocio** quando o dono pertence a uma faccao. Essa comissao faccional e separada da taxa operacional do canal.
+
 ---
 
 ## 8. Negócios e Propriedades
+
+### 8.0 Modelo de Posse, Protecao e Comissao
+
+Todo ativo comprado no jogo pertence ao jogador. A faccao nunca adquire a propriedade do bem, mas pode:
+
+- proteger o ativo contra invasao, roubo, sabotagem e tomada operacional
+- receber comissao fixa sobre negocios lucrativos
+- projetar poder territorial ao redor do ativo quando domina a favela ou a regiao
+
+**Categorias de ativos do jogador:**
+
+| Categoria | Exemplos | Renda Direta | Despesa | Protecao da Faccao |
+|---|---|---|---|---|
+| **Patrimonial** | Casa, carro, joias, barco, iate, lancha, jet ski, casa de praia, mansao, aviao, helicoptero, arte, luxo | Nao | Sim | Sim, se o jogador for faccionado |
+| **Operacional** | Boca, rave, fabrica, puteiro, loja de fachada, maquininha | Sim | Sim | Sim, se o jogador for faccionado |
+
+**Regras estruturais:**
+- Negocios lucrativos repassam comissao fixa para a faccao do dono.
+- Patrimonio pessoal nao gera retorno economico direto; entrega prestigio, conforto, stash, deslocamento, acesso a canais especiais e protecao.
+- Se o jogador mudar de faccao, os ativos continuam sendo dele.
+- Ao trocar de faccao, a camada de protecao/comissao migra junto apos um cooldown de transicao.
+- "Tomada" de propriedade deve afetar primeiro a **operacao**, o **estoque** e a **seguranca** do ativo; perda definitiva do bem e um evento raro.
+
+**Taxas iniciais sugeridas de comissao faccional por negocio:**
+
+| Negocio | Comissao da Faccao sobre a Receita Bruta |
+|---|---|
+| Boca de fumo | 12% |
+| Rave / Baile | 10% |
+| Fabrica | 8% |
+| Puteiro | 10% |
+| Loja de fachada | 6% |
+| Maquininha de caca-niquel | 7% |
 
 ### 8.1 Bocas de Fumo
 
 Ponto fixo de venda de drogas. Disponível a partir do nível 4 (Vapor).
 
 - Gera renda passiva diária vendendo drogas a NPCs e jogadores que passam
+- Pertence ao jogador, mas paga comissao fixa para a faccao se o dono for faccionado
 - O dono define quais drogas estocar e o preço
 - Lucro depende de: localização (favela/região), variedade de drogas, preços, fluxo de jogadores
 - Pode ser protegida por soldados
@@ -611,7 +860,7 @@ O jogador pode ser dono de estabelecimentos onde outros jogadores consomem droga
 - Até 10 tipos de drogas disponíveis para consumo
 - Preço de entrada customizável
 - Filtro de conceito mínimo para entrar
-- Receita: entrada + venda de drogas
+- Receita: entrada + venda de drogas, com repasse fixo para a faccao se o dono for faccionado
 - Localização: qualquer região do mapa
 - Pode ter DJ (NPC que aumenta o fluxo de visitantes)
 
@@ -630,9 +879,10 @@ Casas com **Garotas do Job (GPs)**. Disponível a partir do nível 6 (Gerente de
 **Funcionamento:**
 - Cada puteiro comporta 5 GPs
 - Lucro depende do **Carisma** do dono
+- Repasse fixo para a faccao do dono, se houver
 - Clientes (NPCs e jogadores) geram receita automática
 - Coleta de receita manual (1x por dia de jogo)
-- GPs também recuperam estamina e moral do jogador que as visita
+- GPs também recuperam estamina e embalo do jogador que as visita
 
 **Riscos com GPs:**
 - Podem fugir (chance diária baixa, reduzida com Carisma alto)
@@ -657,6 +907,7 @@ Negócio "legal" que serve para lavar dinheiro. Disponível a partir do nível 6
 - Cada loja tem um tipo (lava-rápido, barbearia, igreja, loja de açaí, oficina mecânica)
 - Gera renda legítima pequena por dia (dinheiro limpo)
 - Processa lavagem de dinheiro (ver seção 6.3)
+- Repassa comissao fixa para a faccao do dono, se houver
 - Quanto maior o negócio (upgrades), mais dinheiro pode lavar por dia
 - Pode ser investigada pela Polícia Federal (risco reduzido com Carisma)
 
@@ -680,9 +931,19 @@ Negócio "legal" que serve para lavar dinheiro. Disponível a partir do nível 6
 **Comprar Maquininhas** (nível 6+):
 - Jogadores podem comprar maquininhas e instalar em locais estratégicos
 - Renda passiva com margem de 15-30% (configurável)
+- A operacao repassa comissao fixa para a faccao do dono, se houver
 - Atraem jogadores para a região (movimento)
 
-### 8.6 Imóveis (Casas)
+### 8.6 Imoveis e Patrimonio Pessoal
+
+Jogadores podem comprar imoveis para moradia e ativos patrimoniais para prestigio, conforto e logistica. Esses bens **nao geram renda direta**, mas:
+
+- exigem manutencao recorrente
+- podem ser protegidos por soldados e pela faccao do jogador
+- aumentam prestigio social e conceito indireto
+- liberam cofres, descansos, canais de transporte, stash e acesso a oportunidades especiais
+
+**Imoveis residenciais:**
 
 Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
 
@@ -700,6 +961,19 @@ Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
 - Localização afeta preço e prestígio
 - Pode ser invadida por rivais se sem proteção (soldados)
 - Pode guardar itens (inventário extra)
+
+**Outros ativos patrimoniais:**
+- **Carros, motos e vans**: deslocamento, fuga, entrega, logistica urbana
+- **Barcos, lanchas, iates e jet skis**: operacoes em docas, fuga maritima, prestigio
+- **Casa de praia**: descanso premium, prestigio, stash secundario
+- **Avioes e helicopteros**: logistica de alto nivel, mobilidade, status
+- **Joias, arte e artigos de luxo**: conceito/prestigio alto, custo de manutencao/seguranca alto, risco de roubo elevado
+
+**Protecao de patrimonio:**
+- Jogador sem faccao depende apenas de soldados, cofre, upgrades e discricao
+- Jogador em faccao ganha camada adicional de protecao
+- Se a faccao domina toda a regiao onde o patrimonio esta, invasao e roubo ficam significativamente mais dificeis
+- A protecao territorial nunca elimina o risco por completo
 
 ---
 
@@ -802,10 +1076,16 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
 | **PCC** | Primeiro Comando da Capital | Presença menor, zonas comerciais | +15% em lavagem de dinheiro e negócios |
 
 - Jogadores podem se candidatar a entrar nelas
+- No pré-alpha, facções fixas também aceitam **entrada direta** enquanto houver vagas de substituição de NPCs
+  - o jogador entra sempre como **Cria**
+  - cada facção fixa nasce com um limite de vagas novas aberto para usuários reais
+  - à medida que esses jogadores entram, os NPCs de base vão sendo substituídos
+  - se as vagas acabarem, a entrada volta a depender de recrutamento/hierarquia normal
 - Liderança pode ser disputada internamente:
   - **Eleição**: votação entre membros (1x por rodada, se solicitada por 30%+ dos membros)
   - **Desafio**: combate direto com o líder (PvP, requer nível 9+)
 - Se nenhum jogador estiver na liderança, a facção é controlada por NPCs (com IA básica)
+- Cada rodada também reaplica um conjunto de **territórios iniciais** para as facções fixas, garantindo que o mapa não comece totalmente neutro.
 
 ### 10.2 Facções Criadas por Jogadores
 
@@ -813,7 +1093,18 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
 - O criador é o **Patrão** (líder)
 - Nome e sigla customizáveis (moderados para evitar nomes ofensivos)
 - Começam sem território e sem bônus temático
-- Ganham bônus ao atingir marcos (10 membros, primeira favela, etc.)
+- Ganham bônus ao atingir marcos de consolidação:
+
+| Marco | Bônus |
+|---|---|
+| **10 membros ativos** | +5% poder em crimes coletivos e guerras |
+| **Primeira favela dominada** | +5% em receita de serviços da favela e desbloqueio formal do Tribunal local |
+| **25 membros ativos** | +10% no alvo de crescimento de bandidos das favelas controladas |
+| **3 favelas simultâneas** | +10% na estabilidade operacional dos negócios dos membros em território próprio |
+| **Banco da facção acima de $1.000.000 por 3 dias de jogo** | +5% de chance em negociações com PM/justiça |
+
+- Os bônus de marco são cumulativos
+- O marco só é considerado ativo se a facção mantiver a condição por pelo menos 24 horas de jogo, evitando liga/desliga de bônus
 - Podem ser dissolvidas se:
   - Ficarem sem membros ativos por 7 dias reais
   - Patrão for preso por mais de 10 dias de jogo sem substituto
@@ -832,7 +1123,9 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
 ### 10.4 Banco da Facção
 
 - Membros doam dinheiro, drogas e itens
+- Recebe automaticamente as comissoes fixas dos negocios lucrativos dos membros
 - Doações geram **pontos de facção** (proporcionais ao valor doado)
+- Todo movimento precisa ficar em **ledger auditavel**: origem, propriedade, jogador dono, valor bruto, comissao, destino
 - Pontos de facção desbloqueiam upgrades coletivos:
 
 | Upgrade | Pontos Necessários | Efeito |
@@ -860,6 +1153,37 @@ A facção ganha pontos por **toda atividade criminosa** de seus membros:
 - Atividades no Mercado Negro
 
 O ranking de facção é separado do ranking individual.
+
+### 10.6 Satisfação Interna da Facção
+
+Separada da satisfacao dos moradores, cada faccao possui um indice de **Satisfacao Interna** de `0%` a `100%`. Ele representa o humor da base da faccao: crias, vapores, soldados, gerentes e operadores de rua.
+
+**Fatores principais que aumentam a satisfacao interna:**
+
+- politica de roubos permissiva
+- roubos bem-sucedidos e caixa criminal forte
+- decisoes firmes no Tribunal do Trafico
+- vitorias territoriais e guerras vencidas
+
+**Fatores principais que reduzem a satisfacao interna:**
+
+- proibicao excessiva de roubos
+- lideranca vista como frouxa no Tribunal do Trafico
+- perdas graves para PM/BOPE
+- sequencia de roubos mal sucedidos
+- queda de caixa e incapacidade de sustentar a operacao
+
+**Efeito mecanico principal:**
+
+| Faixa | Efeito sobre bandidos da favela |
+|---|---|
+| 80-100% | +25% no alvo de crescimento do efetivo |
+| 60-79% | +10% no alvo de crescimento |
+| 40-59% | Neutro |
+| 20-39% | -15% no alvo de crescimento |
+| 0-19% | -30% no alvo de crescimento + evasao criminal |
+
+Neste documento, quando o Tribunal do Trafico mencionar **moral da faccao**, deve-se ler como **satisfacao interna da faccao**.
 
 ---
 
@@ -889,7 +1213,14 @@ Se uma **única facção** dominar **todas as favelas de uma região**, recebe u
 | Zona Sudoeste | +25% em todas as receitas + +10% negócios legítimos |
 | Baixada | +15% em todas as receitas + -20% custo de manutenção |
 
+**Efeitos adicionais do dominio regional total:**
+- -25% a -50% no risco de invasao, roubo e tomada operacional de propriedades dos membros naquela regiao
+- +10% a +25% na eficiencia defensiva de soldados e estruturas
+- +10% a +20% na estabilidade operacional de negocios lucrativos
+- menor custo de seguranca e resposta mais rapida da faccao
+
 O bônus é **perdido imediatamente** se qualquer favela da região for tomada por outra facção ou pelo Estado.
+Ele nunca concede imunidade total: apenas deixa ataques rivais mais caros, lentos e arriscados.
 
 ### 11.3 Conquista de Favela
 
@@ -903,6 +1234,7 @@ Para conquistar uma favela:
 3. Combate envolve poder combinado dos membros presentes fisicamente no mapa
 4. Se vitoriosa, a facção assume o controle
 5. Primeiras 24 horas de jogo: período de estabilização (receita reduzida em 50%)
+6. Propriedades de membros aliados naquela regiao passam a operar sob o novo modificador territorial de protecao, risco e eficiencia
 
 ### 11.4 Serviços da Favela
 
@@ -926,6 +1258,34 @@ Receita = (Base × Moradores) × Multiplicador_Satisfação × Multiplicador_Reg
 - Cada serviço requer investimento inicial para ser instalado
 - Serviços podem ser upgradados (aumenta receita, aumenta satisfação)
 - Serviços danificados em guerras/incursões precisam ser reparados
+
+**Infraestrutura e slots:**
+- Cada favela tem `2` a `4` slots de serviço, definidos por seed
+- Favelas de infraestrutura baixa aceitam apenas: `TVGato`, `GatoNet`, `Botijão de Gás`, `Mototáxi`
+- Favelas de infraestrutura média/alta também aceitam: `Van` e `Comércio Local`
+- Não pode existir dois serviços do mesmo tipo na mesma favela
+
+**Upgrades:**
+
+| Nível | Multiplicador de Receita | Multiplicador de Satisfação | Custo do Upgrade |
+|---|---|---|---|
+| 1 | 1.0x | Base | Investimento inicial |
+| 2 | 1.6x | +3%/dia de jogo | 75% do investimento inicial |
+| 3 | 2.2x | +6%/dia de jogo | 125% do investimento inicial |
+
+- Upgrade leva `6` horas de jogo para concluir
+- Durante upgrade, o serviço opera com `-25%` de receita
+
+**Estados de dano:**
+
+| Estado | Receita | Reparação |
+|---|---|---|
+| **Íntegro** | 100% | Nenhuma |
+| **Avariado** | 50% | 20% do investimento inicial + 6h de jogo |
+| **Destruído** | 0% | 40% do investimento inicial + 12h de jogo |
+
+- `Guerra de Facção`, `Operação Policial` e `Faca na Caveira` podem avariar ou destruir serviços
+- `X9` e `Blitz` nunca destroem serviço; no máximo geram apreensão temporária de caixa/estoque
 
 ### 11.5 Satisfação dos Moradores
 
@@ -960,6 +1320,39 @@ Cada favela tem um índice de **Satisfação** de 0% a 100%. Inicia em 50% ao se
 | 20-39% | 0.50 (-50%) | 50% por dia | Moradores fogem (-2% população/dia) |
 | 0-19% | 0.20 (-80%) | 75% por dia | Êxodo massivo (-5% população/dia), PM pressiona |
 
+#### 11.5.1 Calor Policial Territorial
+
+O jogo possui dois tipos de calor policial:
+
+- **Calor do jogador**: ligado a crimes e PvP do personagem.
+- **Calor policial territorial**: ligado ao volume de roubos e operacoes criminosas produzidas por uma favela.
+
+O **calor policial territorial** pertence a cada favela e cresce principalmente com:
+
+- roubos de pedestres
+- roubos de celulares
+- roubos de veiculos
+- roubos de caminhao
+- sequencia de roubos em pouco tempo
+
+**Delta inicial de calor por atividade:**
+
+| Atividade | Calor Territorial |
+|---|---|
+| Roubo a pedestres | +1 a +2 |
+| Roubo de celulares | +2 a +3 |
+| Roubo de veiculos — resgate | +5 a +8 |
+| Roubo de veiculos — desmanche | +3 a +5 |
+| Roubo de veiculos — Paraguai | +4 a +6 |
+| Roubo de caminhao | +6 a +10 |
+
+**Regras do calor territorial:**
+
+- decai naturalmente com o tempo sem roubos
+- influencia a chance de Operacao Policial, Blitz e **Faca na Caveira**
+- e reduzido de forma abrupta depois de uma grande operacao do BOPE
+- deve ser tratado por favela de origem da operacao, nao apenas por jogador
+
 ### 11.6 X9 (Delação)
 
 Evento aleatório verificado **1x por dia de jogo** por favela. A probabilidade depende da satisfação.
@@ -980,6 +1373,43 @@ Evento aleatório verificado **1x por dia de jogo** por favela. A probabilidade 
    - Desconto de até 50% com Carisma alto
    - Se falhar: soldado fica preso por 1-3 dias de jogo
    - Se não negociar: soldado fica preso por 5 dias de jogo
+
+### 11.6.1 Faca na Caveira (BOPE)
+
+**Faca na Caveira** e um evento policial extremo, separado do X9 tradicional.
+
+**Conceito do evento:**
+
+- e puxado pelo **calor policial territorial**
+- representa uma entrada violenta do BOPE
+- **nao faz prisioneiros**
+- **nao tem desenrolo**
+
+**Mensagem oficial do evento:**
+
+> "As operacoes do BOPE nao fazem prisioneiros, nao tem desenrolo, e faca na caveira! Eles entram, tomam armas, drogas e matam!"
+
+**Regras mecanicas:**
+
+- pode ocorrer quando o calor territorial estiver alto o bastante para disparar operacao extrema
+- apos o evento, o calor policial territorial **cai** significativamente
+- o evento apreende recursos da favela e mata efetivo
+
+**Impactos iniciais de balanceamento:**
+
+- apreensao de **15-35% das armas** expostas na favela
+- apreensao de **20-45% das drogas** expostas na favela
+- morte de **2-5% dos soldados** da favela
+- morte de **12-17% dos bandidos** da favela
+- queda de **10-20 pontos** na satisfacao interna da faccao
+- reducao de **35-60 pontos** no calor policial territorial apos a operacao
+
+**Diferenca para X9:**
+
+- X9 prende soldados e permite desenrolo
+- Faca na Caveira mata efetivo e encerra o ciclo ali
+- bandidos mortos pelo BOPE **nao** retornam depois
+- soldados mortos pelo BOPE precisam ser recontratados
 
 ### 11.7 Propina para PM (Arrego)
 
@@ -1028,8 +1458,26 @@ Evento especial que a facção pode organizar **1x a cada 3 dias de jogo por fav
 |---|---|---|
 | > 70% | **Sucesso total** | Venda de drogas +300%, satisfação +20%, conceito da facção +500, estamina +30% para todos presentes |
 | 50-70% | **Sucesso** | Venda de drogas +200%, satisfação +15%, conceito +300, estamina +20% |
-| 30-49% | **Resultado misto** | Venda normal, satisfação +5%, algum incidente menor |
-| < 30% | **Fracasso** | Prejuízo financeiro, satisfação -10%, chance de briga/tiro/PM aparecer, conceito -200 |
+| 30-49% | **Resultado misto** | Venda normal, satisfação +5%, 1 incidente menor obrigatório |
+| < 30% | **Fracasso** | Prejuízo financeiro, satisfação -10%, 1 incidente grave obrigatório, conceito -200 |
+
+**Incidentes menores (resultado misto):**
+- Rolar exatamente `1` incidente:
+
+| Incidente | Chance | Efeito |
+|---|---|---|
+| **Briga generalizada** | 50% | `1-2` jogadores hospitalizados, satisfação -3% adicional |
+| **Tumulto policial** | 30% | calor territorial +10, `1-3` participantes presos |
+| **Fornecedor furou** | 20% | venda real de drogas -50% no baile |
+
+**Incidentes graves (fracasso):**
+- Rolar exatamente `1` incidente:
+
+| Incidente | Chance | Efeito |
+|---|---|---|
+| **Tiroteio** | 40% | `2-5` participantes hospitalizados, satisfação -5% adicional |
+| **Blitz da PM** | 35% | `2-4` participantes presos, calor territorial +15 |
+| **Arrastão interno** | 25% | perda de 20% do estoque preparado para o baile |
 
 ### 11.9 Guerra de Facção
 
@@ -1063,7 +1511,9 @@ Quando uma facção ataca território de outra. Disponível nível 9 (Líder da 
 
 Evento aleatório exclusivo de favelas dominadas. Um morador da favela denuncia outro morador ao "tribunal" da facção. O líder da facção (ou General) deve julgar o caso.
 
-Este é um sistema de **dilema moral com consequências mecânicas**: cada decisão afeta a **moral dos moradores** e/ou a **moral da facção**, e o jogador deve equilibrar ambas.
+Este é um sistema de **dilema moral com consequências mecânicas**: cada decisão afeta a **satisfação dos moradores** e/ou a **satisfação interna da facção**, e o jogador deve equilibrar ambas.
+
+**Definicao de sistema:** neste contexto, referências antigas a **moral da faccao** devem ser lidas como **Satisfacao Interna da Faccao** (ver seção 10.6).
 
 ### 12.2 Frequência
 
@@ -1096,14 +1546,14 @@ Cada caso é gerado aleatoriamente com dois lados (acusador e acusado), cada um 
 Um NPC especial chamado **"Antigão"** (morador antigo e respeitado da favela) sempre intercede antes da decisão. Ele:
 - Dá sua opinião sobre o caso (baseada na verdade — nem sempre o acusador tem razão)
 - Sugere uma punição compatível
-- **Revela dicas sobre o impacto** de cada escolha na moral dos moradores e da facção
+- **Revela dicas sobre o impacto** de cada escolha na satisfação dos moradores e da facção
 - Funciona como um "conselheiro" que ajuda o jogador a tomar decisões informadas
 
 O Antigão **não decide** — apenas aconselha. A decisão é sempre do jogador.
 
 **Fase 3 — Punições Disponíveis:**
 
-| Punição | Descrição | Impacto na Moral dos Moradores | Impacto na Moral da Facção |
+| Punição | Descrição | Impacto na Satisfação dos Moradores | Impacto na Satisfação Interna da Facção |
 |---|---|---|---|
 | **Liberar com aviso** | Apenas conversa e aviso verbal | Depende do caso* | Facção pode ver como fraqueza |
 | **Dar uma surra** | Punição física moderada | Depende do caso* | Neutro a positivo |
@@ -1199,7 +1649,7 @@ O Antigão revela informações cruciais antes da decisão:
 - "A comunidade tá do lado do(a) [acusador/acusado]..." — indica qual lado a comunidade apoia
 - "Se tu liberar esse aí, os crias vão achar que tá amolecendo..." — indica impacto negativo na facção
 - "Essa daí o pessoal não vai perdoar se tu pegar leve..." — indica que comunidade quer punição dura
-- "Toma cuidado, esse moleque tem muito parente aqui dentro..." — indica que punição severa vai reduzir moral dos moradores
+- "Toma cuidado, esse moleque tem muito parente aqui dentro..." — indica que punição severa vai reduzir satisfação dos moradores
 - "Esse caso aí é sério, os moradores tão de olho..." — indica que a decisão terá alto impacto
 
 ### 12.7 Conceito Ganho/Perdido
@@ -1219,13 +1669,30 @@ O jogador ganha ou perde Conceito pessoal baseado na percepção geral:
 - Jogador ataca outro jogador diretamente (precisa estar na mesma região do mapa)
 - Custo: 20% estamina
 - Nível mínimo: 3 (Fogueteiro)
+- Restrições:
+  - não pode atacar jogador com proteção de novato
+  - não pode atacar jogador hospitalizado ou preso
+  - não pode atacar membro da própria facção por este sistema (isso fica para duelo/desafio específico)
+  - mesmo alvo só pode ser atacado novamente após `6h` de jogo
 - Fórmula de poder:
   ```
   Poder = Força + (Resistência / 2) + Arma + Colete + Bônus de Vocação(Soldado: +10%)
   ```
-- Se o atacante tiver **2x o poder** do defensor: **mata o alvo** (hospitalização)
-- Recompensa: ~5% dos atributos do perdedor (ganho para o vencedor)
-- Matar jogador: conceito + chance de dropar itens + dinheiro que a vítima carrega
+- Resolução por faixa de poder:
+
+| Razão Atacante/Defensor | Resultado |
+|---|---|
+| `< 0,90x` | Falha dura: atacante perde 20% HP e ganha `+10` de calor |
+| `0,90x - 1,19x` | Vitória apertada: defensor hospitalizado, sem loot financeiro |
+| `1,20x - 1,99x` | Vitória clara: defensor hospitalizado, atacante rouba `10-25%` do dinheiro carregado |
+| `>= 2,00x` | Abate total: alvo cai em hospitalização pesada e pode sofrer prisão em sequência se estiver quente |
+
+- Recompensa de atributo:
+  - vitória clara ou abate total concede `1-5%` de um atributo primário do perdedor, com teto de `50` pontos por combate
+- Abate total também pode gerar:
+  - conceito
+  - chance de dropar `1` item consumível/carregado
+  - roubo de parte do dinheiro que a vítima carrega
 
 ### 13.2 Emboscada (Facção vs. Jogador)
 
@@ -1234,6 +1701,17 @@ O jogador ganha ou perde Conceito pessoal baseado na percepção geral:
 - Maior chance de matar, mas divide a recompensa
 - Custo: 15% estamina por membro (desconto por grupo)
 - Conceito do grupo é dividido igualmente
+- Regras:
+  - todos os participantes precisam estar na mesma região do alvo
+  - requer autorização de `Soldado` ou superior para participar e de `Gerente` ou superior para iniciar
+  - mesmo alvo não pode sofrer nova emboscada por `12h` de jogo
+- Fórmula de poder do grupo:
+  ```
+  Poder do Grupo = Soma dos poderes individuais × Fator de Coordenação
+  ```
+  - `Fator de Coordenação = 1,00 + 0,05 por membro adicional`, até máximo de `1,20`
+- Recompensas financeiras são divididas proporcionalmente ao poder contribuído
+- Se a emboscada falhar por larga margem (`< 0,85x`), `1-2` membros podem ser hospitalizados ou presos
 
 ### 13.3 Assassinato por Encomenda
 
@@ -1245,6 +1723,16 @@ Disponível a partir do nível 7 (Frente).
 - Recompensa em dinheiro ao completar + conceito
 - O alvo **não sabe** que tem contrato (a menos que tenha informantes — parceiros com nível 7+ podem avisá-lo)
 - Se o assassino falhar: alvo é notificado e pode contra-atacar
+
+**Regras operacionais:**
+- Apenas `1` contrato ativo por alvo ao mesmo tempo
+- A taxa de `10%` é sumidouro do sistema e não é devolvida
+- O valor da recompensa fica retido pelo sistema até sucesso, cancelamento ou expiração
+- Contrato dura `3 dias de jogo`
+- Se ninguém aceitar no prazo, o valor principal volta ao contratante e a taxa é perdida
+- Para contar como execução do contrato, o assassino precisa causar `abate total` no alvo
+- Se falhar, o alvo é notificado de que existe um contrato ativo contra ele, mas não do contratante
+- Após uma falha, o contrato volta ao mural em estado `queimado`, mantendo a recompensa retida até execução ou expiração
 
 ---
 
@@ -1268,6 +1756,19 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 - Calor diminui com o tempo (inatividade criminal)
 - Calor alto: chance de prisão mesmo em crimes fáceis
 
+**Faixas de calor do jogador:**
+
+| Faixa | Nome | Efeito principal |
+|---|---|---|
+| 0-19 | Frio | Sem modificador adicional |
+| 20-39 | Observado | +5% chance de prisão em falhas |
+| 40-59 | Marcado | +10% chance de prisão, suborno -10% eficácia |
+| 60-79 | Quente | +20% chance de prisão, blitz pessoal mais frequente |
+| 80-100 | Caçado | +35% chance de prisão, crimes leves também podem gerar cadeia |
+
+- Calor do jogador é separado do **calor policial territorial** da seção `11.5.1`
+- Crimes violentos, homicídios e roubos de alto impacto escalam calor mais rápido que crimes financeiros
+
 ### 14.3 Tempo de Prisão
 
 | Motivo | Tempo Base (horas de jogo) |
@@ -1279,8 +1780,17 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 | Homicídio (PvP) | 6-10h |
 | Múltiplos homicídios | 12-24h |
 
-- Reduzido com bom Carisma (-10% por 100 pontos de Carisma)
-- Com Plano de Saúde: -50% no tempo
+**Modificadores de pena:**
+- Carisma: `-10%` no tempo por cada `100` pontos completos de Carisma, até máximo de `-30%`
+- Vocação **Político**: `-10%` adicional
+- Calor na faixa `60-79`: `+15%`
+- Calor na faixa `80-100`: `+30%`
+- `Plano de Saúde` **não afeta prisão**; ele só reduz tempo de hospitalização
+
+**Regra final:**
+```
+Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
+```
 
 ### 14.4 Sair da Prisão
 
@@ -1292,6 +1802,26 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 | Fuga | 0 | Variável | Minigame: sucesso = livre, falha = +50% tempo |
 | Resgate da facção | $50.000+ da facção | 1-2h de jogo | Facção organiza operação, risco para participantes |
 
+**Regras detalhadas:**
+- **Suborno**:
+  - disponível apenas para crimes leves, médios, blitz e prisões comuns
+  - indisponível para múltiplos homicídios, guerra de facção e operações BOPE
+  - chance de aceitação:
+    ```
+    35% + (Carisma / 20) + bônus de Político (+10%) - penalidade de calor
+    ```
+  - chance máxima: `90%`
+- **Fiança**:
+  - ignora chance de sucesso
+  - indisponível apenas em prisão gerada por evento narrativo especial da rodada, se houver
+- **Fuga**:
+  - 1 tentativa por prisão
+  - se falhar: `+50%` de tempo restante e `+10` de calor
+- **Resgate da facção**:
+  - requer autorização de `Patrão` ou `General`
+  - só pode ser usado em membros com cargo `Gerente` ou superior, ou em membros envolvidos em defesa/guerra nas últimas `24h` de jogo
+  - sucesso do resgate consome dinheiro da facção e gera `+10` de calor territorial na favela de origem
+
 ### 14.5 Efeitos da Prisão
 
 - Perde conceito (-5% a -15% dependendo do motivo)
@@ -1300,10 +1830,30 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 - Facção perde poder enquanto membros estão presos
 - Soldados contratados continuam cobrando salário
 - Fábricas continuam produzindo (mas sem vender/coletar)
+- Bandidos da favela presos por roubo seguem a lógica da seção `5.3.1`, não esta tabela de prisão do jogador
 
 ---
 
 ## 15. Hospital
+
+### 15.0 Hospitalização
+
+| Motivo | Tempo Base (horas de jogo) |
+|---|---|
+| Derrota em PvP comum | 2-4h |
+| Falha grave em crime violento | 3-6h |
+| Guerra de facção | 4-8h |
+| Overdose | 6-12h |
+| Tiroteio em baile / operação policial | 4-10h |
+
+**Modificadores:**
+- Resistência acima de `500`: `-10%`
+- Casa própria com nível alto: `-10%` no próximo internamento
+- Plano de Saúde: `-75%`, com mínimo de `15 min` de jogo e máximo de `3h`
+
+**Regra prática:**
+- Hospitalização nunca gera cadeia automática por si só
+- Se a origem do dano tiver componente policial, o jogo pode aplicar hospitalização **e** prisão em sequência
 
 ### 15.1 Serviços
 
@@ -1314,7 +1864,7 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 | **Cirurgia Plástica** | Muda aparência/nickname | 5 créditos |
 | **Compra de Stats** | Consumíveis que aumentam atributos permanentes | Varia (caro) |
 | **Tratamento de DST** | Remove DSTs contraídas com GPs | $5.000 |
-| **Plano de Saúde** | Reduz hospitalização de 12h para 15min de jogo | 10 créditos/rodada |
+| **Plano de Saúde** | Reduz hospitalização em 75% (mínimo 15min de jogo) | 10 créditos/rodada |
 
 ### 15.2 Consumíveis de Stat (Hospital)
 
@@ -1470,15 +2020,54 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 |---|---|---|
 | **Operação Policial** | 15%/dia de jogo | Incursão massiva em favela aleatória (pior que X9 normal) |
 | **Blitz da PM** | 20%/dia | Jogadores em certas áreas podem ser presos aleatoriamente |
+| **Faca na Caveira** | Escala com calor territorial alto | Operação do BOPE sem prisioneiros: apreende armas/drogas, mata soldados e bandidos, reduz calor após a incursão |
 | **Seca de Drogas** | 10%/dia | Preço das drogas sobe 50% por 2 dias de jogo |
 | **Delação Premiada** | 5%/dia | NPC delata múltiplas facções, risco de apreensão generalizado |
-| **Saidinha de Natal** | 3%/dia | Todos os jogadores presos são liberados |
+| **Saidinha de Natal** | 3%/dia | Todos os jogadores presos e todos os bandidos presos elegíveis são liberados imediatamente |
 | **Inspeção Trabalhista** | 10%/dia | Produção de fábricas +20% por 1 dia (moradores trabalham mais) |
 | **Bonecas da China** | 8%/dia | GPs rendem 2x por 1 dia (novidades no mercado) |
 | **Ressaca do Baile** | 8%/dia | GPs rendem 50% por 1 dia (morador sem dinheiro pós-baile) |
 | **Tribunal do Tráfico** | Variável | Julgamento na favela (ver seção 12) |
 | **Chuva de Verão** | 15%/dia | Movimentação no mapa mais lenta, crimes de rua -30%, fábricas normais |
 | **Operação Verão** | Sazonal | PM reforçada na Z.Sul, crimes mais arriscados mas mais lucrativos |
+
+#### 17.2.1 Operação Policial
+
+- Rola `1x por dia de jogo` por favela elegível
+- Chance real:
+  - base `15%`
+  - `+10%` se satisfação dos moradores `< 40%`
+  - `+15%` se calor territorial `>= 60`
+  - `-10%` se propina estiver em dia e negociada com desconto
+- Gera aviso prévio curto de `2h` de jogo para a facção dona
+- Impactos:
+  - apreensão de `10-25%` das drogas armazenadas na favela
+  - apreensão de `5-15%` das armas leves
+  - prisão de `5-12%` dos bandidos ativos
+  - prisão de `1-4%` dos soldados destacados
+  - `1` serviço da favela pode ficar `Avariado`
+
+#### 17.2.2 Blitz da PM
+
+- Evento regional, não de favela
+- Afeta principalmente jogadores em deslocamento entre bairros, docas, mercado negro, bailes e pontos de mototáxi
+- Chance base por abordagem:
+  - `5%` para jogador frio
+  - `10%` para jogador observado
+  - `20%` para jogador quente ou caçado
+- Resultados possíveis:
+  - perda de drogas/armas carregadas
+  - prisão curta de `1-3h` de jogo
+  - aumento de `+5 a +15` no calor do jogador
+
+#### 17.2.3 Saidinha de Natal
+
+- Libera imediatamente:
+  - todos os jogadores presos
+  - todos os bandidos da favela presos
+  - todos os retornos agendados para até `10` dias de jogo à frente
+- A soltura não remove calor policial
+- Favela que recebe grande número de bandidos de volta ganha `+5` de satisfação interna da facção e `+10` de calor territorial
 
 ---
 
@@ -1495,6 +2084,7 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 
 **Fontes de renda (da menor para a maior no late-game):**
 - Crimes solo (principal no early game)
+- Roubos de rua e roubos operados por bandidos da favela
 - Tráfico de drogas (rua, boca)
 - Maquininhas de caça-níquel
 - Crimes de facção
@@ -1503,6 +2093,14 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 - Raves/Bailes
 - Serviços de favela (GatoNet, Van, etc.) — **maior fonte no late-game**
 - Lavagem de dinheiro (retorno sobre investimento)
+
+**Fontes de renda da faccao:**
+
+- comissao fixa sobre negocios lucrativos dos membros
+- servicos monopolizados da favela
+- depositos manuais de membros
+- espolio de guerra
+- percentual sobre roubos cometidos por jogadores ou por bandidos da favela
 
 **Drenos de dinheiro (mantém equilíbrio econômico):**
 - Compra e reparo de armas/coletes
@@ -1590,6 +2188,30 @@ Jogadores podem destruir propriedades rivais. Disponível a partir do nível 5 (
 - Pode gerar guerra de facção se o alvo for membro de uma
 - Propriedade destruída precisa ser reconstruída (custo = 50% do valor original)
 
+**Regras de elegibilidade:**
+- O atacante precisa estar na mesma região da propriedade
+- Não pode sabotar propriedade de jogador com proteção de novato
+- Não pode sabotar membro da própria facção ou aliado formal
+- A mesma propriedade só pode sofrer `1` tentativa de sabotagem a cada `12h` de jogo
+
+**Resolução por poder ofensivo vs. defesa da propriedade:**
+
+| Razão Ataque/Defesa | Resultado |
+|---|---|
+| `< 0,85x` | Falha dura: atacante pode ser preso e o dono recebe alerta completo |
+| `0,85x - 1,14x` | Falha limpa: sem dano, mas o dono recebe alerta de tentativa |
+| `1,15x - 1,49x` | **Avaria**: propriedade opera a `50%` até reparo |
+| `>= 1,50x` | **Destruição**: propriedade para em `0%` até reconstrução |
+
+**Custos de recuperação do alvo:**
+- `Avaria`: reparo por `20%` do valor original + `6h` de jogo
+- `Destruição`: reconstrução por `50%` do valor original + `12h` de jogo
+
+**Consequências adicionais:**
+- Falha dura gera `+10` de calor no atacante
+- Sucesso total pode gerar `+5` de calor e `-3% a -8%` de satisfação dos moradores da favela se houver fogo cruzado
+- Se a propriedade sabotada estiver em favela dominada, a facção dona pode tratar o ato como gatilho de retaliação ou guerra
+
 ---
 
 ## 21. Monetização (Modelo Free-to-Play)
@@ -1611,6 +2233,14 @@ O jogo é **free-to-play** com monetização cosmética e de conveniência. **N�
 - Moldura de perfil customizada
 - Tatuagens exclusivas
 
+**Regras de monetização de conveniência:**
+- Itens comprados com créditos nunca podem ser revendidos a outros jogadores
+- Itens comprados com créditos nunca entram como loot de PvP
+- `Fiança instantânea` não funciona contra eventos especiais explicitamente marcados como sem fiança
+- `Mudança de vocação` mantém cooldown global de `24h` de jogo para nova troca
+- `Expansão de inventário` é cumulativa até máximo de `+100` slots por conta
+- `Plano de saúde` vale por `1` rodada inteira
+
 ### 21.3 O que Créditos NÃO Compram
 
 - Armas ou coletes superiores
@@ -1621,6 +2251,9 @@ O jogo é **free-to-play** com monetização cosmética e de conveniência. **N�
 - Impulsos (apenas farmáveis)
 - Soldados mais fortes
 - Drogas
+- Bandidos adicionais
+- Proteção contra guerra, X9 ou BOPE
+- Vantagem oculta em chance de crime, roubo ou PvP
 
 ### 21.4 Obtenção Gratuita de Créditos
 
@@ -1629,6 +2262,11 @@ Jogadores free-to-play podem obter créditos limitados:
 - 5 créditos por terminar no top 10 da rodada
 - 2 créditos por conquista especial (primeira favela, primeira guerra, etc.)
 - 1 crédito por semana real de login consecutivo
+
+**Limites e segurança econômica:**
+- Créditos gratuitos têm teto de `25` por rodada por conta
+- Créditos não podem ser transferidos entre jogadores
+- Não existe loot box paga, gacha paga ou roleta premium com vantagem mecânica
 
 ---
 
@@ -1658,6 +2296,8 @@ Jogadores free-to-play podem obter créditos limitados:
 
 - Primeiros 3 dias de jogo: não pode ser atacado em PvP
 - Primeiros 3 dias de jogo: não pode ter propriedades sabotadas
+- Enquanto a proteção estiver ativa, também não pode iniciar ações de PvP ofensivo
+- O contador corre a partir da criação do personagem
 - Pode cancelar proteção manualmente se quiser (para poder atacar outros)
 
 ---
@@ -1668,7 +2308,7 @@ Seção de referência sobre como jogadores experientes otimizam o jogo.
 
 ### 23.1 Gerenciamento de Estamina
 - Nunca deixar estamina em 100% por muito tempo (é desperdício de regeneração)
-- Usar drogas estrategicamente para manter moral alto sem overdose
+- Usar drogas estrategicamente para manter embalo alto sem overdose
 - Intercalar crimes com tráfico (baixo custo de estamina) para maximizar ganho
 
 ### 23.2 Otimização de Drogas

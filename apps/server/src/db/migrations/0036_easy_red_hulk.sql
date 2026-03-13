@@ -1,0 +1,2 @@
+ALTER TYPE "public"."faction_bank_entry_type" ADD VALUE 'robbery_commission' BEFORE 'service_income';--> statement-breakpoint
+ALTER TYPE "public"."faction_bank_origin_type" ADD VALUE 'robbery' BEFORE 'slot_machine';

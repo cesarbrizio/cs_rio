@@ -1,0 +1,509 @@
+{
+  "frames": [
+    {
+      "filename": "idle_s_0",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_s_0",
+      "frame": {
+        "x": 48,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_s_1",
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_s_2",
+      "frame": {
+        "x": 144,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_s_3",
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_sw_0",
+      "frame": {
+        "x": 0,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_sw_0",
+      "frame": {
+        "x": 48,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_sw_1",
+      "frame": {
+        "x": 96,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_sw_2",
+      "frame": {
+        "x": 144,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_sw_3",
+      "frame": {
+        "x": 192,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_w_0",
+      "frame": {
+        "x": 0,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_w_0",
+      "frame": {
+        "x": 48,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_w_1",
+      "frame": {
+        "x": 96,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_w_2",
+      "frame": {
+        "x": 144,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_w_3",
+      "frame": {
+        "x": 192,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_nw_0",
+      "frame": {
+        "x": 0,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_nw_0",
+      "frame": {
+        "x": 48,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_nw_1",
+      "frame": {
+        "x": 96,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_nw_2",
+      "frame": {
+        "x": 144,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_nw_3",
+      "frame": {
+        "x": 192,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_n_0",
+      "frame": {
+        "x": 0,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_n_0",
+      "frame": {
+        "x": 48,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_n_1",
+      "frame": {
+        "x": 96,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_n_2",
+      "frame": {
+        "x": 144,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_n_3",
+      "frame": {
+        "x": 192,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_ne_0",
+      "frame": {
+        "x": 0,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_ne_0",
+      "frame": {
+        "x": 48,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_ne_1",
+      "frame": {
+        "x": 96,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_ne_2",
+      "frame": {
+        "x": 144,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_ne_3",
+      "frame": {
+        "x": 192,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_e_0",
+      "frame": {
+        "x": 0,
+        "y": 384,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_e_0",
+      "frame": {
+        "x": 48,
+        "y": 384,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_e_1",
+      "frame": {
+        "x": 96,
+        "y": 384,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_e_2",
+      "frame": {
+        "x": 144,
+        "y": 384,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_e_3",
+      "frame": {
+        "x": 192,
+        "y": 384,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "idle_se_0",
+      "frame": {
+        "x": 0,
+        "y": 448,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 220
+    },
+    {
+      "filename": "walk_se_0",
+      "frame": {
+        "x": 48,
+        "y": 448,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_se_1",
+      "frame": {
+        "x": 96,
+        "y": 448,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_se_2",
+      "frame": {
+        "x": 144,
+        "y": 448,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    },
+    {
+      "filename": "walk_se_3",
+      "frame": {
+        "x": 192,
+        "y": 448,
+        "w": 48,
+        "h": 64
+      },
+      "duration": 95
+    }
+  ],
+  "meta": {
+    "app": "generated-for-cs-rio",
+    "frameTags": [
+      {
+        "name": "idle_s",
+        "from": 0,
+        "to": 0,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_s",
+        "from": 1,
+        "to": 4,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_sw",
+        "from": 5,
+        "to": 5,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_sw",
+        "from": 6,
+        "to": 9,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_w",
+        "from": 10,
+        "to": 10,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_w",
+        "from": 11,
+        "to": 14,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_nw",
+        "from": 15,
+        "to": 15,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_nw",
+        "from": 16,
+        "to": 19,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_n",
+        "from": 20,
+        "to": 20,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_n",
+        "from": 21,
+        "to": 24,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_ne",
+        "from": 25,
+        "to": 25,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_ne",
+        "from": 26,
+        "to": 29,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_e",
+        "from": 30,
+        "to": 30,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_e",
+        "from": 31,
+        "to": 34,
+        "direction": "forward"
+      },
+      {
+        "name": "idle_se",
+        "from": 35,
+        "to": 35,
+        "direction": "forward"
+      },
+      {
+        "name": "walk_se",
+        "from": 36,
+        "to": 39,
+        "direction": "forward"
+      }
+    ],
+    "size": {
+      "w": 240,
+      "h": 512
+    }
+  }
+}

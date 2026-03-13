@@ -1,0 +1,66 @@
+{
+  "name": "territory-ready",
+  "description": "Jogador, facção e uma favela preparados para testar território.",
+  "extends": ["starter-pack"],
+  "defaults": {
+    "bocaDrugCode": "maconha",
+    "factionBankMoney": 350000,
+    "factionCode": "cv",
+    "factionInternalSatisfaction": 72,
+    "factionPoints": 1200,
+    "favelaBandits": 160,
+    "favelaCode": "complexo_da_penha",
+    "favelaMaxSoldiers": 55,
+    "favelaSatisfaction": 65,
+    "propertyCash": 5000,
+    "propertyLevel": 2,
+    "propertySoldiers": 8,
+    "regionId": "zona_norte"
+  },
+  "requires": ["player"],
+  "steps": [
+    {
+      "kind": "world",
+      "description": "Coloca o jogador na facção e ajusta o caixa mínimo da operação.",
+      "selector": {
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "join-faction", "value": "$factionCode" },
+        { "type": "set-rank", "value": "gerente" },
+        { "type": "set-faction-bank-money", "value": "$factionBankMoney" },
+        { "type": "set-faction-points", "value": "$factionPoints" },
+        { "type": "set-faction-internal-satisfaction", "value": "$factionInternalSatisfaction" }
+      ]
+    },
+    {
+      "kind": "world",
+      "description": "Entrega uma favela funcional para a facção do jogador.",
+      "selector": {
+        "favelaCode": "$favelaCode"
+      },
+      "commands": [
+        { "type": "set-favela-controller", "value": "$factionCode" },
+        { "type": "set-favela-state", "value": "controlled" },
+        { "type": "set-favela-satisfaction", "value": "$favelaSatisfaction" },
+        { "type": "set-bandits", "value": "$favelaBandits" },
+        { "type": "set-max-soldiers", "value": "$favelaMaxSoldiers" }
+      ]
+    },
+    {
+      "kind": "world",
+      "description": "Entrega uma boca mínima para testar o ciclo local.",
+      "selector": {
+        "favelaCode": "$favelaCode",
+        "player": "$player"
+      },
+      "commands": [
+        { "type": "grant-property", "value": "boca" },
+        { "type": "set-property-level", "value": "$propertyLevel" },
+        { "type": "set-property-soldiers", "value": "$propertySoldiers" },
+        { "type": "set-property-cash", "value": "$propertyCash" },
+        { "type": "set-boca-stock", "drugCodeOrId": "$bocaDrugCode", "quantity": 20 }
+      ]
+    }
+  ]
+}

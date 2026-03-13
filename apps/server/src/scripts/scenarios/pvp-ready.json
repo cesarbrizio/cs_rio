@@ -1,0 +1,15 @@
+{
+  "name": "pvp-ready",
+  "description": "Kit e progressão prontos para testar porrada e emboscada.",
+  "extends": ["starter-pack"],
+  "defaults": {
+    "bankMoney": 250000,
+    "conceito": 8000,
+    "level": 6,
+    "money": 350000,
+    "regionId": "zona_norte",
+    "vestCode": "colete_militar",
+    "weaponCode": "fuzil_ak_47"
+  },
+  "requires": ["player"]
+}
