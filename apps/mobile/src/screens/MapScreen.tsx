@@ -94,8 +94,8 @@ export function MapScreen(): JSX.Element {
       <View style={styles.mapBoard}>
         <ImageBackground imageStyle={styles.mapImage} source={rjMapSource} style={styles.mapImageFrame}>
           <View style={styles.mapScrim} />
-          <View style={styles.mapHeader}>
-            <View style={[styles.mapBadge, styles.currentBadge]}>
+          <View pointerEvents="box-none" style={styles.mapHeader}>
+            <View pointerEvents="none" style={[styles.mapBadge, styles.currentBadge]}>
               <Text style={styles.mapBadgeEyebrow}>Você está aqui</Text>
               <Text style={styles.mapBadgeLabel}>{currentRegion?.label ?? 'Região atual'}</Text>
             </View>
