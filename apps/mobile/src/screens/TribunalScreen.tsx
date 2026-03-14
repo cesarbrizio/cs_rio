@@ -14,6 +14,7 @@ import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -200,7 +201,7 @@ export function TribunalScreen(): JSX.Element {
 
       const message = `Julgamento concluído: ${resolveTribunalJudgmentReadLabel(response.judgment.read)}.`;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setFeedbackMessage(null);
     } catch (error) {
       const message = formatApiError(error).message;
       setBootstrapStatus(message);
@@ -216,7 +217,6 @@ export function TribunalScreen(): JSX.Element {
     setBootstrapStatus,
   ]);
 
-  const judgmentSummary = lastJudgment;
   const punishmentInsights = useMemo(() => {
     if (!activeCase) {
       return [];
@@ -495,6 +495,29 @@ export function TribunalScreen(): JSX.Element {
                     ) : (
                       <Text style={styles.optionCopy}>Sem leitura detalhada para essa punição.</Text>
                     )}
+
+                    {isSelected && !activeCase.judgedAt ? (
+                      <View style={styles.inlineActionCard}>
+                        <Text style={styles.helperCopy}>
+                          Ao bater o martelo, o julgamento é resolvido imediatamente com esta punição e os impactos de moradores, facção e conceito são aplicados na hora.
+                        </Text>
+                        <Pressable
+                          disabled={!selectedPunishment || isJudging}
+                          onPress={() => {
+                            void handleJudgeCase();
+                          }}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            (!selectedPunishment || isJudging) ? styles.primaryButtonDisabled : null,
+                            pressed ? styles.buttonPressed : null,
+                          ]}
+                        >
+                          <Text style={styles.primaryButtonLabel}>
+                            {isJudging ? 'Julgando...' : 'Bater o martelo'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
                   </Pressable>
                 );
               })}
@@ -502,24 +525,6 @@ export function TribunalScreen(): JSX.Element {
           </View>
 
           <View style={styles.primaryActionRow}>
-            {!activeCase.judgedAt ? (
-              <Pressable
-                disabled={!selectedPunishment || isJudging}
-                onPress={() => {
-                  void handleJudgeCase();
-                }}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  (!selectedPunishment || isJudging) ? styles.primaryButtonDisabled : null,
-                  pressed ? styles.buttonPressed : null,
-                ]}
-              >
-                <Text style={styles.primaryButtonLabel}>
-                  {isJudging ? 'Julgando...' : 'Bater o martelo'}
-                </Text>
-              </Pressable>
-            ) : null}
-
             <Pressable
               disabled={isGenerating}
               onPress={() => {
@@ -534,29 +539,16 @@ export function TribunalScreen(): JSX.Element {
             </Pressable>
           </View>
 
-          {judgmentSummary ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Resultado do julgamento</Text>
-              <View style={styles.resultCard}>
-                <Text style={styles.resultTitle}>
-                  {resolveTribunalJudgmentReadLabel(judgmentSummary.read)}
-                </Text>
-                <Text style={styles.resultCopy}>{judgmentSummary.summary}</Text>
-                <View style={styles.metricRow}>
-                  <MetricPill label="Conceito" value={formatSignedDelta(judgmentSummary.conceitoDelta)} />
-                  <MetricPill label="Moradores" value={formatSignedDelta(judgmentSummary.moradoresImpact)} />
-                  <MetricPill label="Facção" value={formatSignedDelta(judgmentSummary.faccaoImpact)} />
-                </View>
-                <View style={styles.metricRow}>
-                  <MetricPill label="Favela agora" value={`${judgmentSummary.favelaSatisfactionAfter}`} />
-                  <MetricPill label="Facção agora" value={`${judgmentSummary.factionInternalSatisfactionAfter}`} />
-                  <MetricPill label="Conceito total" value={`${judgmentSummary.conceitoAfter}`} />
-                </View>
-              </View>
-            </View>
-          ) : null}
         </>
       ) : null}
+
+      <JudgmentResultModal
+        judgment={lastJudgment}
+        onClose={() => {
+          setLastJudgment(null);
+        }}
+        visible={lastJudgment !== null}
+      />
     </InGameScreenLayout>
   );
 }
@@ -703,6 +695,50 @@ function formatSignedDelta(value: number): string {
   return `${value}`;
 }
 
+function JudgmentResultModal({
+  judgment,
+  onClose,
+  visible,
+}: {
+  judgment: TribunalJudgmentSummary | null;
+  onClose: () => void;
+  visible: boolean;
+}): JSX.Element | null {
+  if (!judgment) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalEyebrow}>Resultado do julgamento</Text>
+          <Text style={styles.modalTitle}>
+            {resolveTribunalJudgmentReadLabel(judgment.read)}
+          </Text>
+          <Text style={styles.modalCopy}>{judgment.summary}</Text>
+          <View style={styles.metricRow}>
+            <MetricPill label="Conceito" value={formatSignedDelta(judgment.conceitoDelta)} />
+            <MetricPill label="Moradores" value={formatSignedDelta(judgment.moradoresImpact)} />
+            <MetricPill label="Facção" value={formatSignedDelta(judgment.faccaoImpact)} />
+          </View>
+          <View style={styles.metricRow}>
+            <MetricPill label="Favela agora" value={`${judgment.favelaSatisfactionAfter}`} />
+            <MetricPill label="Facção agora" value={`${judgment.factionInternalSatisfactionAfter}`} />
+            <MetricPill label="Conceito total" value={`${judgment.conceitoAfter}`} />
+          </View>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.primaryButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   banner: {
     borderRadius: 18,
@@ -816,6 +852,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 22,
   },
+  inlineActionCard: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 10,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
   loadingCard: {
     alignItems: 'center',
     backgroundColor: colors.panel,
@@ -837,6 +883,40 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    width: '100%',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  modalTitle: {
+    color: colors.success,
+    fontSize: 22,
+    fontWeight: '800',
   },
   metricPill: {
     backgroundColor: colors.panelAlt,

@@ -3,6 +3,7 @@ import { type CharacterAppearance, type HospitalStatItemCode, VocationType } fro
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -50,7 +51,8 @@ export function HospitalScreen(): JSX.Element {
     'detox' | 'dstTreatment' | 'healthPlan' | 'statItem' | 'surgery' | 'treatment' | null
   >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultTone, setResultTone] = useState<'danger' | 'info'>('info');
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [appearanceDraft, setAppearanceDraft] = useState<CharacterAppearance>({
     hair: 'corte_curto',
@@ -138,21 +140,8 @@ export function HospitalScreen(): JSX.Element {
     },
   ) => {
     setIsMutating(true);
-    setFeedbackMessage(null);
+    setResultMessage(null);
     setPendingAction(action);
-    setFeedbackMessage(
-      action === 'treatment'
-        ? 'Aplicando tratamento agora...'
-        : action === 'detox'
-          ? 'Iniciando desintoxicação...'
-          : action === 'dstTreatment'
-            ? 'Preparando tratamento de DST...'
-            : action === 'healthPlan'
-              ? 'Ativando plano de saúde...'
-              : action === 'statItem'
-                ? 'Separando consumível hospitalar...'
-                : 'Aplicando cirurgia no personagem...',
-    );
 
     try {
       const response =
@@ -171,11 +160,13 @@ export function HospitalScreen(): JSX.Element {
       setCenter(response);
       await refreshPlayerProfile();
       setBootstrapStatus(response.message);
-      setFeedbackMessage(response.message);
+      setResultTone('info');
+      setResultMessage(response.message);
     } catch (error) {
       const message = formatApiError(error).message;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
     } finally {
       setIsMutating(false);
       setPendingAction(null);
@@ -218,13 +209,6 @@ export function HospitalScreen(): JSX.Element {
           onPress={() => {
             void loadHospitalCenter();
           }}
-        />
-      ) : null}
-
-      {feedbackMessage ? (
-        <Banner
-          message={feedbackMessage}
-          tone={feedbackMessage.toLowerCase().includes('falha') ? 'danger' : 'info'}
         />
       ) : null}
 
@@ -413,6 +397,15 @@ export function HospitalScreen(): JSX.Element {
           </Pressable>
         </View>
       </View>
+
+      <MutationResultModal
+        message={resultMessage}
+        onClose={() => {
+          setResultMessage(null);
+        }}
+        tone={resultTone}
+        visible={Boolean(resultMessage)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -570,6 +563,39 @@ function Banner({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.primaryButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -871,6 +897,39 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     fontWeight: '800',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
   },
   summaryCard: {
     backgroundColor: colors.panel,
