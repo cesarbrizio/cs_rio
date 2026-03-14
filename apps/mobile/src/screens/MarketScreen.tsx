@@ -7,7 +7,7 @@ import {
   type PlayerInventoryItem,
 } from '@cs-rio/shared';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { type NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { type RootStackParamList } from '../../App';
@@ -484,8 +484,6 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
         </SectionCard>
       ) : null}
 
-      {feedback ? <Banner copy={feedback} tone="success" /> : null}
-      {error ? <Banner copy={error} tone="danger" /> : null}
       {isLoading ? <Banner copy="Atualizando mercado, leilões e inventário..." tone="neutral" /> : null}
 
       {activeTab === 'buy' ? (
@@ -505,49 +503,49 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
                       setSelectedBuyOrderId(order.id);
                     }}
                     order={order}
-                  />
+                  >
+                    {selectedBuyOrder?.id === order.id ? (
+                      <View style={styles.tradeCard}>
+                        <Text style={styles.tradeTitle}>{order.itemName}</Text>
+                        <Text style={styles.tradeCopy}>
+                          Preco alvo {formatMarketCurrency(order.pricePerUnit)} · restante {order.remainingQuantity}x
+                        </Text>
+                        <Text style={styles.tradeHint}>
+                          {order.sourceType === 'system'
+                            ? `Origem: ${order.sourceLabel ?? 'Fornecedor da rodada'}`
+                            : 'Origem: anúncio de outro jogador'}
+                        </Text>
+                        <TextInput
+                          keyboardType="number-pad"
+                          onChangeText={setBuyQuantityInput}
+                          placeholder="Quantidade"
+                          placeholderTextColor={colors.muted}
+                          style={styles.numericInput}
+                          value={buyQuantityInput}
+                        />
+                        <Pressable
+                          disabled={isSubmitting}
+                          onPress={() => {
+                            void handleBuy();
+                          }}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            isSubmitting ? styles.primaryButtonDisabled : null,
+                            pressed ? styles.buttonPressed : null,
+                          ]}
+                        >
+                          <Text style={styles.primaryButtonLabel}>
+                            {isSubmitting ? 'Processando...' : 'Comprar agora'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </OrderCard>
                 ))}
               </View>
             ) : (
               <EmptyState copy="Ainda não há ofertas ativas para este filtro. O livro mistura anúncios de jogadores e lotes limitados do fornecedor da rodada." />
             )}
-
-            {selectedBuyOrder ? (
-              <View style={styles.tradeCard}>
-                <Text style={styles.tradeTitle}>{selectedBuyOrder.itemName}</Text>
-                <Text style={styles.tradeCopy}>
-                  Preco alvo {formatMarketCurrency(selectedBuyOrder.pricePerUnit)} · restante {selectedBuyOrder.remainingQuantity}x
-                </Text>
-                <Text style={styles.tradeHint}>
-                  {selectedBuyOrder.sourceType === 'system'
-                    ? `Origem: ${selectedBuyOrder.sourceLabel ?? 'Fornecedor da rodada'}`
-                    : 'Origem: anúncio de outro jogador'}
-                </Text>
-                <TextInput
-                  keyboardType="number-pad"
-                  onChangeText={setBuyQuantityInput}
-                  placeholder="Quantidade"
-                  placeholderTextColor={colors.muted}
-                  style={styles.numericInput}
-                  value={buyQuantityInput}
-                />
-                <Pressable
-                  disabled={isSubmitting}
-                  onPress={() => {
-                    void handleBuy();
-                  }}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    isSubmitting ? styles.primaryButtonDisabled : null,
-                    pressed ? styles.buttonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonLabel}>
-                    {isSubmitting ? 'Processando...' : 'Comprar agora'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
           </SectionCard>
 
           <SectionCard
@@ -596,56 +594,56 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
                   onPress={() => {
                     setSelectedInventoryItemId(item.id);
                   }}
-                />
+                >
+                  {selectedInventoryItem?.id === item.id ? (
+                    <View style={styles.tradeCard}>
+                      <Text style={styles.tradeTitle}>{item.itemName ?? item.itemType}</Text>
+                      <Text style={styles.tradeCopy}>
+                        Quantidade disponível {item.quantity}x · proficiência {item.proficiency}
+                      </Text>
+                      <TextInput
+                        editable={item.stackable}
+                        keyboardType="number-pad"
+                        onChangeText={setSellQuantityInput}
+                        placeholder="Quantidade"
+                        placeholderTextColor={colors.muted}
+                        style={[
+                          styles.numericInput,
+                          !item.stackable ? styles.numericInputDisabled : null,
+                        ]}
+                        value={item.stackable ? sellQuantityInput : '1'}
+                      />
+                      <TextInput
+                        keyboardType="decimal-pad"
+                        onChangeText={setSellPriceInput}
+                        placeholder="Preço unitário"
+                        placeholderTextColor={colors.muted}
+                        style={styles.numericInput}
+                        value={sellPriceInput}
+                      />
+                      <Pressable
+                        disabled={isSubmitting}
+                        onPress={() => {
+                          void handleSell();
+                        }}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          isSubmitting ? styles.primaryButtonDisabled : null,
+                          pressed ? styles.buttonPressed : null,
+                        ]}
+                      >
+                        <Text style={styles.primaryButtonLabel}>
+                          {isSubmitting ? 'Publicando...' : 'Anunciar no mercado'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </InventoryItemCard>
               ))}
             </View>
           ) : (
             <EmptyState copy="Nenhum item elegivel para venda foi encontrado com os filtros atuais." />
           )}
-
-          {selectedInventoryItem ? (
-            <View style={styles.tradeCard}>
-              <Text style={styles.tradeTitle}>{selectedInventoryItem.itemName ?? selectedInventoryItem.itemType}</Text>
-              <Text style={styles.tradeCopy}>
-                Quantidade disponível {selectedInventoryItem.quantity}x · proficiência {selectedInventoryItem.proficiency}
-              </Text>
-              <TextInput
-                editable={selectedInventoryItem.stackable}
-                keyboardType="number-pad"
-                onChangeText={setSellQuantityInput}
-                placeholder="Quantidade"
-                placeholderTextColor={colors.muted}
-                style={[
-                  styles.numericInput,
-                  !selectedInventoryItem.stackable ? styles.numericInputDisabled : null,
-                ]}
-                value={selectedInventoryItem.stackable ? sellQuantityInput : '1'}
-              />
-              <TextInput
-                keyboardType="decimal-pad"
-                onChangeText={setSellPriceInput}
-                placeholder="Preço unitário"
-                placeholderTextColor={colors.muted}
-                style={styles.numericInput}
-                value={sellPriceInput}
-              />
-              <Pressable
-                disabled={isSubmitting}
-                onPress={() => {
-                  void handleSell();
-                }}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  isSubmitting ? styles.primaryButtonDisabled : null,
-                  pressed ? styles.buttonPressed : null,
-                ]}
-              >
-                <Text style={styles.primaryButtonLabel}>
-                  {isSubmitting ? 'Publicando...' : 'Anunciar no mercado'}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
         </SectionCard>
       ) : null}
 
@@ -693,44 +691,44 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
                     onPress={() => {
                       setSelectedAuctionId(auction.id);
                     }}
-                  />
+                  >
+                    {selectedAuction?.id === auction.id ? (
+                      <View style={styles.tradeCard}>
+                        <Text style={styles.tradeTitle}>{auction.itemName}</Text>
+                        <Text style={styles.tradeCopy}>
+                          Lance atual {formatMarketCurrency(auction.currentBid ?? auction.startingBid)} · próximo mínimo {formatMarketCurrency(auction.minNextBid)} · termina em {formatAuctionCountdown(auction.endsAt, auctionNowMs)}
+                        </Text>
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          onChangeText={setAuctionBidInput}
+                          placeholder="Seu lance"
+                          placeholderTextColor={colors.muted}
+                          style={styles.numericInput}
+                          value={auctionBidInput}
+                        />
+                        <Pressable
+                          disabled={isSubmitting}
+                          onPress={() => {
+                            void handleBidAuction();
+                          }}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            isSubmitting ? styles.primaryButtonDisabled : null,
+                            pressed ? styles.buttonPressed : null,
+                          ]}
+                        >
+                          <Text style={styles.primaryButtonLabel}>
+                            {isSubmitting ? 'Enviando lance...' : 'Dar lance'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </AuctionCard>
                 ))}
               </View>
             ) : (
               <EmptyState copy="Nenhum leilão aberto bateu com os filtros atuais." />
             )}
-
-            {selectedAuction ? (
-              <View style={styles.tradeCard}>
-                <Text style={styles.tradeTitle}>{selectedAuction.itemName}</Text>
-                <Text style={styles.tradeCopy}>
-                  Lance atual {formatMarketCurrency(selectedAuction.currentBid ?? selectedAuction.startingBid)} · próximo mínimo {formatMarketCurrency(selectedAuction.minNextBid)} · termina em {formatAuctionCountdown(selectedAuction.endsAt, auctionNowMs)}
-                </Text>
-                <TextInput
-                  keyboardType="decimal-pad"
-                  onChangeText={setAuctionBidInput}
-                  placeholder="Seu lance"
-                  placeholderTextColor={colors.muted}
-                  style={styles.numericInput}
-                  value={auctionBidInput}
-                />
-                <Pressable
-                  disabled={isSubmitting}
-                  onPress={() => {
-                    void handleBidAuction();
-                  }}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    isSubmitting ? styles.primaryButtonDisabled : null,
-                    pressed ? styles.buttonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonLabel}>
-                    {isSubmitting ? 'Enviando lance...' : 'Dar lance'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
           </SectionCard>
 
           <SectionCard
@@ -748,60 +746,60 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
                     onPress={() => {
                       setSelectedAuctionInventoryItemId(item.id);
                     }}
-                  />
+                  >
+                    {selectedAuctionInventoryItem?.id === item.id ? (
+                      <View style={styles.tradeCard}>
+                        <Text style={styles.tradeTitle}>{item.itemName ?? item.itemType}</Text>
+                        <Text style={styles.tradeCopy}>
+                          Prof {item.proficiency} · durabilidade {item.durability ?? '--'}/{item.maxDurability ?? '--'}
+                        </Text>
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          onChangeText={setAuctionStartInput}
+                          placeholder="Lance inicial"
+                          placeholderTextColor={colors.muted}
+                          style={styles.numericInput}
+                          value={auctionStartInput}
+                        />
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          onChangeText={setAuctionBuyoutInput}
+                          placeholder="Compra imediata (opcional)"
+                          placeholderTextColor={colors.muted}
+                          style={styles.numericInput}
+                          value={auctionBuyoutInput}
+                        />
+                        <TextInput
+                          keyboardType="number-pad"
+                          onChangeText={setAuctionDurationInput}
+                          placeholder="Duração em minutos"
+                          placeholderTextColor={colors.muted}
+                          style={styles.numericInput}
+                          value={auctionDurationInput}
+                        />
+                        <Pressable
+                          disabled={isSubmitting}
+                          onPress={() => {
+                            void handleCreateAuction();
+                          }}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            isSubmitting ? styles.primaryButtonDisabled : null,
+                            pressed ? styles.buttonPressed : null,
+                          ]}
+                        >
+                          <Text style={styles.primaryButtonLabel}>
+                            {isSubmitting ? 'Publicando...' : 'Criar leilão'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </InventoryItemCard>
                 ))}
               </View>
             ) : (
               <EmptyState copy="Nenhum equipamento apto para leilão foi encontrado. O sistema aceita apenas armas e coletes não empilháveis e fora de uso." />
             )}
-
-            {selectedAuctionInventoryItem ? (
-              <View style={styles.tradeCard}>
-                <Text style={styles.tradeTitle}>{selectedAuctionInventoryItem.itemName ?? selectedAuctionInventoryItem.itemType}</Text>
-                <Text style={styles.tradeCopy}>
-                  Prof {selectedAuctionInventoryItem.proficiency} · durabilidade {selectedAuctionInventoryItem.durability ?? '--'}/{selectedAuctionInventoryItem.maxDurability ?? '--'}
-                </Text>
-                <TextInput
-                  keyboardType="decimal-pad"
-                  onChangeText={setAuctionStartInput}
-                  placeholder="Lance inicial"
-                  placeholderTextColor={colors.muted}
-                  style={styles.numericInput}
-                  value={auctionStartInput}
-                />
-                <TextInput
-                  keyboardType="decimal-pad"
-                  onChangeText={setAuctionBuyoutInput}
-                  placeholder="Compra imediata (opcional)"
-                  placeholderTextColor={colors.muted}
-                  style={styles.numericInput}
-                  value={auctionBuyoutInput}
-                />
-                <TextInput
-                  keyboardType="number-pad"
-                  onChangeText={setAuctionDurationInput}
-                  placeholder="Duração em minutos"
-                  placeholderTextColor={colors.muted}
-                  style={styles.numericInput}
-                  value={auctionDurationInput}
-                />
-                <Pressable
-                  disabled={isSubmitting}
-                  onPress={() => {
-                    void handleCreateAuction();
-                  }}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    isSubmitting ? styles.primaryButtonDisabled : null,
-                    pressed ? styles.buttonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.primaryButtonLabel}>
-                    {isSubmitting ? 'Publicando...' : 'Criar leilão'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
           </SectionCard>
 
           <SectionCard
@@ -830,6 +828,16 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
           </SectionCard>
         </>
       ) : null}
+
+      <MutationResultModal
+        message={error ?? feedback}
+        onClose={() => {
+          setError(null);
+          setFeedback(null);
+        }}
+        tone={error ? 'danger' : 'info'}
+        visible={Boolean(error ?? feedback)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -945,11 +953,13 @@ function EmptyState({ copy }: { copy: string }): JSX.Element {
 function AuctionCard({
   accent,
   auction,
+  children,
   countdown,
   onPress,
 }: {
   accent: boolean;
   auction: MarketAuctionSummary;
+  children?: ReactNode;
   countdown: string;
   onPress?: () => void;
 }): JSX.Element {
@@ -975,6 +985,7 @@ function AuctionCard({
           <Text style={styles.statusBadgeLabel}>{countdown}</Text>
         </View>
       </View>
+      {children}
     </Pressable>
   );
 }
@@ -982,12 +993,14 @@ function AuctionCard({
 function OrderCard({
   actionLabel,
   accent,
+  children,
   onAction,
   onPress,
   order,
 }: {
   actionLabel?: string;
   accent: boolean;
+  children?: ReactNode;
   onAction?: () => void;
   onPress?: () => void;
   order: MarketOrderSummary;
@@ -1031,6 +1044,7 @@ function OrderCard({
           <Text style={styles.secondaryButtonLabel}>{actionLabel}</Text>
         </Pressable>
       ) : null}
+      {children}
     </Pressable>
   );
 }
@@ -1038,12 +1052,14 @@ function OrderCard({
 function InventoryItemCard({
   actionLabel,
   accent,
+  children,
   item,
   onAction,
   onPress,
 }: {
   actionLabel?: string;
   accent: boolean;
+  children?: ReactNode;
   item: PlayerInventoryItem;
   onAction?: () => void;
   onPress?: () => void;
@@ -1084,7 +1100,41 @@ function InventoryItemCard({
           <Text style={styles.secondaryButtonLabel}>{actionLabel}</Text>
         </Pressable>
       ) : null}
+      {children}
     </Pressable>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.modalButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1368,6 +1418,54 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '900',
     textTransform: 'uppercase',
   },
   emptyState: {

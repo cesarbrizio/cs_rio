@@ -69,6 +69,7 @@ export function TerritoryScreen(): JSX.Element {
   const [selectedBaileTier, setSelectedBaileTier] = useState<FavelaBaileMcTier>('regional');
   const [warBudgetInput, setWarBudgetInput] = useState('25000');
   const [warSoldierCommitmentInput, setWarSoldierCommitmentInput] = useState('6');
+  const [expandedActionId, setExpandedActionId] = useState<'conquer' | 'declare-war' | 'propina' | 'x9' | null>(null);
 
   const playerFactionId = overview?.playerFactionId ?? player?.faction?.id ?? null;
   const headlineStats = useMemo(
@@ -241,6 +242,10 @@ export function TerritoryScreen(): JSX.Element {
     setSelectedFavelaId(nextFavela.id);
     void loadFavelaDetail(nextFavela.id);
   }, [loadFavelaDetail, overview?.favelas, route.params?.focusFavelaId, selectedFavelaId]);
+
+  useEffect(() => {
+    setExpandedActionId(null);
+  }, [selectedFavelaId]);
 
   const runMutation = useCallback(
     async (
@@ -544,6 +549,134 @@ export function TerritoryScreen(): JSX.Element {
                   <Text style={styles.favelaMeta}>
                     {resolveSatisfactionTierLabel(favela.satisfactionProfile.tier)} · Pop. {favela.population.toLocaleString('pt-BR')}
                   </Text>
+
+                  {favela.id === selectedFavela?.id ? (
+                    <>
+                      <View style={styles.actionRow}>
+                        {(favela.state === 'neutral' || favela.state === 'state') ? (
+                          <ActionButton
+                            disabled={isMutating}
+                            label="Conquistar"
+                            onPress={() => {
+                              setExpandedActionId((current) => (current === 'conquer' ? null : 'conquer'));
+                            }}
+                            tone="accent"
+                          />
+                        ) : null}
+                        {favela.state === 'controlled' &&
+                        favela.controllingFaction?.id !== playerFactionId ? (
+                          <ActionButton
+                            disabled={isMutating}
+                            label="Declarar guerra"
+                            onPress={() => {
+                              setExpandedActionId((current) => (current === 'declare-war' ? null : 'declare-war'));
+                            }}
+                            tone="danger"
+                          />
+                        ) : null}
+                        {favela.propina?.canNegotiate ? (
+                          <ActionButton
+                            disabled={isMutating}
+                            label="Negociar arrego"
+                            onPress={() => {
+                              setExpandedActionId((current) => (current === 'propina' ? null : 'propina'));
+                            }}
+                            tone="warning"
+                          />
+                        ) : null}
+                        {favela.x9?.canAttemptDesenrolo ? (
+                          <ActionButton
+                            disabled={isMutating}
+                            label="Desenrolo"
+                            onPress={() => {
+                              setExpandedActionId((current) => (current === 'x9' ? null : 'x9'));
+                            }}
+                            tone="warning"
+                          />
+                        ) : null}
+                      </View>
+
+                      {expandedActionId === 'conquer' ? (
+                        <View style={styles.inlineActionCard}>
+                          <Text style={styles.detailTitle}>Tomada da favela</Text>
+                          <Text style={styles.detailCopy}>
+                            A ação vai abrir uma invasão imediata para disputar {favela.name}. Se o backend aceitar, o ataque entra na fila autoritativa na hora.
+                          </Text>
+                          <View style={styles.actionRow}>
+                            <ActionButton
+                              disabled={isMutating}
+                              label="Confirmar conquista"
+                              onPress={() => {
+                                setExpandedActionId(null);
+                                void handleConquer();
+                              }}
+                              tone="accent"
+                            />
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {expandedActionId === 'declare-war' ? (
+                        <View style={styles.inlineActionCard}>
+                          <Text style={styles.detailTitle}>Abrir guerra formal</Text>
+                          <Text style={styles.detailCopy}>
+                            Isso formaliza o conflito por {favela.name}. O backend ainda valida cargo, saldo e elegibilidade antes de aceitar a guerra.
+                          </Text>
+                          <View style={styles.actionRow}>
+                            <ActionButton
+                              disabled={isMutating}
+                              label="Confirmar guerra"
+                              onPress={() => {
+                                setExpandedActionId(null);
+                                void handleDeclareWar();
+                              }}
+                              tone="danger"
+                            />
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {expandedActionId === 'propina' ? (
+                        <View style={styles.inlineActionCard}>
+                          <Text style={styles.detailTitle}>Negociar arrego</Text>
+                          <Text style={styles.detailCopy}>
+                            A negociação tenta aliviar a pressão policial atual em {favela.name}. O efeito e o custo finais continuam sendo decididos pelo backend.
+                          </Text>
+                          <View style={styles.actionRow}>
+                            <ActionButton
+                              disabled={isMutating}
+                              label="Confirmar arrego"
+                              onPress={() => {
+                                setExpandedActionId(null);
+                                void handleNegotiatePropina();
+                              }}
+                              tone="warning"
+                            />
+                          </View>
+                        </View>
+                      ) : null}
+
+                      {expandedActionId === 'x9' ? (
+                        <View style={styles.inlineActionCard}>
+                          <Text style={styles.detailTitle}>Tentar desenrolo</Text>
+                          <Text style={styles.detailCopy}>
+                            O desenrolo tenta neutralizar o evento de X9 em {favela.name}. A tentativa pode falhar e o servidor continua autoritativo no resultado.
+                          </Text>
+                          <View style={styles.actionRow}>
+                            <ActionButton
+                              disabled={isMutating}
+                              label="Confirmar desenrolo"
+                              onPress={() => {
+                                setExpandedActionId(null);
+                                void handleX9Desenrolo();
+                              }}
+                              tone="warning"
+                            />
+                          </View>
+                        </View>
+                      ) : null}
+                    </>
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -599,49 +732,6 @@ export function TerritoryScreen(): JSX.Element {
                   </View>
                 )}
 
-                <View style={styles.actionRow}>
-                  {(selectedFavela.state === 'neutral' || selectedFavela.state === 'state') ? (
-                    <ActionButton
-                      disabled={isMutating}
-                      label="Conquistar"
-                      onPress={() => {
-                        void handleConquer();
-                      }}
-                      tone="accent"
-                    />
-                  ) : null}
-                  {selectedFavela.state === 'controlled' &&
-                  selectedFavela.controllingFaction?.id !== playerFactionId ? (
-                    <ActionButton
-                      disabled={isMutating}
-                      label="Declarar guerra"
-                      onPress={() => {
-                        void handleDeclareWar();
-                      }}
-                      tone="danger"
-                    />
-                  ) : null}
-                  {selectedFavela.propina?.canNegotiate ? (
-                    <ActionButton
-                      disabled={isMutating}
-                      label="Negociar arrego"
-                      onPress={() => {
-                        void handleNegotiatePropina();
-                      }}
-                      tone="warning"
-                    />
-                  ) : null}
-                  {selectedFavela.x9?.canAttemptDesenrolo ? (
-                    <ActionButton
-                      disabled={isMutating}
-                      label="Desenrolo"
-                      onPress={() => {
-                        void handleX9Desenrolo();
-                      }}
-                      tone="warning"
-                    />
-                  ) : null}
-                </View>
               </View>
 
               <View style={styles.section}>
@@ -1400,6 +1490,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '800',
+  },
+  inlineActionCard: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 8,
+    padding: 12,
   },
   formCard: {
     backgroundColor: colors.panelAlt,

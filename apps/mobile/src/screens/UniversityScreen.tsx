@@ -2,7 +2,7 @@ import { type UniversityCenterResponse, type UniversityCourseCode, VocationType 
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
@@ -33,7 +33,8 @@ export function UniversityScreen(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultTone, setResultTone] = useState<'danger' | 'info'>('info');
   const activeCourseId = center?.activeCourse?.code ?? null;
 
   const loadUniversityCenter = useCallback(async () => {
@@ -128,26 +129,29 @@ export function UniversityScreen(): JSX.Element {
     if (selectedCourse.isCompleted) {
       const message = 'Esse curso já foi concluído.';
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
       return;
     }
 
     if (selectedCourse.isInProgress) {
       const message = 'Esse curso já está em andamento.';
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
       return;
     }
 
     if (selectedCourse.lockReason) {
       const message = selectedCourse.lockReason;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
       return;
     }
 
     setIsMutating(true);
-    setFeedbackMessage(null);
+    setResultMessage(null);
 
     try {
       await universityApi.enroll({
@@ -157,11 +161,13 @@ export function UniversityScreen(): JSX.Element {
 
       const message = `${selectedCourse.label} iniciado. Duração ${formatUniversityDurationHours(selectedCourse.durationHours)}.`;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('info');
+      setResultMessage(message);
     } catch (error) {
       const message = formatApiError(error).message;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
     } finally {
       setIsMutating(false);
     }
@@ -224,13 +230,6 @@ export function UniversityScreen(): JSX.Element {
           onPress={() => {
             void loadUniversityCenter();
           }}
-        />
-      ) : null}
-
-      {feedbackMessage ? (
-        <InlineBanner
-          message={feedbackMessage}
-          tone={feedbackMessage.toLowerCase().includes('falha') ? 'danger' : 'info'}
         />
       ) : null}
 
@@ -328,68 +327,67 @@ export function UniversityScreen(): JSX.Element {
                     ? `Concluído em ${formatDateLabel(course.completedAt)}`
                     : 'Disponível para matrícula agora.')}
               </Text>
+
+              {isSelected ? (
+                <View style={styles.selectionCard}>
+                  <Text style={styles.selectionTitle}>{course.label}</Text>
+                  <Text style={styles.detailCopy}>{course.effectSummary}</Text>
+                  <Text style={styles.helperCopy}>
+                    Nível {course.unlockLevel} · custo {formatUniversityCurrency(course.moneyCost)} · duração {formatUniversityDurationHours(course.durationHours)}
+                  </Text>
+                  <Text style={styles.helperCopy}>
+                    Requisitos de atributo: {formatUniversityRequirements(course.attributeRequirements)}
+                  </Text>
+                  <Text style={styles.helperCopy}>
+                    Pré-requisitos: {course.prerequisiteCourseCodes.length > 0 ? course.prerequisiteCourseCodes.join(', ') : 'nenhum'}
+                  </Text>
+
+                  {course.lockReason?.toLowerCase().includes('treino') ? (
+                    <Pressable
+                      onPress={handleOpenTraining}
+                      style={({ pressed }) => [styles.secondaryButton, pressed ? styles.buttonPressed : null]}
+                    >
+                      <Text style={styles.secondaryButtonLabel}>Ir para o treino</Text>
+                    </Pressable>
+                  ) : null}
+
+                  <Pressable
+                    disabled={
+                      isMutating ||
+                      course.isCompleted ||
+                      course.isInProgress ||
+                      Boolean(course.lockReason)
+                    }
+                    onPress={() => {
+                      void handleEnroll();
+                    }}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      (isMutating ||
+                        course.isCompleted ||
+                        course.isInProgress ||
+                        Boolean(course.lockReason))
+                        ? styles.buttonDisabled
+                        : null,
+                      pressed ? styles.buttonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonLabel}>
+                      {isMutating
+                        ? 'Processando...'
+                        : course.isCompleted
+                          ? 'Curso concluído'
+                          : course.isInProgress
+                            ? 'Curso em andamento'
+                            : 'Matricular agora'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
       </View>
-
-      {selectedCourse ? (
-        <View style={styles.selectionCard}>
-          <Text style={styles.sectionTitle}>Curso selecionado</Text>
-          <Text style={styles.selectionTitle}>{selectedCourse.label}</Text>
-          <Text style={styles.detailCopy}>{selectedCourse.effectSummary}</Text>
-          <Text style={styles.helperCopy}>
-            Nível {selectedCourse.unlockLevel} · custo {formatUniversityCurrency(selectedCourse.moneyCost)} · duração {formatUniversityDurationHours(selectedCourse.durationHours)}
-          </Text>
-          <Text style={styles.helperCopy}>
-            Requisitos de atributo: {formatUniversityRequirements(selectedCourse.attributeRequirements)}
-          </Text>
-          <Text style={styles.helperCopy}>
-            Pré-requisitos: {selectedCourse.prerequisiteCourseCodes.length > 0 ? selectedCourse.prerequisiteCourseCodes.join(', ') : 'nenhum'}
-          </Text>
-
-          {selectedCourse.lockReason?.toLowerCase().includes('treino') ? (
-            <Pressable
-              onPress={handleOpenTraining}
-              style={({ pressed }) => [styles.secondaryButton, pressed ? styles.buttonPressed : null]}
-            >
-              <Text style={styles.secondaryButtonLabel}>Ir para o treino</Text>
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            disabled={
-              isMutating ||
-              selectedCourse.isCompleted ||
-              selectedCourse.isInProgress ||
-              Boolean(selectedCourse.lockReason)
-            }
-            onPress={() => {
-              void handleEnroll();
-            }}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              (isMutating ||
-                selectedCourse.isCompleted ||
-                selectedCourse.isInProgress ||
-                Boolean(selectedCourse.lockReason))
-                ? styles.buttonDisabled
-                : null,
-              pressed ? styles.buttonPressed : null,
-            ]}
-          >
-            <Text style={styles.primaryButtonLabel}>
-              {isMutating
-                ? 'Processando...'
-                : selectedCourse.isCompleted
-                  ? 'Curso concluído'
-                  : selectedCourse.isInProgress
-                    ? 'Curso em andamento'
-                    : 'Matricular agora'}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Passivos ativos</Text>
@@ -410,6 +408,15 @@ export function UniversityScreen(): JSX.Element {
           </View>
         )}
       </View>
+
+      <MutationResultModal
+        message={resultMessage}
+        onClose={() => {
+          setResultMessage(null);
+        }}
+        tone={resultTone}
+        visible={Boolean(resultMessage)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -434,6 +441,39 @@ function InlineBanner({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.modalButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -783,6 +823,54 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '800',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   passiveCard: {
     backgroundColor: colors.panel,

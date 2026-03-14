@@ -2,7 +2,7 @@ import { type TrainingCenterResponse, type TrainingType } from '@cs-rio/shared';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
@@ -31,7 +31,8 @@ export function TrainingScreen(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultTone, setResultTone] = useState<'danger' | 'info'>('info');
   const [lastClaimResult, setLastClaimResult] = useState<string | null>(null);
   const activeSessionId = center?.activeSession?.id ?? null;
 
@@ -117,12 +118,13 @@ export function TrainingScreen(): JSX.Element {
     if (!selectedTraining.isRunnable) {
       const message = selectedTraining.lockReason ?? 'Esse treino não pode ser iniciado agora.';
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
       return;
     }
 
     setIsMutating(true);
-    setFeedbackMessage(null);
+    setResultMessage(null);
     setLastClaimResult(null);
 
     try {
@@ -133,11 +135,13 @@ export function TrainingScreen(): JSX.Element {
 
       const message = `${selectedTraining.label} iniciado. Resgate em ${formatTrainingDuration(selectedTraining.durationMinutes)}.`;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('info');
+      setResultMessage(message);
     } catch (error) {
       const message = formatApiError(error).message;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
     } finally {
       setIsMutating(false);
     }
@@ -149,7 +153,7 @@ export function TrainingScreen(): JSX.Element {
     }
 
     setIsMutating(true);
-    setFeedbackMessage(null);
+    setResultMessage(null);
 
     try {
       const response = await trainingApi.claim(center.activeSession.id);
@@ -157,12 +161,14 @@ export function TrainingScreen(): JSX.Element {
 
       const resultLabel = `${formatTrainingTypeLabel(response.session.type)} concluído: ${formatTrainingGains(response.appliedGains)}`;
       setBootstrapStatus(resultLabel);
-      setFeedbackMessage('Treino resgatado e atributos aplicados ao personagem.');
+      setResultTone('info');
+      setResultMessage('Treino resgatado e atributos aplicados ao personagem.');
       setLastClaimResult(resultLabel);
     } catch (error) {
       const message = formatApiError(error).message;
       setBootstrapStatus(message);
-      setFeedbackMessage(message);
+      setResultTone('danger');
+      setResultMessage(message);
     } finally {
       setIsMutating(false);
     }
@@ -223,13 +229,6 @@ export function TrainingScreen(): JSX.Element {
           onPress={() => {
             void loadTrainingCenter();
           }}
-        />
-      ) : null}
-
-      {feedbackMessage ? (
-        <InlineBanner
-          message={feedbackMessage}
-          tone={feedbackMessage.toLowerCase().includes('falha') ? 'danger' : 'info'}
         />
       ) : null}
 
@@ -343,43 +342,51 @@ export function TrainingScreen(): JSX.Element {
               <Text style={training.lockReason ? styles.lockCopy : styles.helperCopy}>
                 {training.lockReason ?? 'Toque para selecionar esse treino e revisar o investimento.'}
               </Text>
+
+              {isSelected ? (
+                <View style={styles.selectionCard}>
+                  <Text style={styles.selectionTitle}>{training.label}</Text>
+                  <Text style={styles.detailCopy}>
+                    Duração {formatTrainingDuration(training.durationMinutes)} · custo {formatTrainingCurrency(training.moneyCost)} · stamina {training.staminaCost}
+                  </Text>
+                  <Text style={styles.detailCopy}>
+                    Ganho previsto agora: {formatTrainingGains(training.projectedGains)}
+                  </Text>
+                  <Text style={styles.helperCopy}>
+                    {training.lockReason ??
+                      'Se houver universidade ativa, hospitalização ou sessão pendente, o backend bloqueia o início automaticamente.'}
+                  </Text>
+
+                  <Pressable
+                    disabled={isMutating || !training.isRunnable}
+                    onPress={() => {
+                      void handleStartTraining();
+                    }}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      (!training.isRunnable || isMutating) ? styles.buttonDisabled : null,
+                      pressed ? styles.buttonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonLabel}>
+                      {isMutating ? 'Processando...' : `Iniciar ${formatTrainingTypeLabel(training.type)}`}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
       </View>
 
-      {selectedTraining ? (
-        <View style={styles.selectionCard}>
-          <Text style={styles.sectionTitle}>Treino selecionado</Text>
-          <Text style={styles.selectionTitle}>{selectedTraining.label}</Text>
-          <Text style={styles.detailCopy}>
-            Duração {formatTrainingDuration(selectedTraining.durationMinutes)} · custo {formatTrainingCurrency(selectedTraining.moneyCost)} · stamina {selectedTraining.staminaCost}
-          </Text>
-          <Text style={styles.detailCopy}>
-            Ganho previsto agora: {formatTrainingGains(selectedTraining.projectedGains)}
-          </Text>
-          <Text style={styles.helperCopy}>
-            {selectedTraining.lockReason ??
-              'Se houver universidade ativa, hospitalização ou sessão pendente, o backend bloqueia o início automaticamente.'}
-          </Text>
-
-          <Pressable
-            disabled={isMutating || !selectedTraining.isRunnable}
-            onPress={() => {
-              void handleStartTraining();
-            }}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              (!selectedTraining.isRunnable || isMutating) ? styles.buttonDisabled : null,
-              pressed ? styles.buttonPressed : null,
-            ]}
-          >
-            <Text style={styles.primaryButtonLabel}>
-              {isMutating ? 'Processando...' : `Iniciar ${formatTrainingTypeLabel(selectedTraining.type)}`}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <MutationResultModal
+        message={resultMessage}
+        onClose={() => {
+          setResultMessage(null);
+        }}
+        tone={resultTone}
+        visible={Boolean(resultMessage)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -413,6 +420,39 @@ function ResultCard({ label }: { label: string }): JSX.Element {
       <Text style={styles.resultEyebrow}>Resultado aplicado</Text>
       <Text style={styles.resultCopy}>{label}</Text>
     </View>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.modalButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -734,5 +774,53 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '800',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 });

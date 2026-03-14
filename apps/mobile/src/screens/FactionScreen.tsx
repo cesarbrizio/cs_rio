@@ -13,6 +13,7 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -225,6 +226,11 @@ export function FactionScreen(): JSX.Element {
       setActiveTab(route.params.initialTab);
     }
   }, [route.params?.initialTab]);
+
+  useEffect(() => {
+    setErrorMessage(null);
+    setFeedbackMessage(null);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!currentFactionId && activeTab !== 'overview') {
@@ -1465,20 +1471,22 @@ export function FactionScreen(): JSX.Element {
         <Banner copy={loadErrorMessage} tone="danger" />
       ) : null}
 
-      {errorMessage ? (
-        <Banner copy={errorMessage} tone="danger" />
-      ) : null}
-
-      {feedbackMessage ? (
-        <Banner copy={feedbackMessage} tone="info" />
-      ) : null}
-
       {activeTab === 'overview' ? renderOverview() : null}
       {currentFactionId && activeTab === 'members' ? renderMembers() : null}
       {currentFactionId && activeTab === 'bank' ? renderBank() : null}
       {currentFactionId && activeTab === 'upgrades' ? renderUpgrades() : null}
       {currentFactionId && activeTab === 'war' ? renderWar() : null}
       {currentFactionId && activeTab === 'leadership' ? renderLeadership() : null}
+
+      <MutationResultModal
+        message={errorMessage ?? feedbackMessage}
+        onClose={() => {
+          setErrorMessage(null);
+          setFeedbackMessage(null);
+        }}
+        tone={errorMessage ? 'danger' : 'info'}
+        visible={Boolean(errorMessage ?? feedbackMessage)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -1565,6 +1573,39 @@ function Banner({
     <View style={[styles.banner, tone === 'danger' ? styles.bannerDanger : styles.bannerInfo]}>
       <Text style={styles.bannerCopy}>{copy}</Text>
     </View>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
+          >
+            <Text style={styles.modalButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -2076,5 +2117,53 @@ const styles = StyleSheet.create({
   topActionRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 });
