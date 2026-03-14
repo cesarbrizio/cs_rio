@@ -27,6 +27,7 @@ import { StatusBar } from '../components/hud/StatusBar';
 import {
   getMapVisualPreset,
   type MapEntityKind,
+  type MapStructure,
   resolveZoneAccentFromRelation,
 } from '../data/mapRegionVisuals';
 import { zonaNorteMapData } from '../data/zonaNortePrototypeMap';
@@ -135,20 +136,79 @@ export function HomeScreen(): JSX.Element {
     [mapVisualPreset.entities],
   );
   const zoneSlots = useMemo(
-    () => mapVisualPreset.zoneSlots,
+    () =>
+      mapVisualPreset.zoneSlots.map((slot) => ({
+        ...slot,
+        radiusTiles: {
+          x: Math.max(3, Math.round(slot.radiusTiles.x * 0.5)),
+          y: Math.max(2, Math.round(slot.radiusTiles.y * 0.5)),
+        },
+      })),
     [mapVisualPreset.zoneSlots],
   );
   const staticWorldTrails = useMemo(
     () => mapVisualPreset.trails,
     [mapVisualPreset.trails],
   );
+  const mapCoreCenter = useMemo(() => {
+    if (zoneSlots.length > 0) {
+      const total = zoneSlots.reduce(
+        (accumulator, slot) => ({
+          x: accumulator.x + slot.center.x,
+          y: accumulator.y + slot.center.y,
+        }),
+        { x: 0, y: 0 },
+      );
+
+      return {
+        x: Math.round(total.x / zoneSlots.length),
+        y: Math.round(total.y / zoneSlots.length),
+      };
+    }
+
+    return {
+      x: Math.floor(map.width / 2),
+      y: Math.floor(map.height / 2),
+    };
+  }, [map.height, map.width, zoneSlots]);
   const staticGroundPatches = useMemo(
-    () => mapVisualPreset.groundPatches,
-    [mapVisualPreset.groundPatches],
+    () => {
+      const focusedGroundPatches = mapVisualPreset.groundPatches
+        .filter((patch) =>
+          patch.kind === 'favela-core'
+          || patch.kind === 'commercial-yard'
+          || patch.kind === 'industrial-yard'
+          || patch.kind === 'blocked',
+        )
+        .map((patch) => ({
+          ...patch,
+          radiusTiles: {
+            x: Math.max(4, Math.round(patch.radiusTiles.x * 0.68)),
+            y: Math.max(3, Math.round(patch.radiusTiles.y * 0.68)),
+          },
+        }));
+
+      return [
+        {
+          accent: '#567052',
+          center: mapCoreCenter,
+          fill: '#50664a',
+          id: `${player?.regionId ?? 'local'}:base-ground`,
+          kind: 'greenery' as const,
+          radiusTiles: { x: 20, y: 13 },
+        },
+        ...focusedGroundPatches,
+      ];
+    },
+    [mapCoreCenter, mapVisualPreset.groundPatches, player?.regionId],
   );
   const staticLandmarks = useMemo(
     () => mapVisualPreset.landmarks,
     [mapVisualPreset.landmarks],
+  );
+  const presetStructures = useMemo(
+    () => mapVisualPreset.structures,
+    [mapVisualPreset.structures],
   );
   const [territoryOverview, setTerritoryOverview] = useState<Awaited<ReturnType<typeof territoryApi.list>> | null>(null);
   const [eventRuntimeState, setEventRuntimeState] = useState<EventRuntimeState | null>(null);
@@ -178,6 +238,35 @@ export function HomeScreen(): JSX.Element {
       }),
     [currentRegionFavelas, zoneSlots],
   );
+  const staticStructures = useMemo<MapStructure[]>(
+    () => {
+      const nonFavelaStructures = presetStructures.filter(
+        (structure) => structure.kind !== 'favela-cluster',
+      );
+      const dynamicFavelaStructures = projectedFavelas.map(({ center, favela }) => {
+        const footprint =
+          favela.difficulty >= 8
+            ? { w: 5, h: 4 }
+            : favela.difficulty >= 6
+              ? { w: 5, h: 4 }
+              : { w: 4, h: 3 };
+
+        return {
+          footprint,
+          id: `favela-visual:${favela.id}`,
+          kind: 'favela-cluster' as const,
+          label: favela.name,
+          position: {
+            x: center.x - Math.floor(footprint.w / 2),
+            y: center.y - Math.floor(footprint.h / 2),
+          },
+        };
+      });
+
+      return [...nonFavelaStructures, ...dynamicFavelaStructures];
+    },
+    [presetStructures, projectedFavelas],
+  );
   const regionalPoliceEvents = useMemo(
     () =>
       eventRuntimeState?.police.events.filter((event) => event.regionId === player?.regionId) ?? [],
@@ -197,18 +286,13 @@ export function HomeScreen(): JSX.Element {
   );
   const staticWorldZones = useMemo(
     () => {
-      return zoneSlots.map((slot, index) => {
-        const favela = currentRegionFavelas[index];
-
-        if (!favela) {
-          return {
-            ...slot,
-            id: slot.id,
-            label: `Favela ${index + 1}`,
-            ownerLabel: 'Neutra',
-            relation: 'neutral' as const,
-          };
-        }
+      return projectedFavelas.map(({ center, favela }) => {
+        const radiusTiles =
+          favela.difficulty >= 8
+            ? { x: 4, y: 3 }
+            : favela.difficulty >= 6
+              ? { x: 4, y: 3 }
+              : { x: 3, y: 2 };
 
         const policeEvent = regionalPoliceEvents.find((event) => event.favelaId === favela.id) ?? null;
         const relation = resolveFavelaRelation(favela, player?.faction?.id);
@@ -219,16 +303,17 @@ export function HomeScreen(): JSX.Element {
         });
 
         return {
-          ...slot,
           accent,
+          center,
           id: favela.id,
           label: favela.name,
           ownerLabel: buildFavelaOwnerLabel(favela),
+          radiusTiles,
           relation,
         };
       });
     },
-    [currentRegionFavelas, player?.faction?.id, regionalPoliceEvents, zoneSlots],
+    [player?.faction?.id, projectedFavelas, regionalPoliceEvents],
   );
   const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>(
     colyseusService.getSnapshot(),
@@ -1657,6 +1742,7 @@ export function HomeScreen(): JSX.Element {
             selectedZoneId={selectedMapFavelaId}
             showControlsOverlay={false}
             showDebugOverlay={false}
+            structures={staticStructures}
             trails={staticWorldTrails}
             uiRects={hudUiRects}
             zones={staticWorldZones}

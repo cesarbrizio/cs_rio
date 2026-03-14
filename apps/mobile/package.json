@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node ./scripts/run-expo-with-root-env.mjs start --clear",
+    "generate:map-structures": "node ./scripts/generate-map-structure-svgs.mjs",
     "build": "tsc --noEmit && node -e \"const fs=require('node:fs'); fs.mkdirSync('build',{recursive:true}); fs.writeFileSync('build/.stamp','mobile-bootstrap');\"",
     "lint": "eslint \"App.tsx\" \"src/**/*.{ts,tsx}\" \"test/**/*.ts\"",
     "test": "vitest run",

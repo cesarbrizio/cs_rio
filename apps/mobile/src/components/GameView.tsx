@@ -13,31 +13,30 @@ import {
   Canvas,
   Circle,
   Group,
+  ImageSVG,
   Path,
-  Picture,
   Skia,
-  createPicture,
   useImage,
   useRSXformBuffer,
   useRectBuffer,
-  type SkCanvas,
-  type SkImage,
 } from '@shopify/react-native-skia';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 
-import cityBaseTilesetSource from '../../assets/tilesets/city_base.png';
 import playerBaseSpriteSource from '../../assets/sprites/player_base.png';
 import { useAudio } from '../audio/AudioProvider';
 import { shouldPlayWalkSfx } from '../audio/audioFeedback';
 import { playerBaseSpriteSheetData } from '../data/playerBaseSpriteSheet';
+import { useMapStructureSvgCatalog } from '../data/mapStructureSvgCatalog';
 import {
-  type MapEntityKind,
   type MapGroundPatch,
   type MapLandmark,
+  type MapEntityKind,
+  type MapStructureKind,
 } from '../data/mapRegionVisuals';
+import { getMapStructureDefinition } from '../data/mapStructureCatalog';
 import { colors } from '../theme/colors';
 
 interface GameEntity {
@@ -69,15 +68,14 @@ interface GameTrail {
   points: GridPoint[];
 }
 
-interface WorldGroundPatch {
-  accent: string;
-  centerWorldPoint: ScreenPoint;
-  fill: string;
+interface GameStructure {
+  accent?: string;
+  footprint: { h: number; w: number };
   id: string;
-  kind: 'block' | 'blocked' | 'favela-ground' | 'slope' | 'yard';
+  interactiveEntityId?: string;
+  kind: MapStructureKind;
   label?: string;
-  radiusHeight: number;
-  radiusWidth: number;
+  position: GridPoint;
 }
 
 interface WorldLandmarkOverlay {
@@ -86,6 +84,23 @@ interface WorldLandmarkOverlay {
   label: string;
   positionWorldPoint: ScreenPoint;
   shape: 'gate' | 'plaza' | 'tower' | 'warehouse';
+}
+
+interface WorldStructureOverlay {
+  accent: string;
+  basePoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint];
+  entityKind?: MapEntityKind;
+  id: string;
+  interactiveEntityId?: string;
+  kind: MapStructureKind;
+  label?: string;
+  height: number;
+  lotPoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint];
+  ownerLabel?: string;
+  relation?: 'ally' | 'enemy' | 'neutral';
+  selected?: boolean;
+  topPoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint];
+  zoneId?: string;
 }
 
 export interface GameViewPlayerState {
@@ -114,6 +129,7 @@ interface GameViewProps {
   selectedZoneId?: string | null;
   showControlsOverlay?: boolean;
   showDebugOverlay?: boolean;
+  structures?: GameStructure[];
   trails?: GameTrail[];
   uiRects?: InputRect[];
   zones?: GameZone[];
@@ -121,6 +137,8 @@ interface GameViewProps {
 
 interface WorldLabelOverlay {
   accent: string;
+  anchorX?: number;
+  anchorY?: number;
   entityId?: string;
   entityKind?: MapEntityKind | 'player';
   id: string;
@@ -134,52 +152,11 @@ interface WorldLabelOverlay {
   y: number;
 }
 
-interface WorldZoneOverlay {
-  accent: string;
-  centerWorldPoint: ScreenPoint;
-  id: string;
-  label: string;
-  ownerLabel?: string;
-  radiusHeight: number;
-  radiusWidth: number;
-  relation: 'ally' | 'enemy' | 'neutral';
-  selected: boolean;
-}
-
-interface WorldTrailOverlay {
-  accent: string;
-  id: string;
-  kind: 'alley' | 'avenue' | 'stairs' | 'street';
-  label: string;
-  labelWorldPoint: ScreenPoint;
-  worldPoints: ScreenPoint[];
-}
-
 interface DebugState {
   camera: CameraState;
   clipName: string | null;
   fps: number;
   playerPosition: GridPoint;
-}
-
-interface WorldTile {
-  fill: string;
-  height: number;
-  sourceRect: {
-    height: number;
-    width: number;
-    x: number;
-    y: number;
-  };
-  width: number;
-  worldX: number;
-  worldY: number;
-}
-
-interface WorldTileLayer {
-  key: string;
-  opacity: number;
-  tiles: WorldTile[];
 }
 
 const INITIAL_VIEWPORT_SIZE = 1;
@@ -195,12 +172,11 @@ export function GameView({
   onTileTap,
   onZoneTap,
   playerState,
-  groundPatches = [],
   landmarks = [],
   selectedZoneId = null,
   showControlsOverlay = false,
   showDebugOverlay = false,
-  trails = [],
+  structures = [],
   uiRects = [],
   zones = [],
 }: GameViewProps): JSX.Element {
@@ -217,7 +193,7 @@ export function GameView({
     () => SpriteSheet.fromAseprite(playerBaseSpriteSheetData, 'player-base'),
     [],
   );
-  const mapTilesetImage = useImage(cityBaseTilesetSource);
+  const structureSvgCatalog = useMapStructureSvgCatalog();
   const playerImage = useImage(playerBaseSpriteSource);
   const spawnTile = useMemo<GridPoint>(() => {
     if (playerState?.position) {
@@ -252,11 +228,16 @@ export function GameView({
     }),
     [initialWorldPosition.x, initialWorldPosition.y],
   );
-  const mapBounds = useMemo(() => getMapWorldBounds(map.width, map.height, tileSize), [map.height, map.width, tileSize]);
-  const worldTileLayers = useMemo(() => buildWorldTileLayers(map, tileSize), [map, tileSize]);
-  const mapPicture = useMemo(
-    () => buildMapPicture(worldTileLayers, mapBounds, mapTilesetImage, tileSize),
-    [mapBounds, mapTilesetImage, tileSize, worldTileLayers],
+  const mapBounds = useMemo(
+    () =>
+      getSceneWorldBounds({
+        entities,
+        fallbackBounds: getMapWorldBounds(map.width, map.height, tileSize),
+        spawnTile,
+        structures,
+        tileSize,
+      }),
+    [entities, map.height, map.width, spawnTile, structures, tileSize],
   );
   const initialFrame = useMemo(
     () => spriteSheet.getFrame('idle_s_0') ?? spriteSheet.getFrameIds().map((id) => spriteSheet.getFrame(id)).find(Boolean),
@@ -339,7 +320,7 @@ export function GameView({
   }, [cameraMatrixValue]);
 
   useEffect(() => {
-    cameraRef.current = new Camera(initialCameraState, mapBounds);
+    cameraRef.current = new Camera(initialCameraState);
     movementRef.current = new MovementController(spawnTile, 3);
     animationRef.current = new AnimationController(spriteSheet, SPRITE_IDLE_FALLBACK);
     inputHandlerRef.current = new InputHandler({
@@ -379,7 +360,6 @@ export function GameView({
     initialFrame,
     initialWorldPosition.x,
     initialWorldPosition.y,
-    mapBounds,
     playerFrameValue,
     playerHaloYValue,
     playerBeaconYValue,
@@ -390,6 +370,10 @@ export function GameView({
     spriteSheet,
     tileSize,
   ]);
+
+  useEffect(() => {
+    syncCameraDebug(cameraRef.current.setBounds(mapBounds));
+  }, [mapBounds, syncCameraDebug]);
 
   useEffect(() => {
     if (!cameraCommand) {
@@ -637,58 +621,6 @@ export function GameView({
     () => playerPath.map((point) => cartToIso(point, tileSize)),
     [playerPath, tileSize],
   );
-  const zoneWorldOverlays = useMemo<WorldZoneOverlay[]>(
-    () =>
-      zones.map((zone) => {
-        const radiusTiles = zone.radiusTiles ?? { x: 5, y: 4 };
-
-        return {
-          accent: zone.accent ?? colors.accent,
-          centerWorldPoint: cartToIso(zone.center, tileSize),
-          id: zone.id,
-          label: zone.label,
-          ownerLabel: zone.ownerLabel,
-          radiusHeight: tileSize.height * radiusTiles.y,
-          radiusWidth: tileSize.width * radiusTiles.x,
-          relation: zone.relation ?? 'neutral',
-          selected: zone.id === selectedZoneId,
-        };
-      }),
-    [selectedZoneId, tileSize, zones],
-  );
-  const trailWorldOverlays = useMemo<WorldTrailOverlay[]>(
-    () =>
-      trails
-        .filter((trail) => trail.points.length >= 2)
-        .map((trail) => {
-          const worldPoints = trail.points.map((point) => cartToIso(point, tileSize));
-          const midpoint = worldPoints[Math.floor(worldPoints.length / 2)] ?? worldPoints[0];
-
-          return {
-            accent: trail.accent ?? colors.info,
-            id: trail.id,
-            kind: trail.kind,
-            label: trail.label,
-            labelWorldPoint: midpoint,
-            worldPoints,
-          };
-        }),
-    [tileSize, trails],
-  );
-  const groundWorldPatches = useMemo<WorldGroundPatch[]>(
-    () =>
-      groundPatches.map((patch) => ({
-        accent: patch.accent ?? colors.accent,
-        centerWorldPoint: cartToIso(patch.center, tileSize),
-        fill: patch.fill,
-        id: patch.id,
-        kind: patch.kind,
-        label: patch.label,
-        radiusHeight: tileSize.height * patch.radiusTiles.y,
-        radiusWidth: tileSize.width * patch.radiusTiles.x,
-      })),
-    [groundPatches, tileSize],
-  );
   const landmarkWorldOverlays = useMemo<WorldLandmarkOverlay[]>(
     () =>
       landmarks.map((landmark) => ({
@@ -700,43 +632,104 @@ export function GameView({
       })),
     [landmarks, tileSize],
   );
+  const structureWorldOverlays = useMemo<WorldStructureOverlay[]>(
+    () =>
+      structures
+        .map((structure) => {
+          const linkedEntity = structure.interactiveEntityId
+            ? entities.find(
+                (entity) =>
+                  entity.id === structure.interactiveEntityId && entity.kind !== 'player',
+              )
+            : null;
+          const structureZoneId = structure.id.startsWith('favela-visual:')
+            ? structure.id.replace('favela-visual:', '')
+            : null;
+          const linkedZone = structureZoneId ? zones.find((zone) => zone.id === structureZoneId) : null;
+          const definition = getMapStructureDefinition(structure.kind);
+          const height = definition.height;
+          const nw = cartToIso(structure.position, tileSize);
+          const ne = cartToIso(
+            { x: structure.position.x + structure.footprint.w, y: structure.position.y },
+            tileSize,
+          );
+          const se = cartToIso(
+            {
+              x: structure.position.x + structure.footprint.w,
+              y: structure.position.y + structure.footprint.h,
+            },
+            tileSize,
+          );
+          const sw = cartToIso(
+            { x: structure.position.x, y: structure.position.y + structure.footprint.h },
+            tileSize,
+          );
+          const basePoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint] = [nw, ne, se, sw];
+          const baseCenter = {
+            x: (nw.x + se.x) / 2,
+            y: (nw.y + se.y) / 2,
+          };
+          const baseWidth = Math.max(
+            1,
+            Math.max(nw.x, ne.x, se.x, sw.x) - Math.min(nw.x, ne.x, se.x, sw.x),
+          );
+          const baseHeight = Math.max(
+            1,
+            Math.max(nw.y, ne.y, se.y, sw.y) - Math.min(nw.y, ne.y, se.y, sw.y),
+          );
+          const lotCenter = {
+            x: baseCenter.x + baseWidth * definition.placement.lot.offsetX,
+            y: baseCenter.y + baseHeight * definition.placement.lot.offsetY,
+          };
+          const lotPoints = scalePolygonPoints(basePoints, lotCenter, definition.placement.lot.scaleX, definition.placement.lot.scaleY);
+          const topPoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint] = [
+            { x: nw.x, y: nw.y - height },
+            { x: ne.x, y: ne.y - height },
+            { x: se.x, y: se.y - height },
+            { x: sw.x, y: sw.y - height },
+          ];
+
+          return {
+            accent: structure.accent ?? linkedZone?.accent ?? linkedEntity?.color ?? colors.accent,
+            basePoints,
+            entityKind: linkedEntity?.kind as MapEntityKind | undefined,
+            height,
+            id: structure.id,
+            interactiveEntityId: structure.interactiveEntityId,
+            kind: structure.kind,
+            label: structure.label ?? linkedEntity?.label ?? linkedZone?.label ?? definition.label,
+            lotPoints,
+            ownerLabel: linkedZone?.ownerLabel,
+            relation: linkedZone?.relation,
+            selected: linkedZone ? linkedZone.id === selectedZoneId : false,
+            topPoints,
+            zoneId: linkedZone?.id,
+          };
+        })
+        .sort((left, right) => left.basePoints[2].y - right.basePoints[2].y),
+    [entities, selectedZoneId, structures, tileSize, zones],
+  );
+  const structureEntityIds = useMemo(
+    () =>
+      new Set(
+        structureWorldOverlays.flatMap((structure) =>
+          structure.interactiveEntityId ? [structure.interactiveEntityId] : [],
+        ),
+      ),
+    [structureWorldOverlays],
+  );
   const entityWorldPoints = useMemo(
     () =>
-      entities.map((entity) => ({
-        ...entity,
-        worldPoint: cartToIso(entity.position, tileSize),
-      })),
-    [entities, tileSize],
+      entities
+        .filter((entity) => !structureEntityIds.has(entity.id))
+        .map((entity) => ({
+          ...entity,
+          worldPoint: cartToIso(entity.position, tileSize),
+        })),
+    [entities, structureEntityIds, tileSize],
   );
   const spatialLabelOverlays = useMemo<WorldLabelOverlay[]>(() => {
     const labels: WorldLabelOverlay[] = [];
-
-    for (const zone of zoneWorldOverlays) {
-      const screenPoint = projectWorldToScreen(debugState.camera, zone.centerWorldPoint);
-
-      if (isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight)) {
-        const clampedPosition = clampOverlayPosition(
-          debugState.camera.viewportWidth,
-          debugState.camera.viewportHeight,
-          screenPoint.x - 38,
-          screenPoint.y - zone.radiusHeight * debugState.camera.zoom * 0.45 - 18,
-          132,
-          zone.ownerLabel ? 42 : 22,
-        );
-        labels.push({
-          accent: zone.accent,
-          id: `zone:${zone.id}`,
-          kind: 'zone',
-          label: zone.label,
-          ownerLabel: zone.ownerLabel,
-          relation: zone.relation,
-          selected: zone.selected,
-          zoneId: zone.id,
-          x: clampedPosition.x,
-          y: clampedPosition.y,
-        });
-      }
-    }
 
     for (const entity of entityWorldPoints) {
       if (!entity.label) {
@@ -776,6 +769,54 @@ export function GameView({
       }
     }
 
+    for (const structure of structureWorldOverlays) {
+      if (!structure.label) {
+        continue;
+      }
+
+      const roofCenter = {
+        x: (structure.topPoints[0].x + structure.topPoints[2].x) / 2,
+        y: (structure.topPoints[0].y + structure.topPoints[2].y) / 2,
+      };
+      const screenPoint = projectWorldToScreen(debugState.camera, {
+        x: roofCenter.x,
+        y: roofCenter.y - 10,
+      });
+
+      if (
+        isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight, 0) &&
+        screenPoint.x > 56 &&
+        screenPoint.y > 32 &&
+        screenPoint.x < debugState.camera.viewportWidth - 112 &&
+        screenPoint.y < debugState.camera.viewportHeight - 44
+      ) {
+        const clampedPosition = clampOverlayPosition(
+          debugState.camera.viewportWidth,
+          debugState.camera.viewportHeight,
+          screenPoint.x - 56,
+          screenPoint.y - (structure.ownerLabel ? 42 : 22),
+          132,
+          structure.ownerLabel ? 42 : 22,
+        );
+        labels.push({
+          accent: structure.accent,
+          anchorX: screenPoint.x,
+          anchorY: screenPoint.y + 10,
+          entityId: structure.zoneId ? undefined : structure.interactiveEntityId,
+          entityKind: structure.entityKind,
+          id: `structure:${structure.id}`,
+          kind: structure.zoneId ? 'zone' : 'entity',
+          label: structure.label,
+          ownerLabel: structure.ownerLabel,
+          relation: structure.relation,
+          selected: structure.selected,
+          zoneId: structure.zoneId,
+          x: clampedPosition.x,
+          y: clampedPosition.y,
+        });
+      }
+    }
+
     for (const landmark of landmarkWorldOverlays) {
       const screenPoint = projectWorldToScreen(debugState.camera, {
         x: landmark.positionWorldPoint.x,
@@ -809,7 +850,7 @@ export function GameView({
     }
 
     return labels;
-  }, [debugState.camera, entityWorldPoints, landmarkWorldOverlays, zoneWorldOverlays]);
+  }, [debugState.camera, entityWorldPoints, landmarkWorldOverlays, structureWorldOverlays]);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -931,128 +972,11 @@ export function GameView({
         <View style={styles.canvasFrame}>
           <Canvas style={styles.canvas}>
             <Group matrix={cameraMatrixValue}>
-              {mapPicture ? <Picture picture={mapPicture} /> : null}
+              {null}
 
-              {groundWorldPatches.map((patch) => (
-                <Group key={patch.id}>
-                  <Path
-                    color={resolveGroundPatchFill(patch)}
-                    path={createNeighborhoodPatchPath(
-                      patch.centerWorldPoint.x,
-                      patch.centerWorldPoint.y,
-                      patch.radiusWidth,
-                      patch.radiusHeight,
-                    )}
-                  />
-                  <Path
-                    color={resolveGroundPatchStroke(patch)}
-                    path={createNeighborhoodPatchPath(
-                      patch.centerWorldPoint.x,
-                      patch.centerWorldPoint.y,
-                      patch.radiusWidth,
-                      patch.radiusHeight,
-                    )}
-                    style="stroke"
-                    strokeWidth={patch.kind === 'blocked' ? 4 : patch.kind === 'favela-ground' ? 3 : 2}
-                  />
-                  {patch.kind === 'yard' ? (
-                    <Path
-                      color="rgba(240, 225, 182, 0.14)"
-                      path={createNeighborhoodPatchPath(
-                        patch.centerWorldPoint.x,
-                        patch.centerWorldPoint.y,
-                        patch.radiusWidth * 0.82,
-                        patch.radiusHeight * 0.82,
-                      )}
-                    />
-                  ) : null}
-                  {patch.kind === 'slope' ? (
-                    <>
-                      {[-0.42, -0.08, 0.26].map((offset) => (
-                        <Path
-                          key={`${patch.id}:${offset}`}
-                          color="rgba(234, 226, 197, 0.18)"
-                          path={createLinePath(
-                            {
-                              x: patch.centerWorldPoint.x - patch.radiusWidth * 0.72,
-                              y: patch.centerWorldPoint.y + patch.radiusHeight * offset,
-                            },
-                            {
-                              x: patch.centerWorldPoint.x + patch.radiusWidth * 0.62,
-                              y: patch.centerWorldPoint.y + patch.radiusHeight * (offset - 0.24),
-                            },
-                          )}
-                          style="stroke"
-                          strokeWidth={3}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                  {patch.kind === 'blocked' ? (
-                    <>
-                      <Path
-                        color={toAlphaHex(patch.accent, 0.7)}
-                        path={createLinePath(
-                          {
-                            x: patch.centerWorldPoint.x - patch.radiusWidth * 0.55,
-                            y: patch.centerWorldPoint.y - patch.radiusHeight * 0.55,
-                          },
-                          {
-                            x: patch.centerWorldPoint.x + patch.radiusWidth * 0.55,
-                            y: patch.centerWorldPoint.y + patch.radiusHeight * 0.55,
-                          },
-                        )}
-                        style="stroke"
-                        strokeWidth={3}
-                      />
-                      <Path
-                        color={toAlphaHex(patch.accent, 0.7)}
-                        path={createLinePath(
-                          {
-                            x: patch.centerWorldPoint.x + patch.radiusWidth * 0.55,
-                            y: patch.centerWorldPoint.y - patch.radiusHeight * 0.55,
-                          },
-                          {
-                            x: patch.centerWorldPoint.x - patch.radiusWidth * 0.55,
-                            y: patch.centerWorldPoint.y + patch.radiusHeight * 0.55,
-                          },
-                        )}
-                        style="stroke"
-                        strokeWidth={3}
-                      />
-                    </>
-                  ) : null}
-                </Group>
-              ))}
+              {null}
 
-              {trailWorldOverlays.map((trail) => (
-                <Group key={trail.id}>
-                  <Path
-                    color={trail.kind === 'avenue' ? 'rgba(18, 18, 18, 0.52)' : 'rgba(18, 18, 18, 0.42)'}
-                    path={createPolylinePath(trail.worldPoints)}
-                    style="stroke"
-                    strokeCap="round"
-                    strokeJoin="round"
-                    strokeWidth={trail.kind === 'avenue' ? 30 : trail.kind === 'street' ? 22 : trail.kind === 'alley' ? 14 : 18}
-                  />
-                  <Path
-                    color={trail.kind === 'avenue' ? 'rgba(108, 107, 101, 0.88)' : trail.kind === 'street' ? 'rgba(126, 121, 111, 0.82)' : trail.kind === 'alley' ? 'rgba(94, 90, 84, 0.78)' : 'rgba(156, 146, 118, 0.72)'}
-                    path={createPolylinePath(trail.worldPoints)}
-                    style="stroke"
-                    strokeCap="round"
-                    strokeJoin="round"
-                    strokeWidth={trail.kind === 'avenue' ? 22 : trail.kind === 'street' ? 14 : trail.kind === 'alley' ? 8 : 10}
-                  />
-                  <Path
-                    color={trail.kind === 'avenue' ? 'rgba(234, 223, 188, 0.7)' : trail.kind === 'street' ? 'rgba(222, 212, 184, 0.54)' : trail.kind === 'alley' ? 'rgba(214, 204, 180, 0.28)' : toAlphaHex(trail.accent, 0.44)}
-                    path={createPolylinePath(trail.worldPoints)}
-                    style="stroke"
-                    strokeCap="round"
-                    strokeJoin="round"
-                    strokeWidth={trail.kind === 'avenue' ? 3.5 : trail.kind === 'street' ? 2.5 : trail.kind === 'stairs' ? 1.75 : 1.5}
-                  />
-                </Group>
-              ))}
+              {null}
 
               {landmarkWorldOverlays.map((landmark) => (
                 <Group key={landmark.id}>
@@ -1083,36 +1007,11 @@ export function GameView({
                 </Group>
               ))}
 
-              {zoneWorldOverlays.map((zone) => (
-                <Group key={zone.id}>
-                  <Path
-                    color={`${zone.accent}${zone.selected ? '54' : '36'}`}
-                    path={createDiamondPath(
-                      zone.centerWorldPoint.x,
-                      zone.centerWorldPoint.y,
-                      zone.radiusWidth,
-                      zone.radiusHeight,
-                    )}
-                  />
-                  <Path
-                    color={`${zone.accent}${zone.selected ? 'ff' : '88'}`}
-                    path={createDiamondPath(
-                      zone.centerWorldPoint.x,
-                      zone.centerWorldPoint.y,
-                      zone.radiusWidth,
-                      zone.radiusHeight,
-                    )}
-                    style="stroke"
-                    strokeWidth={zone.selected ? 5 : 3}
-                  />
-                  {zone.selected ? (
-                    <Circle
-                      color={toAlphaHex(zone.accent, 0.94)}
-                      cx={zone.centerWorldPoint.x}
-                      cy={zone.centerWorldPoint.y - 8}
-                      r={7}
-                    />
-                  ) : null}
+              {null}
+
+              {structureWorldOverlays.map((structure) => (
+                <Group key={structure.id}>
+                  {renderMapStructure(structure, structureSvgCatalog[structure.kind])}
                 </Group>
               ))}
 
@@ -1200,104 +1099,132 @@ export function GameView({
       {spatialLabelOverlays.length > 0 ? (
         <View pointerEvents="box-none" style={styles.spatialLabelLayer}>
           {spatialLabelOverlays.map((overlay) => (
-            overlay.kind === 'zone' && overlay.zoneId && onZoneTap ? (
-              <Pressable
-                key={overlay.id}
-                onPress={() => {
-                  onZoneTap(overlay.zoneId!);
-                }}
-                style={({ pressed }) => [
-                  styles.spatialLabel,
-                  styles.zoneLabel,
-                  overlay.relation === 'ally' ? styles.allyZoneLabel : null,
-                  overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
-                  overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
-                  overlay.selected ? styles.selectedZoneLabel : null,
-                  pressed ? styles.pressedZoneLabel : null,
-                  {
-                    borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
-                    left: overlay.x,
-                    top: overlay.y,
-                  },
-                ]}
-              >
-                <Text numberOfLines={2} style={styles.spatialLabelText}>
-                  {overlay.label}
-                </Text>
-                {overlay.ownerLabel ? (
-                  <Text numberOfLines={1} style={styles.zoneOwnerText}>
-                    {overlay.ownerLabel}
+            <Fragment key={overlay.id}>
+              {overlay.anchorX !== undefined &&
+              overlay.anchorY !== undefined &&
+              overlay.anchorY > overlay.y + (overlay.ownerLabel ? 34 : 18) ? (
+                <>
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.spatialLabelConnector,
+                      {
+                        backgroundColor: `${overlay.accent}bb`,
+                        height: Math.max(6, overlay.anchorY - (overlay.y + (overlay.ownerLabel ? 34 : 18))),
+                        left: overlay.anchorX - 1,
+                        top: overlay.y + (overlay.ownerLabel ? 34 : 18),
+                      },
+                    ]}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.spatialLabelConnectorDot,
+                      {
+                        backgroundColor: `${overlay.accent}dd`,
+                        left: overlay.anchorX - 3,
+                        top: overlay.anchorY - 3,
+                      },
+                    ]}
+                  />
+                </>
+              ) : null}
+              {overlay.kind === 'zone' && overlay.zoneId && onZoneTap ? (
+                <Pressable
+                  onPress={() => {
+                    onZoneTap(overlay.zoneId!);
+                  }}
+                  style={({ pressed }) => [
+                    styles.spatialLabel,
+                    styles.zoneLabel,
+                    overlay.relation === 'ally' ? styles.allyZoneLabel : null,
+                    overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
+                    overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
+                    overlay.selected ? styles.selectedZoneLabel : null,
+                    pressed ? styles.pressedZoneLabel : null,
+                    {
+                      borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
+                      left: overlay.x,
+                      top: overlay.y,
+                    },
+                  ]}
+                >
+                  <Text numberOfLines={2} style={styles.spatialLabelText}>
+                    {overlay.label}
                   </Text>
-                ) : null}
-              </Pressable>
-            ) : overlay.kind === 'entity' && overlay.entityId && onEntityTap ? (
-              <Pressable
-                key={overlay.id}
-                onPress={() => {
-                  onEntityTap(overlay.entityId!);
-                }}
-                style={({ pressed }) => [
-                  styles.spatialLabel,
-                  styles.entityLabel,
-                  overlay.entityKind === 'market' ? styles.marketLabel : null,
-                  overlay.entityKind === 'boca' ? styles.bocaLabel : null,
-                  overlay.entityKind === 'factory' ? styles.factoryLabel : null,
-                  overlay.entityKind === 'party' ? styles.partyLabel : null,
-                  overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                  overlay.entityKind === 'training' ? styles.trainingLabel : null,
-                  overlay.entityKind === 'university' ? styles.universityLabel : null,
-                  overlay.entityKind === 'docks' ? styles.docksLabel : null,
-                  overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
-                  pressed ? styles.pressedZoneLabel : null,
-                  {
-                    borderColor: `${overlay.accent}aa`,
-                    left: overlay.x,
-                    top: overlay.y,
-                  },
-                ]}
-              >
-                <Text numberOfLines={1} style={styles.spatialLabelText}>
-                  {overlay.label}
-                </Text>
-              </Pressable>
-            ) : (
-              <View
-                key={overlay.id}
-                pointerEvents="none"
-                style={[
-                  styles.spatialLabel,
-                  overlay.kind === 'zone' ? styles.zoneLabel : styles.entityLabel,
-                  overlay.kind === 'entity' && overlay.entityKind === 'market' ? styles.marketLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'boca' ? styles.bocaLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'factory' ? styles.factoryLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'party' ? styles.partyLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'training' ? styles.trainingLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'university' ? styles.universityLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'docks' ? styles.docksLabel : null,
-                  overlay.kind === 'entity' && overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
-                  overlay.kind === 'trail' ? styles.trailLabel : null,
-                  overlay.kind === 'zone' && overlay.relation === 'ally' ? styles.allyZoneLabel : null,
-                  overlay.kind === 'zone' && overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
-                  overlay.kind === 'zone' && overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
-                  overlay.selected ? styles.selectedZoneLabel : null,
-                  {
-                    borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
-                    left: overlay.x,
-                    top: overlay.y,
-                  },
-                ]}
-              >
-                <Text numberOfLines={1} style={styles.spatialLabelText}>
-                  {overlay.label}
-                </Text>
-                {overlay.kind === 'zone' && overlay.ownerLabel ? (
-                  <Text numberOfLines={1} style={styles.zoneOwnerText}>
-                    {overlay.ownerLabel}
+                  {overlay.ownerLabel ? (
+                    <Text numberOfLines={1} style={styles.zoneOwnerText}>
+                      {overlay.ownerLabel}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ) : overlay.kind === 'entity' && overlay.entityId && onEntityTap ? (
+                <Pressable
+                  onPress={() => {
+                    onEntityTap(overlay.entityId!);
+                  }}
+                  style={({ pressed }) => [
+                    styles.spatialLabel,
+                    styles.entityLabel,
+                    overlay.entityKind === 'market' ? styles.marketLabel : null,
+                    overlay.entityKind === 'boca' ? styles.bocaLabel : null,
+                    overlay.entityKind === 'factory' ? styles.factoryLabel : null,
+                    overlay.entityKind === 'party' ? styles.partyLabel : null,
+                    overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
+                    overlay.entityKind === 'training' ? styles.trainingLabel : null,
+                    overlay.entityKind === 'university' ? styles.universityLabel : null,
+                    overlay.entityKind === 'docks' ? styles.docksLabel : null,
+                    overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
+                    pressed ? styles.pressedZoneLabel : null,
+                    {
+                      borderColor: `${overlay.accent}aa`,
+                      left: overlay.x,
+                      top: overlay.y,
+                    },
+                  ]}
+                >
+                  <Text numberOfLines={1} style={styles.spatialLabelText}>
+                    {overlay.label}
                   </Text>
-                ) : null}
-              </View>
-            )
+                </Pressable>
+              ) : (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.spatialLabel,
+                    overlay.kind === 'zone' ? styles.zoneLabel : styles.entityLabel,
+                    overlay.kind === 'entity' && overlay.entityKind === 'market' ? styles.marketLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'boca' ? styles.bocaLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'factory' ? styles.factoryLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'party' ? styles.partyLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'training' ? styles.trainingLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'university' ? styles.universityLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'docks' ? styles.docksLabel : null,
+                    overlay.kind === 'entity' && overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
+                    overlay.kind === 'trail' ? styles.trailLabel : null,
+                    overlay.kind === 'zone' && overlay.relation === 'ally' ? styles.allyZoneLabel : null,
+                    overlay.kind === 'zone' && overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
+                    overlay.kind === 'zone' && overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
+                    overlay.selected ? styles.selectedZoneLabel : null,
+                    {
+                      borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
+                      left: overlay.x,
+                      top: overlay.y,
+                    },
+                  ]}
+                >
+                  <Text numberOfLines={1} style={styles.spatialLabelText}>
+                    {overlay.label}
+                  </Text>
+                  {overlay.kind === 'zone' && overlay.ownerLabel ? (
+                    <Text numberOfLines={1} style={styles.zoneOwnerText}>
+                      {overlay.ownerLabel}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+            </Fragment>
           ))}
         </View>
       ) : null}
@@ -1346,28 +1273,6 @@ export function GameView({
         </View>
       ) : null}
     </View>
-  );
-}
-
-function buildMapPicture(
-  layers: WorldTileLayer[],
-  bounds: { maxX: number; maxY: number; minX: number; minY: number },
-  image: SkImage | null,
-  tileSize: { height: number; width: number },
-) {
-  const width = bounds.maxX - bounds.minX;
-  const height = bounds.maxY - bounds.minY;
-
-  return createPicture(
-    (canvas) => {
-      drawTileLayersAsVector(canvas, layers, tileSize);
-
-      if (image) {
-        drawTileLayersAsAtlas(canvas, image, layers);
-        return;
-      }
-    },
-    Skia.XYWHRect(bounds.minX, bounds.minY, width, height),
   );
 }
 
@@ -1485,37 +1390,274 @@ function renderMapEntityMarker(entity: GameEntity & { worldPoint: ScreenPoint })
   );
 }
 
-function buildWorldTileLayers(
-  map: ReturnType<typeof parseTilemap>,
-  tileSize: { height: number; width: number },
-): WorldTileLayer[] {
-  return map.layers
-    .filter((layer) => layer.visible && layer.type === 'tilelayer' && layer.kind !== 'collision')
-    .map((layer) => ({
-      key: `${layer.id}:${layer.name}`,
-      opacity: layer.opacity,
-      tiles: layer.tiles.map((tile) => {
-        const tileset = map.tilesets.find((entry) => entry.key === tile.tilesetKey);
-        const columns = Math.max(tileset?.columns ?? 1, 1);
-        const sourceWidth = tileset?.tileWidth ?? tileSize.width;
-        const sourceHeight = tileset?.tileHeight ?? tileSize.height;
-        const worldPoint = cartToIso(tile, tileSize);
+function renderMapStructure(
+  structure: WorldStructureOverlay,
+  svg: ReturnType<typeof Skia.SVG.MakeFromString>,
+) {
+  const definition = getMapStructureDefinition(structure.kind);
+  const {
+    palette: { roof, leftWall, rightWall, outline, detail, detailSoft },
+  } = definition;
+  const [nw, ne, se, sw] = structure.basePoints;
+  const [lnw, lne, lse, lsw] = structure.lotPoints;
+  const [tnw, tne, tse, tsw] = structure.topPoints;
+  const centerX = (tse.x + tsw.x) / 2;
+  const centerY = (tse.y + tsw.y) / 2;
+  const width = Math.abs(ne.x - nw.x);
+  const depth = Math.abs(sw.y - nw.y);
+  const placement = definition.placement;
+  const lotCenter = {
+    x: (lnw.x + lse.x) / 2,
+    y: (lnw.y + lse.y) / 2,
+  };
+  const lotMinX = Math.min(lnw.x, lne.x, lse.x, lsw.x);
+  const lotMaxX = Math.max(lnw.x, lne.x, lse.x, lsw.x);
+  const lotMinY = Math.min(lnw.y, lne.y, lse.y, lsw.y);
+  const lotMaxY = Math.max(lnw.y, lne.y, lse.y, lsw.y);
+  const lotWidth = Math.max(1, lotMaxX - lotMinX);
+  const lotHeight = Math.max(1, lotMaxY - lotMinY);
+  const spriteSize =
+    Math.max(lotWidth, lotHeight * 1.8) * placement.sprite.scale +
+    structure.height * 1.05;
+  const spriteX = lotCenter.x - spriteSize / 2 + lotWidth * placement.sprite.offsetX;
+  const spriteY =
+    lotMaxY -
+    spriteSize * 0.18 +
+    lotHeight * placement.sprite.offsetY -
+    structure.height * 0.01;
 
-        return {
-          fill: typeof tile.properties.color === 'string' ? tile.properties.color : '#3a4f41',
-          height: sourceHeight,
-          sourceRect: {
-            x: (tile.tileId % columns) * sourceWidth,
-            y: Math.floor(tile.tileId / columns) * sourceHeight,
-            width: sourceWidth,
-            height: sourceHeight,
-          },
-          width: sourceWidth,
-          worldX: worldPoint.x,
-          worldY: worldPoint.y,
-        };
-      }),
-    }));
+  return (
+    <>
+      {svg ? (
+        <ImageSVG
+          height={spriteSize}
+          svg={svg}
+          width={spriteSize}
+          x={spriteX}
+          y={spriteY}
+        />
+      ) : (
+        <>
+          <Path color={leftWall} path={createPolygonPath([tnw, tsw, sw, nw])} />
+          <Path color={rightWall} path={createPolygonPath([tne, tse, se, ne])} />
+          <Path color={roof} path={createPolygonPath([tnw, tne, tse, tsw])} />
+          <Path
+            color={toAlphaHex('#f4f1e8', 0.16)}
+            path={createPolygonPath([
+              { x: tnw.x + (tne.x - tnw.x) * 0.08, y: tnw.y + 1 },
+              { x: tne.x - (tne.x - tnw.x) * 0.08, y: tne.y + 1 },
+              { x: tse.x - (tse.x - tsw.x) * 0.12, y: tse.y - 3 },
+              { x: tsw.x + (tse.x - tsw.x) * 0.12, y: tsw.y - 3 },
+            ])}
+          />
+          <Path color={outline} path={createPolygonPath([tnw, tne, tse, tsw])} style="stroke" strokeWidth={2.2} />
+          <Path color={toAlphaHex(outline, 0.7)} path={createPolygonPath([tnw, tsw, sw, nw])} style="stroke" strokeWidth={1.6} />
+          <Path color={toAlphaHex(outline, 0.7)} path={createPolygonPath([tne, tse, se, ne])} style="stroke" strokeWidth={1.6} />
+          {renderStructureDetails(structure, {
+            centerX,
+            centerY,
+            depth,
+            detail,
+            detailSoft,
+            width,
+          })}
+        </>
+      )}
+    </>
+  );
+}
+
+function renderStructureDetails(
+  structure: WorldStructureOverlay,
+  metrics: {
+    centerX: number;
+    centerY: number;
+    depth: number;
+    detail: string;
+    detailSoft: string;
+    width: number;
+  },
+) {
+  const { centerX, centerY, depth, detail, detailSoft, width } = metrics;
+  const definition = getMapStructureDefinition(structure.kind);
+
+  if (definition.detailPreset === 'barraco') {
+    return (
+      <>
+        <Path color={detailSoft} path={createDiamondPath(centerX - 3, centerY - structure.height + 1, 18, 10)} />
+        <Path color={detail} path={createRectPath(centerX - 7, centerY - structure.height + 5, 14, 8)} />
+        <Path color="rgba(244, 232, 214, 0.42)" path={createRectPath(centerX - 2, centerY - structure.height + 7, 4, 6)} />
+        <Path color="rgba(25, 18, 14, 0.74)" path={createRectPath(centerX - 6, centerY - structure.height + 8, 2, 3)} />
+        <Path color="rgba(25, 18, 14, 0.74)" path={createRectPath(centerX + 4, centerY - structure.height + 8, 2, 3)} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'favela-cluster') {
+    return (
+      <>
+        {[-20, -8, 4, 16].map((offset, index) => (
+          <Path
+            key={`${structure.id}:roof:${offset}`}
+            color={index % 2 === 0 ? detailSoft : detail}
+            path={createDiamondPath(centerX + offset, centerY - structure.height + (index % 2 === 0 ? 2 : 10), 22, 12)}
+          />
+        ))}
+        {[-18, -8, 2, 12, 20].map((offset, index) => (
+          <Path
+            key={`${structure.id}:hut:${offset}`}
+            color={index % 2 === 0 ? detail : detailSoft}
+            path={createRectPath(centerX + offset - 5, centerY - structure.height + 12 + (index % 2 === 0 ? 0 : 4), 10, 7)}
+          />
+        ))}
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'boca') {
+    return (
+      <>
+        <Path color={detailSoft} path={createRectPath(centerX - 12, centerY - structure.height + 6, 24, 8)} />
+        <Path color={detail} path={createRectPath(centerX - 9, centerY - structure.height + 14, 18, 6)} />
+        <Circle color={detail} cx={centerX - 8} cy={centerY - structure.height + 9} r={2.5} />
+        <Circle color={detail} cx={centerX} cy={centerY - structure.height + 6} r={2.5} />
+        <Circle color={detail} cx={centerX + 8} cy={centerY - structure.height + 9} r={2.5} />
+        <Path color="rgba(244, 190, 74, 0.76)" path={createRectPath(centerX - 3, centerY - structure.height + 15, 6, 3)} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'factory') {
+    return (
+      <>
+        <Path color={detailSoft} path={createRectPath(centerX - width * 0.22, centerY - structure.height + 4, width * 0.44, 18)} />
+        <Path color={detail} path={createRectPath(centerX + width * 0.08, centerY - structure.height - 10, 10, 24)} />
+        <Path color={detail} path={createRectPath(centerX - width * 0.16, centerY - structure.height + 14, width * 0.3, 4)} />
+        <Circle color={toAlphaHex(detailSoft, 0.7)} cx={centerX + width * 0.12} cy={centerY - structure.height - 12} r={4} />
+        <Circle color={toAlphaHex(detailSoft, 0.44)} cx={centerX + width * 0.16} cy={centerY - structure.height - 18} r={6} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'nightlife') {
+    return (
+      <>
+        <Path color={detailSoft} path={createRectPath(centerX - width * 0.22, centerY - structure.height + 8, width * 0.44, 10)} />
+        <Path color={detail} path={createRectPath(centerX - width * 0.1, centerY - structure.height + 4, width * 0.2, 5)} />
+        <Circle color={detail} cx={centerX - 12} cy={centerY - structure.height + 2} r={3} />
+        <Circle color={detail} cx={centerX} cy={centerY - structure.height - 4} r={3} />
+        <Circle color={detail} cx={centerX + 12} cy={centerY - structure.height + 2} r={3} />
+        <Path color={toAlphaHex(detailSoft, 0.48)} path={createRectPath(centerX - 2, centerY - structure.height - 10, 4, 8)} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'tower') {
+    const baseLeft = centerX - width * 0.22;
+    const baseTop = centerY - structure.height + 4;
+    const buildingWidth = Math.max(14, width * 0.44);
+    const paneWidth = Math.max(4, buildingWidth * 0.16);
+    const paneGap = Math.max(3, buildingWidth * 0.07);
+
+    return (
+      <>
+        {[0, 1, 2, 3].map((row) =>
+          [0, 1, 2].map((column) => (
+            <Path
+              key={`${structure.id}:tower:${row}:${column}`}
+              color={row === 3 ? detail : detailSoft}
+              path={createRectPath(
+                baseLeft + column * (paneWidth + paneGap),
+                baseTop + row * 9,
+                paneWidth,
+                5,
+              )}
+            />
+          )),
+        )}
+        <Path color={detail} path={createRectPath(centerX - 6, centerY - structure.height + 40, 12, 4)} />
+        <Path color={toAlphaHex(detailSoft, 0.48)} path={createRectPath(centerX - 4, centerY - structure.height - 8, 8, 6)} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'casa') {
+    return (
+      <>
+        <Path color={detailSoft} path={createDiamondPath(centerX, centerY - structure.height + 2, 22, 12)} />
+        <Path color={detail} path={createRectPath(centerX - 10, centerY - structure.height + 8, 20, 10)} />
+        <Path color="rgba(244, 232, 214, 0.44)" path={createRectPath(centerX - 2, centerY - structure.height + 10, 4, 8)} />
+        <Path color="rgba(35, 28, 22, 0.72)" path={createRectPath(centerX - 7, centerY - structure.height + 11, 3, 3)} />
+        <Path color="rgba(35, 28, 22, 0.72)" path={createRectPath(centerX + 4, centerY - structure.height + 11, 3, 3)} />
+      </>
+    );
+  }
+
+  if (definition.detailPreset === 'market') {
+    return (
+      <>
+        <Path color={detailSoft} path={createRectPath(centerX - 14, centerY - structure.height + 6, 28, 8)} />
+        <Path color={detail} path={createRectPath(centerX - 12, centerY - structure.height + 14, 24, 7)} />
+        <Path color="rgba(244, 199, 98, 0.8)" path={createRectPath(centerX - 10, centerY - structure.height + 10, 20, 4)} />
+        <Path color="rgba(244, 241, 232, 0.46)" path={createRectPath(centerX - 8, centerY - structure.height + 16, 6, 4)} />
+      </>
+    );
+  }
+
+  if (
+    definition.detailPreset === 'service' ||
+    definition.detailPreset === 'prison' ||
+    definition.detailPreset === 'training' ||
+    definition.detailPreset === 'university'
+  ) {
+    const left = centerX - width * 0.18;
+    const top = centerY - structure.height + 6;
+    const paneWidth = Math.max(6, width * 0.08);
+    const paneGap = Math.max(4, width * 0.05);
+
+    return (
+      <>
+        {[0, 1, 2].map((row) =>
+          [0, 1, 2].map((column) => (
+            <Path
+              key={`${structure.id}:pane:${row}:${column}`}
+              color={row === 1 ? detail : detailSoft}
+              path={createRectPath(
+                left + column * (paneWidth + paneGap),
+                top + row * 10,
+                paneWidth,
+                6,
+              )}
+            />
+          )),
+        )}
+        {definition.detailPreset === 'service' ? (
+          <>
+            <Path color="#f4f1e8" path={createRectPath(centerX - 2, centerY - structure.height - 4, 4, 16)} />
+            <Path color="#f4f1e8" path={createRectPath(centerX - 9, centerY - structure.height + 2, 18, 4)} />
+          </>
+        ) : null}
+        {definition.detailPreset === 'prison' ? (
+          <>
+            {[-12, -4, 4, 12].map((offset) => (
+              <Path
+                key={`${structure.id}:bar:${offset}`}
+                color={detail}
+                path={createRectPath(centerX + offset, centerY - structure.height + 2, 2, 22)}
+              />
+            ))}
+          </>
+        ) : null}
+        {definition.detailPreset === 'training' ? (
+          <Path color={detail} path={createRectPath(centerX - 12, centerY - structure.height + 20, 24, 4)} />
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <Path color={detailSoft} path={createRectPath(centerX - 8, centerY - structure.height + 8, 16, Math.max(6, depth * 0.26))} />
+  );
 }
 
 function createCameraMatrix(cameraState: CameraState): number[] {
@@ -1546,28 +1688,39 @@ function createDiamondPath(centerX: number, centerY: number, width: number, heig
   return path;
 }
 
-function createNeighborhoodPatchPath(centerX: number, centerY: number, width: number, height: number) {
-  const path = Skia.Path.Make();
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
-
-  path.moveTo(centerX, centerY - halfHeight * 0.98);
-  path.lineTo(centerX + halfWidth * 0.68, centerY - halfHeight * 0.34);
-  path.lineTo(centerX + halfWidth * 0.9, centerY + halfHeight * 0.18);
-  path.lineTo(centerX + halfWidth * 0.42, centerY + halfHeight * 0.72);
-  path.lineTo(centerX - halfWidth * 0.16, centerY + halfHeight * 0.92);
-  path.lineTo(centerX - halfWidth * 0.78, centerY + halfHeight * 0.4);
-  path.lineTo(centerX - halfWidth * 0.9, centerY - halfHeight * 0.14);
-  path.lineTo(centerX - halfWidth * 0.36, centerY - halfHeight * 0.78);
-  path.close();
-
-  return path;
-}
-
 function createRectPath(x: number, y: number, width: number, height: number) {
   const path = Skia.Path.Make();
   path.addRect(Skia.XYWHRect(x, y, width, height));
   return path;
+}
+
+function createPolygonPath(points: ScreenPoint[]) {
+  const path = Skia.Path.Make();
+
+  if (points.length === 0) {
+    return path;
+  }
+
+  path.moveTo(points[0].x, points[0].y);
+
+  for (let index = 1; index < points.length; index += 1) {
+    path.lineTo(points[index].x, points[index].y);
+  }
+
+  path.close();
+  return path;
+}
+
+function scalePolygonPoints(
+  points: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint],
+  center: ScreenPoint,
+  scaleX: number,
+  scaleY: number,
+): [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint] {
+  return points.map((point) => ({
+    x: center.x + (point.x - center.x) * scaleX,
+    y: center.y + (point.y - center.y) * scaleY,
+  })) as [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint];
 }
 
 function createPolylinePath(points: ScreenPoint[]) {
@@ -1593,84 +1746,6 @@ function createLinePath(start: ScreenPoint, end: ScreenPoint) {
   return path;
 }
 
-function drawTileLayersAsAtlas(canvas: SkCanvas, image: SkImage, layers: WorldTileLayer[]): void {
-  const paint = Skia.Paint();
-
-  for (const layer of layers) {
-    const sprites = layer.tiles.map((tile) =>
-      Skia.XYWHRect(tile.sourceRect.x, tile.sourceRect.y, tile.sourceRect.width, tile.sourceRect.height),
-    );
-    const transforms = layer.tiles.map((tile) =>
-      Skia.RSXform(1, 0, tile.worldX - tile.width / 2, tile.worldY - tile.height / 2),
-    );
-
-    if (typeof paint.setAlphaf === 'function') {
-        paint.setAlphaf(Math.min(0.34, Math.max(0.16, layer.opacity * 0.28)));
-    }
-
-    canvas.drawAtlas(image, sprites, transforms, paint);
-  }
-}
-
-function drawTileLayersAsVector(
-  canvas: SkCanvas,
-  layers: WorldTileLayer[],
-  tileSize: { height: number; width: number },
-): void {
-  for (const layer of layers) {
-    for (const tile of layer.tiles) {
-      const paint = Skia.Paint();
-
-      paint.setColor(Skia.Color(brightenHexColor(tile.fill, 0.24)));
-
-      if (typeof paint.setAlphaf === 'function') {
-        paint.setAlphaf(Math.min(0.26, Math.max(0.1, layer.opacity * 0.18)));
-      }
-
-      canvas.drawPath(
-        createDiamondPath(tile.worldX, tile.worldY, tileSize.width, tileSize.height),
-        paint,
-      );
-    }
-  }
-}
-
-function resolveGroundPatchFill(patch: WorldGroundPatch): string {
-  if (patch.kind === 'blocked') {
-    return toAlphaHex('#3a241b', 0.82);
-  }
-
-  if (patch.kind === 'slope') {
-    return toAlphaHex(brightenHexColor(patch.fill, 0.04), 0.54);
-  }
-
-  if (patch.kind === 'favela-ground') {
-    return toAlphaHex(brightenHexColor(patch.fill, 0.02), 0.68);
-  }
-
-  if (patch.kind === 'yard') {
-    return toAlphaHex(brightenHexColor(patch.fill, 0.08), 0.5);
-  }
-
-  return toAlphaHex(brightenHexColor(patch.fill, 0.05), 0.58);
-}
-
-function resolveGroundPatchStroke(patch: WorldGroundPatch): string {
-  if (patch.kind === 'blocked') {
-    return toAlphaHex(patch.accent, 0.92);
-  }
-
-  if (patch.kind === 'favela-ground') {
-    return toAlphaHex(patch.accent, 0.74);
-  }
-
-  if (patch.kind === 'slope') {
-    return toAlphaHex(patch.accent, 0.48);
-  }
-
-  return toAlphaHex(patch.accent, 0.38);
-}
-
 function getMapWorldBounds(mapWidth: number, mapHeight: number, tileSize: { height: number; width: number }) {
   const corners = [
     cartToIso({ x: 0, y: 0 }, tileSize),
@@ -1690,6 +1765,49 @@ function getMapWorldBounds(mapWidth: number, mapHeight: number, tileSize: { heig
   };
 }
 
+function getSceneWorldBounds(input: {
+  entities: GameEntity[];
+  fallbackBounds: { maxX: number; maxY: number; minX: number; minY: number };
+  spawnTile: GridPoint;
+  structures: GameStructure[];
+  tileSize: { height: number; width: number };
+}) {
+  const worldPoints: ScreenPoint[] = [cartToIso(input.spawnTile, input.tileSize)];
+
+  for (const entity of input.entities) {
+    worldPoints.push(cartToIso(entity.position, input.tileSize));
+  }
+
+  for (const structure of input.structures) {
+    worldPoints.push(cartToIso(structure.position, input.tileSize));
+    worldPoints.push(
+      cartToIso(
+        {
+          x: structure.position.x + structure.footprint.w,
+          y: structure.position.y + structure.footprint.h,
+        },
+        input.tileSize,
+      ),
+    );
+  }
+
+  if (worldPoints.length <= 1) {
+    return input.fallbackBounds;
+  }
+
+  const xValues = worldPoints.map((point) => point.x);
+  const yValues = worldPoints.map((point) => point.y);
+  const marginX = input.tileSize.width * 4;
+  const marginY = input.tileSize.height * 5;
+
+  return {
+    minX: Math.max(input.fallbackBounds.minX, Math.min(...xValues) - marginX),
+    minY: Math.max(input.fallbackBounds.minY, Math.min(...yValues) - marginY),
+    maxX: Math.min(input.fallbackBounds.maxX, Math.max(...xValues) + marginX),
+    maxY: Math.min(input.fallbackBounds.maxY, Math.max(...yValues) + marginY),
+  };
+}
+
 function hasCameraChanged(left: CameraState, right: CameraState): boolean {
   return (
     Math.abs(left.x - right.x) > 0.01 ||
@@ -1706,25 +1824,6 @@ function mapDirectionToSprite(direction: string): string {
   return ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'].includes(normalizedDirection)
     ? normalizedDirection
     : 's';
-}
-
-function brightenHexColor(input: string, amount: number): string {
-  const normalized = input.replace('#', '');
-
-  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
-    return input;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-
-  const brighten = (value: number) =>
-    Math.max(0, Math.min(255, Math.round(value + (255 - value) * amount)));
-
-  return `#${[brighten(red), brighten(green), brighten(blue)]
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('')}`;
 }
 
 function toAlphaHex(input: string, alpha: number): string {
@@ -1777,7 +1876,7 @@ function clampOverlayPosition(
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: '#0f1012',
+    backgroundColor: '#263127',
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
@@ -1821,6 +1920,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     position: 'absolute',
+  },
+  spatialLabelConnector: {
+    borderRadius: 999,
+    position: 'absolute',
+    width: 2,
+  },
+  spatialLabelConnectorDot: {
+    borderRadius: 999,
+    height: 6,
+    position: 'absolute',
+    width: 6,
   },
   zoneLabel: {
     backgroundColor: 'rgba(16, 18, 22, 0.9)',

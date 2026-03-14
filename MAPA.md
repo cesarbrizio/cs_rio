@@ -1,369 +1,591 @@
-# MAPA.md — Plano de Reestruturação do Mapa
+# MAPA.md — Mapa Interativo Compacto
 
-> Este documento **substitui a estratégia anterior**. O grid isométrico atual com overlays foi útil para provar engine e interação básica, mas **falhou como linguagem principal de jogo**. O objetivo agora é transformar o mapa em um **bairro jogável estilizado**, com leitura imediata de lugar, território e ação.
+> Este plano substitui a estratégia anterior de “urbanismo do mapa”.
+>
+> O diagnóstico final no device foi:
+>
+> - os mapas ainda estão **grandes demais**
+> - existe **espaço morto demais**
+> - ruas, casas e prédios sem interação **não ajudam o jogo**
+> - os assets SVG melhoraram muito, mas ainda podem parecer **flutuando**
+>
+> Então a direção correta mudou:
+>
+> - o mapa local precisa ser **menor**
+> - o mapa local precisa ser **mais denso**
+> - o mapa local precisa mostrar **só o que interessa para jogar**
+> - o mapa local não precisa parecer cidade realista
+> - o mapa local precisa parecer **tabuleiro tático de lugares interativos**
 
 ## Objetivo
 
 Transformar o mapa de:
 
-- grid abstrato com cores sem semântica clara
-- overlays territoriais que parecem técnicos
-- linhas como `Eixo do Centro` e `Rota do Porto` que não parecem ruas
-- POIs percebidos como marcadores soltos
-- dificuldade em entender onde está favela, rua, boca, baile e fábrica
+- região grande demais
+- boneco andando mais do que o necessário
+- muita leitura irrelevante
+- ruas que confundem
+- construções passivas que não ajudam
+- SVGs sem assentamento suficiente no chão
 
 em:
 
-- **bairro jogável estilizado**
-- **favela como distrito reconhecível**
-- **POIs com identidade visual forte**
-- **ruas e caminhos que parecem ruas e caminhos**
-- **mapa que comunica o sistema sem depender de textos grandes**
-- **jogador sempre visível e recentralizável**
+- **mapa regional compacto**
+- **foco em elementos interativos**
+- **leitura rápida das favelas e POIs**
+- **distâncias curtas e objetivas**
+- **assets SVG assentados no chão**
+- **regiões diferentes pela composição dos lugares, não pelo excesso de cenário**
 
-## Diagnóstico
+## Premissas
 
-O problema principal **não é falta de informação**.
+### 1. O mapa local deve ter cerca de 30% do tamanho atual
 
-O problema principal é:
+O objetivo não é fazer o jogador passear.
 
-- a base visual do mapa **não significa nada sozinha**
-- quando adicionamos mais labels, estados e POIs, a confusão aumenta
-- o jogador não pensa “estou num bairro do jogo”
-- o jogador pensa “estou num tabuleiro com marcadores”
+O objetivo é:
 
-Conclusão:
+- abrir a região
+- ver rapidamente as favelas relevantes
+- ver rapidamente boca, baile, rave, fábrica, hospital, prisão, mercado, treino, universidade e afins
+- acessar tudo com pouco deslocamento
 
-- **não basta enriquecer o grid atual**
-- é preciso **mudar a linguagem base do mapa**
+### 2. O mapa local é de jogo, não de urbanismo realista
 
-## Princípios
+Não precisamos de:
 
-### 1. O mapa deve parecer lugar, não overlay
+- rua por rua
+- quarteirão por quarteirão
+- casa aleatória
+- prédio aleatório
+- malha viária “bonita”
 
-O jogador precisa reconhecer:
+Se isso não ajuda a jogar, isso atrapalha.
 
-- rua
-- beco
-- quadra
-- morro
+### 3. O foco deve ser nos elementos interativos
+
+O que realmente interessa no mapa:
+
 - favela
-- área bloqueada
-
-sem depender de tooltip.
-
-### 2. Favela é distrito, não polígono técnico
-
-Cada favela precisa parecer uma área real do mundo:
-
-- forma própria
-- nome
-- controle
-- estado
-
-### 3. Cada POI precisa ter silhueta e semântica
-
-O jogador deve reconhecer em 1 segundo:
-
 - boca
-- fábrica
 - baile
-- mercado negro
+- rave
+- fábrica
 - hospital
+- prisão
+- mercado negro
 - treino
 - universidade
+- docas
+- desmanche
 
-### 4. Home, macro mapa e painel territorial têm papéis diferentes
+Todo o resto só entra se ajudar a leitura desses pontos.
 
-- **Home** = mapa local jogável da região atual
-- **MapScreen** = deslocamento macro entre regiões
-- **TerritoryScreen** = leitura sistêmica e administrativa
+### 4. O SVG não pode flutuar
 
-### 5. O jogador nunca pode “sumir”
+Cada asset precisa:
 
-Sempre deve existir:
+- tocar o chão
+- ter base compatível
+- ter anchor compatível
+- parecer colocado no mapa, não pairando sobre ele
 
-- botão de recentralizar
-- modo seguir jogador
-- retorno consistente ao mapa
+### 5. Regiões continuam existindo, mas de forma compacta
 
-### 6. O backend continua sendo a fonte de verdade
+Cada região deve continuar tendo personalidade:
 
-Mas o mapa precisa materializar visualmente:
+- `Centro`
+- `Zona Norte`
+- `Zona Sul`
+- `Zona Oeste`
+- `Zona Sudoeste`
+- `Baixada`
 
-- controle territorial
-- guerra
-- evento
-- pressão policial
-- atividade de POIs
+Mas essa personalidade virá de:
 
-## Linguagem Visual Alvo
+- densidade dos interativos
+- agrupamento das favelas
+- tipo de POI dominante
+- relação entre favela, serviço, mercado e produção
 
-### Terreno
+e não de:
 
-- **Rua principal**: faixa larga e clara
-- **Beco**: passagem estreita
-- **Quadra urbana**: bloco neutro
-- **Encosta / morro**: textura distinta
-- **Favela**: mancha urbana própria
-- **Área bloqueada**: visual obviamente não caminhável
+- excesso de prédio sem função
+- ruas decorativas
+- cenário passivo demais
 
-### Favela
+## O que continua válido do trabalho anterior
 
-Cada favela deve ter:
+Esses blocos continuam sendo base útil:
 
-- área/distrito visível
-- nome legível
-- estado:
-  - `Neutra`
-  - `Controlada`
-  - `Guerra`
-- dono:
-  - `CV`
-  - `TCP`
-  - `ADA`
-  - etc.
+1. **Biblioteca SVG de estruturas**
+2. **Catálogo de tipos de construção/POI**
+3. **Sistema de presets por região**
+4. **Base de lote/placement**
 
-### POIs
+## O que foi descartado como direção principal
 
-- **Boca**: ícone clandestino
-- **Fábrica**: galpão / engrenagem / fumaça
-- **Baile**: som / luz / palco
-- **Mercado Negro**: maleta / banca
-- **Hospital**: cruz
-- **Treino**: peso / luva
-- **Universidade**: livro / prédio
+Esses objetivos deixam de ser prioridade:
 
-### Caminhos
+- fazer rua parecer rua realista
+- povoar mapa com casa/prédio sem função
+- construir “urbanismo bonito” por si só
+- usar cenário passivo como protagonista do mapa
 
-As linhas abstratas atuais devem ser eliminadas.
+## Regra de execução
 
-`Eixo do Centro`, `Rota do Porto` e equivalentes só podem existir se parecerem:
+Só marcar etapa como concluída quando:
 
-- avenida
-- rua
-- via portuária
-- subida
+- a entrega existir no código
+- e a mudança fizer diferença perceptível no device
 
-Se parecerem “raio”, estão errados.
+Se a implementação entrar no código, mas o jogador ainda disser algo como:
 
-## MVP do Mapa
+- “o mapa continua grande demais”
+- “tem coisa demais sem função”
+- “a rua só confunde”
+- “os SVGs continuam flutuando”
 
-### Regiões foco
+então a etapa **não** está concluída.
 
-- **Centro**
-- **Zona Norte**
+---
 
-### Home
-
-A home deve mostrar a **região local**, não o Rio inteiro.
-
-Essa região precisa ter:
-
-- 2 a 5 favelas claramente reconhecíveis
-- 4 a 8 POIs relevantes
-- ruas e caminhos legíveis
-- leitura de controle territorial
-- jogador claramente posicionado
-
-### Macro Mapa
-
-O `MapScreen` serve para:
-
-- ver regiões
-- escolher destino
-- pagar custo
-- entender tempo de deslocamento
-
-Não precisa substituir o mapa local.
-
-## Fase 0 — Reset Conceitual
+## Etapa 0 — Direção Aprovada
 
 ### Saída esperada
 
-Fechar a gramática visual e abandonar explicitamente a linguagem anterior baseada em grid abstrato com overlays.
+Fixar a nova direção do mapa local.
 
-- [x] `0.1` Assumir que o plano anterior falhou como linguagem principal
-- [x] `0.2` Fixar o alvo como “bairro jogável estilizado”
-- [x] `0.3` Separar Home, MapScreen e TerritoryScreen
-- [x] `0.4` Fixar gramática mínima de terreno, favela e POI
-- [x] `0.5` Fixar regiões MVP: Centro e Zona Norte
+- [x] `0.1` Assumir que o mapa está grande demais
+- [x] `0.2` Assumir que o foco deve ser nos elementos interativos
+- [x] `0.3` Assumir que rua/prédio/casa passivos não são prioridade
+- [x] `0.4` Assumir que o SVG precisa assentar no chão
 
-## Fase 1 — Base Visual do Bairro
+---
 
-### Saída esperada
-
-O jogador bate o olho e entende que está num bairro do jogo, não num tabuleiro técnico.
-
-- [x] `1.1` Remover a linguagem dominante de losangos abstratos como leitura principal
-- [x] `1.2` Desenhar ruas principais e becos como vias reconhecíveis
-- [x] `1.3` Criar blocos/quarteirões/quadras com leitura urbana simples
-- [x] `1.4` Diferenciar claramente chão caminhável e área bloqueada
-- [x] `1.5` Dar ao morro/encosta linguagem própria
-- [x] `1.6` Eliminar as linhas abstratas tipo `Eixo do Centro` e `Rota do Porto`
-- [x] `1.7` Substituir essas linhas por ruas/avenidas/trilhas semânticas
-- [ ] `1.8` Validar em device que o mapa deixou de parecer “grid colorido sem sentido”
-
-Estado atual:
-
-- `1.1` a `1.7` implementados no código
-- `1.8` depende de validação real no device
-
-### Critério
-
-Se o jogador ainda disser:
-
-- “não sei o que é esse chão”
-- “esses pisos verde/cinza/amarelo não significam nada”
-
-então a fase falhou.
-
-## Fase 2 — Favela como Distrito
+## Etapa 1 — Biblioteca SVG Interativa
 
 ### Saída esperada
 
-Favela passa a parecer favela do jogo, e não mancha técnica.
+Ter uma biblioteca visual dos tipos realmente úteis para o jogo.
 
-- [ ] `2.1` Projetar as favelas como distritos reais dentro da região local
-- [ ] `2.2` Garantir que 2 a 5 favelas apareçam naturalmente na viewport comum
-- [ ] `2.3` Colocar nome da favela diretamente no espaço
-- [ ] `2.4` Mostrar controle com selo curto e legível
-- [ ] `2.5` Mostrar estado territorial (`Neutra`, `Controlada`, `Guerra`)
-- [ ] `2.6` Destacar a favela selecionada sem poluir o resto
-- [ ] `2.7` Tocar na favela abre contexto e `TerritoryScreen` focado nela
-- [ ] `2.8` Validar em device que o jogador entende o que é favela sem depender do painel
+### Status atual
 
-### Critério
+Concluída no código.
 
-Se o jogador ainda disser:
+### O que esta etapa já entrega
 
-- “só achei uma favela no mapa”
-- “não sei quem controla isso”
+- barracos
+- favela cluster
+- boca
+- baile
+- rave
+- hospital
+- prisão
+- fábrica
+- mercado negro
+- treino
+- universidade
+- docas
+- desmanche
 
-então a fase falhou.
+### Itens
 
-## Fase 3 — POIs com Identidade de Jogo
+- [x] `1.1` Biblioteca de SVGs criada
+- [x] `1.2` Catálogo de tipos criado
+- [x] `1.3` Footprint padrão por tipo definido
+- [x] `1.4` Integração do renderer com os SVGs
+- [x] `1.5` Presets regionais consumindo os tipos
+- [x] `1.6` Base pronta para iterar no layout compacto
+- [x] `1.7` Tipos principais do jogo cobertos
+- [x] `1.8` Reuso entre regiões habilitado
 
-### Saída esperada
+### Arquivos centrais
 
-Cada lugar do jogo tem cara própria.
+- [apps/mobile/src/data/mapStructureCatalog.ts](/home/cesar/projects/cs_rio/apps/mobile/src/data/mapStructureCatalog.ts)
+- [apps/mobile/src/data/generated/mapStructureSvgCatalog.generated.ts](/home/cesar/projects/cs_rio/apps/mobile/src/data/generated/mapStructureSvgCatalog.generated.ts)
+- [apps/mobile/src/data/mapStructureSvgCatalog.ts](/home/cesar/projects/cs_rio/apps/mobile/src/data/mapStructureSvgCatalog.ts)
+- [apps/mobile/assets/map-structures](/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures)
 
-- [ ] `3.1` Boca com identidade clandestina clara
-- [ ] `3.2` Fábrica com identidade industrial clara
-- [ ] `3.3` Baile com identidade de evento/lugar
-- [ ] `3.4` Mercado Negro com identidade própria
-- [ ] `3.5` Hospital com ícone e presença claros
-- [ ] `3.6` Treino com identidade própria
-- [ ] `3.7` Universidade com identidade própria
-- [ ] `3.8` Tocar em cada POI abre a ação/contexto certo
-- [ ] `3.9` Validar que os lugares agora parecem lugares, não marcadores genéricos
+---
 
-## Fase 4 — Navegação, Câmera e Presença
-
-### Saída esperada
-
-O jogador nunca mais se perde e sente que está navegando um espaço jogável.
-
-- [ ] `4.1` Botão de recentralizar sempre centraliza no jogador real
-- [ ] `4.2` Modo seguir jogador funciona sempre
-- [ ] `4.3` Pan manual desativa seguir de forma previsível
-- [ ] `4.4` Destino marcado fica visualmente claro
-- [ ] `4.5` Voltar ao mapa recentraliza quando fizer sentido
-- [ ] `4.6` Validar em uso prolongado que o jogador não “some” mais
-
-### Critério
-
-Se o botão de recentralizar ainda:
-
-- não fizer nada
-- centralizar lugar aleatório
-- ou falhar com frequência
-
-então a fase falhou.
-
-## Fase 5 — Macro Mapa do Rio
+## Etapa 2 — Compactação Regional
 
 ### Saída esperada
 
-O `MapScreen` vira um mapa regional de verdade, não uma tela preta com nomes.
+Reduzir drasticamente a escala do mapa local para cada região.
 
-- [ ] `5.1` Usar mapa do Rio como base estilizada
-- [ ] `5.2` Destacar macro-regiões de forma clara
-- [ ] `5.3` Mostrar região atual do jogador
-- [ ] `5.4` Mostrar destino escolhido de forma forte
-- [ ] `5.5` Mostrar tempo e custo de deslocamento
-- [ ] `5.6` Confirmar visualmente a viagem entre regiões
-- [ ] `5.7` Validar que `Ampliar` agora abre um mapa que parece mapa de verdade
+### Status atual
 
-## Fase 6 — Estado Vivo Integrado
+Parcial.
+
+### O que esta etapa precisa entregar
+
+- regiões com cerca de **30% do tamanho atual**
+- menos caminhada
+- mais densidade
+- mais objetividade
+
+### Entregas obrigatórias
+
+- [x] `2.1` Reduzir a área jogável efetiva do `Centro`
+- [x] `2.2` Reduzir a área jogável efetiva da `Zona Norte`
+- [x] `2.3` Reduzir a área jogável efetiva das demais regiões
+- [x] `2.4` Aproximar favelas e POIs entre si
+- [x] `2.5` Reduzir distâncias mortas entre elementos
+- [ ] `2.6` Garantir que a maior parte dos interativos caiba em leitura rápida
+
+### Critério de aceite
+
+Ao abrir a região, o jogador precisa sentir:
+
+- “vejo rápido o que importa”
+- “não preciso atravessar um mapa enorme”
+- “os lugares úteis estão próximos e claros”
+
+---
+
+## Etapa 3 — Poda para Interativos
 
 ### Saída esperada
 
-O mapa local vira fonte principal de contexto da rodada.
+Eliminar do mapa local tudo que não ajuda a jogar.
 
-- [ ] `6.1` Refletir domínio territorial real nas favelas
-- [ ] `6.2` Refletir guerra de forma clara
-- [ ] `6.3` Refletir eventos ativos sem card gigante
-- [ ] `6.4` Refletir POIs controlados / quentes / ativos
-- [ ] `6.5` Refletir pressão policial / clima regional
-- [ ] `6.6` Refletir presença remota só quando fizer sentido
-- [ ] `6.7` Mudar leitura do mapa conforme facção do jogador
-- [ ] `6.8` Validar em device que o mapa virou fonte principal de contexto
+### Status atual
 
-## Fase 7 — Fechamento e Validação Final
+Parcial.
+
+### O que esta etapa precisa entregar
+
+Remover ou reduzir fortemente:
+
+- ruas decorativas
+- casas sem função
+- prédios sem função
+- enchimento que não melhora a leitura
+
+Manter:
+
+- favelas
+- POIs interativos
+- terreno mínimo necessário para contexto
+
+### Entregas obrigatórias
+
+- [x] `3.1` Remover ruas como protagonista do mapa local
+- [x] `3.2` Remover prédios residenciais passivos do layout principal
+- [x] `3.3` Remover casas passivas do layout principal
+- [x] `3.4` Remover prédios comerciais passivos do layout principal
+- [x] `3.5` Preservar só elementos que ajudam a ler interatividade
+- [x] `3.6` Simplificar a composição visual para leitura rápida
+- [ ] `3.7` Garantir que o mapa ficou mais claro, e não mais vazio
+
+### Critério de aceite
+
+O jogador precisa pensar:
+
+- “só estou vendo o que interessa”
+
+e não:
+
+- “tem um monte de coisa desenhada que não serve para nada”
+
+---
+
+## Etapa 4 — Assentamento dos SVGs no Chão
 
 ### Saída esperada
 
-Fechar o mapa como parte viva do jogo, não como protótipo visual.
+Fazer os assets parecerem realmente apoiados no mapa.
 
-- [ ] `7.1` Rodada de teste real no Centro
-- [ ] `7.2` Rodada de teste real na Zona Norte
-- [ ] `7.3` Confirmar que favela, POIs e domínio são entendidos sem explicação
-- [ ] `7.4` Confirmar que o jogador não depende do `TerritoryScreen` para entender o mundo
-- [ ] `7.5` Confirmar que o mapa agora tem “cara de jogo” e não de software
+### Status atual
 
-## Ordem Recomendada de Execução
+Em validação no device.
 
-| Passo | Fase | Entrega | Impacto |
-|---|---|---|---|
-| 1 | Fase 1 | Base visual do bairro | Para de parecer grid técnico |
-| 2 | Fase 2 | Favela como distrito | Território passa a ser legível |
-| 3 | Fase 3 | POIs com identidade forte | Lugares passam a parecer lugares |
-| 4 | Fase 4 | Navegação e presença | Jogador para de se perder |
-| 5 | Fase 5 | Macro mapa coerente | Deslocamento regional fica claro |
-| 6 | Fase 6 | Estado vivo integrado | Mapa vira fonte de contexto |
-| 7 | Fase 7 | Validação final | Confirma se virou jogo de verdade |
+### O que esta etapa precisa entregar
 
-## Critérios de Aceite Final
+- base de chão compatível por asset
+- anchor corrigido
+- sombra coerente
+- remoção da sensação de “flutuar”
 
-Só considerar o objetivo do mapa cumprido quando, em teste real, o jogador disser algo próximo de:
+### Entregas obrigatórias
 
-- “sei onde estou”
-- “sei qual área é favela”
-- “sei quem controla essa área”
-- “sei onde fica boca / baile / fábrica / mercado”
-- “consigo voltar para o meu boneco sem me perder”
-- “isso parece um bairro de jogo, não um software com overlays”
+- [x] `4.1` Revisar anchor vertical dos SVGs
+- [x] `4.2` Revisar offset por tipo
+- [x] `4.3` Revisar base/lote visual por tipo interativo
+- [x] `4.4` Revisar sombra dos SVGs
+- [x] `4.5` Corrigir favela cluster e barracos primeiro
+- [x] `4.6` Corrigir boca, baile, rave, fábrica e equipamentos depois
 
-Se o jogador ainda disser:
+### Critério de aceite
 
-- “não sei o que significam essas cores”
-- “não sei o que é favela”
-- “o mapa ainda parece grid abstrato”
-- “parece software, não jogo”
+O jogador precisa olhar e pensar:
+
+- “isso está no chão”
+
+e não:
+
+- “isso está pairando”
+
+---
+
+## Etapa 5 — Centro Compacto e Interativo
+
+### Saída esperada
+
+Fazer o `Centro` virar um mapa compacto focado no que importa.
+
+### Status atual
+
+Parcial.
+
+### O que esta etapa precisa entregar
+
+- `Providência` claramente visível
+- `Mercado Negro`
+- `Hospital`
+- `Treino`
+- `Universidade`
+- `Boca`
+- `Baile`
+- `Rave`
+- `Docas`
+- `Fábrica`
+
+Todos próximos, legíveis e acessíveis.
+
+### Entregas obrigatórias
+
+- [x] `5.1` Compactar o `Centro`
+- [x] `5.2` Manter a Providência como favela central do recorte
+- [x] `5.3` Reorganizar os interativos do Centro em leitura rápida
+- [x] `5.4` Reduzir drasticamente elementos passivos
+- [x] `5.5` Garantir que o Centro parece região rica/comercial/portuária
+- [ ] `5.6` Validar que o jogador entende rapidamente onde estão os pontos importantes
+
+### Critério de aceite
+
+Ao abrir o `Centro`, o jogador precisa ver em pouco tempo:
+
+- favela
+- mercado
+- hospital
+- treino
+- porto/docas
+- produção
+- festa
+
+---
+
+## Etapa 6 — Zona Norte Compacta e Interativa
+
+### Saída esperada
+
+Fazer a `Zona Norte` virar um mapa compacto focado em favela/produção/periferia.
+
+### Status atual
+
+Parcial.
+
+### O que esta etapa precisa entregar
+
+- favela(s) mais evidentes
+- boca
+- baile
+- fábrica
+- desmanche
+- hospital
+- treino
+- menos caminhada
+- menos cenário passivo
+
+### Entregas obrigatórias
+
+- [x] `6.1` Compactar a `Zona Norte`
+- [x] `6.2` Concentrar a leitura de favela e encosta
+- [x] `6.3` Aproximar boca, baile e produção
+- [x] `6.4` Reduzir elementos passivos
+- [x] `6.5` Garantir identidade periférica/fabril
+- [ ] `6.6` Validar leitura rápida da região
+
+### Critério de aceite
+
+Ao abrir a `Zona Norte`, o jogador precisa sentir:
+
+- “isso é favela/periferia/produção”
+
+com leitura mais rápida do que hoje.
+
+---
+
+## Etapa 7 — Demais Regiões Compactas
+
+### Saída esperada
+
+Aplicar o mesmo método nas outras regiões.
+
+### Status atual
+
+Parcial.
+
+### Regiões
+
+- `Zona Sul`
+- `Zona Oeste`
+- `Zona Sudoeste`
+- `Baixada`
+
+### Entregas obrigatórias
+
+- [x] `7.1` Compactar a `Zona Sul`
+- [x] `7.2` Compactar a `Zona Oeste`
+- [x] `7.3` Compactar a `Zona Sudoeste`
+- [x] `7.4` Compactar a `Baixada`
+- [x] `7.5` Podar elementos passivos em todas elas
+- [x] `7.6` Garantir identidade por composição interativa
+- [ ] `7.7` Validar que cada região mudou claramente de sensação
+- [ ] `7.8` Garantir que nenhuma região virou “Centro com outra cor”
+
+### Critério de aceite
+
+Trocar de região precisa mudar:
+
+- densidade
+- riqueza
+- tipo de favela
+- tipo de produção
+- tipo de POI dominante
+
+sem depender do HUD.
+
+---
+
+## Etapa 8 — Fechamento e Validação Final
+
+### Saída esperada
+
+Encerrar o plano só quando o mapa realmente ficar rápido, objetivo e jogável.
+
+### Status atual
+
+Em validação no device.
+
+### Estado real do plano
+
+As etapas de implementação já entraram no código:
+
+- compactação regional
+- poda para interativos
+- assentamento dos SVGs
+- `Centro` autorado
+- `Zona Norte` autorada
+- `Zona Sul`, `Zona Oeste`, `Zona Sudoeste` e `Baixada` autoradas
+
+O que falta agora não é mais “escrever outra arquitetura”.
+
+O que falta é confirmar no aparelho que o resultado ficou:
+
+- menor
+- mais denso
+- mais objetivo
+- mais legível
+- mais parecido com jogo
+
+Se o teste no device falhar, o plano não fecha.
+
+### Entregas obrigatórias
+
+- [ ] `8.1` Validar que o mapa local ficou claramente menor e mais objetivo
+- [ ] `8.2` Validar que a maior parte do que aparece é interativo
+- [ ] `8.3` Validar que os SVGs assentam no chão
+- [ ] `8.4` Validar que o jogador encontra rápido favela, boca, baile, rave, fábrica e hospital
+- [ ] `8.5` Validar que as regiões mudam de sensação entre si
+- [ ] `8.6` Validar que o mapa parece jogo e não overlay técnico
+
+### Roteiro objetivo de validação
+
+#### `Centro`
+
+- confirmar se a `Providência` aparece de cara como favela principal
+- confirmar se `Mercado`, `Hospital`, `Treino`, `Universidade`, `Docas`, `Fábrica`, `Boca`, `Baile` e `Rave` ficam próximos
+- confirmar se o `Centro` parece comercial/portuário sem poluição inútil
+
+#### `Zona Norte`
+
+- confirmar se a leitura de favela/encosta/produção aparece de cara
+- confirmar se `Boca`, `Baile`, `Fábrica` e `Desmanche` parecem o mesmo ecossistema
+- confirmar se a região não parece só “Centro com outra cor”
+
+#### `Zona Sul`, `Zona Oeste`, `Zona Sudoeste` e `Baixada`
+
+- trocar entre as quatro e confirmar diferença clara de sensação
+- checar qual POI domina a leitura de cada uma
+- checar se alguma região ainda parece versão reciclada de outra
+
+#### Global
+
+- confirmar se o mapa está menor e mais objetivo
+- confirmar se o jogador anda pouco
+- confirmar se a maior parte do que aparece é jogável
+- confirmar se algum asset ainda parece flutuando
+- confirmar se o mapa parece jogo e não overlay técnico
+
+### Pendências reais para encerrar o plano
+
+- `2.6` validar leitura rápida do recorte compacto
+- `3.7` validar que a poda deixou o mapa claro, e não vazio
+- `5.6` validar entendimento rápido do `Centro`
+- `6.6` validar leitura rápida da `Zona Norte`
+- `7.7` validar mudança clara de sensação entre as regiões
+- `7.8` validar que nenhuma região virou “Centro com outra cor”
+- `8.1` a `8.6` validar o veredito final do mapa
+
+### Critério de aceite
+
+Só considerar o plano fechado quando o veredito final for algo próximo de:
+
+- “agora o mapa está objetivo”
+- “vejo rápido o que importa”
+- “os lugares interativos estão claros”
+- “não tem mais um monte de coisa inútil poluindo”
+- “os assets parecem no chão”
+- “agora isso parece jogo”
+
+Se ainda vier algo como:
+
+- “continua grande demais”
+- “continua com muita coisa inútil”
+- “continua confuso”
+- “continua parecendo overlay”
 
 então o plano falhou.
 
+---
+
+## Ordem Recomendada de Execução
+
+| Passo | Etapa | Entrega | Impacto |
+|---|---|---|---|
+| 1 | Etapa 2 | Compactação regional | Menos caminhada, mais densidade |
+| 2 | Etapa 3 | Poda para interativos | Menos poluição, mais objetividade |
+| 3 | Etapa 4 | Assentamento dos SVGs | Assets deixam de flutuar |
+| 4 | Etapa 5 | Centro compacto | Primeira região realmente objetiva |
+| 5 | Etapa 6 | Zona Norte compacta | Segunda região realmente objetiva |
+| 6 | Etapa 7 | Demais regiões | Mundo inteiro entra na nova lógica |
+| 7 | Etapa 8 | Validação final | Só fecha quando parecer jogo |
+
 ## Métricas de Progresso
 
-| Fase | Tarefas | Concluídas | % |
+| Etapa | Tarefas | Concluídas | % |
 |---|---|---|---|
-| Fase 0 — Reset Conceitual | 5 | 5 | 100% |
-| Fase 1 — Base Visual do Bairro | 8 | 7 | 88% |
-| Fase 2 — Favela como Distrito | 8 | 0 | 0% |
-| Fase 3 — POIs com Identidade de Jogo | 9 | 0 | 0% |
-| Fase 4 — Navegação, Câmera e Presença | 6 | 0 | 0% |
-| Fase 5 — Macro Mapa do Rio | 7 | 0 | 0% |
-| Fase 6 — Estado Vivo Integrado | 8 | 0 | 0% |
-| Fase 7 — Fechamento e Validação Final | 5 | 0 | 0% |
-| **TOTAL** | **56** | **12** | **21%** |
+| Etapa 0 — Direção Aprovada | 4 | 4 | 100% |
+| Etapa 1 — Biblioteca SVG Interativa | 8 | 8 | 100% |
+| Etapa 2 — Compactação Regional | 6 | 5 | 83% |
+| Etapa 3 — Poda para Interativos | 7 | 6 | 86% |
+| Etapa 4 — Assentamento dos SVGs no Chão | 6 | 6 | 100% |
+| Etapa 5 — Centro Compacto e Interativo | 6 | 5 | 83% |
+| Etapa 6 — Zona Norte Compacta e Interativa | 6 | 5 | 83% |
+| Etapa 7 — Demais Regiões Compactas | 8 | 6 | 75% |
+| Etapa 8 — Fechamento e Validação Final | 6 | 0 | 0% |
+| **TOTAL** | **57** | **45** | **79%** |
