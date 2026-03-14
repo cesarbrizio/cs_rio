@@ -1,8 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { type CrimeAttemptResponse, type CrimeCatalogItem } from '@cs-rio/shared';
+import { useNavigation } from '@react-navigation/native';
+import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { type RootStackParamList } from '../../App';
 import { CrimeResultModal } from '../components/CrimeResultModal';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import {
@@ -17,6 +20,7 @@ import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
 
 export function CrimesScreen(): JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
@@ -134,84 +138,6 @@ export function CrimesScreen(): JSX.Element {
 
         {isLoading ? <Banner copy="Carregando catálogo criminal..." tone="neutral" /> : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Crime selecionado</Text>
-          {selectedCrime ? (
-            <View style={styles.operationCard}>
-              <View style={styles.operationHeader}>
-                <View style={styles.operationCopy}>
-                  <Text style={styles.operationEyebrow}>{selectedCrime.type}</Text>
-                  <Text style={styles.operationTitle}>{selectedCrime.name}</Text>
-                  <Text style={styles.operationDescription}>
-                    Chance estimada {formatCrimeChance(selectedCrime.estimatedSuccessChance)} ·
-                    poder atual {selectedCrime.playerPower.toLocaleString('pt-BR')}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.stateChip,
-                    selectedCrime.isRunnable
-                      ? styles.stateChipReady
-                      : selectedCrime.isOnCooldown
-                        ? styles.stateChipCooldown
-                        : styles.stateChipLocked,
-                  ]}
-                >
-                  <Text style={styles.stateChipLabel}>
-                    {selectedCrime.isRunnable
-                      ? 'Pronto'
-                      : selectedCrime.isOnCooldown
-                        ? formatCrimeCooldown(selectedCrime.cooldownRemainingSeconds)
-                        : 'Bloqueado'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.metricRow}>
-                <InfoPill
-                  label="Custo"
-                  value={`${selectedCrime.staminaCost} STA · ${selectedCrime.nerveCost} NRV`}
-                />
-                <InfoPill
-                  label="Recompensa"
-                  value={`${formatCrimeCurrency(selectedCrime.rewardMin)} → ${formatCrimeCurrency(selectedCrime.rewardMax)}`}
-                />
-                <InfoPill label="Conceito" value={`+${selectedCrime.conceitoReward}`} />
-              </View>
-
-              <Text style={styles.confirmationCopy}>
-                Confirmação: tocar no botão abaixo executa o crime selecionado agora.
-              </Text>
-              {selectedCrime.lockReason ? (
-                <Text style={styles.lockCopy}>{selectedCrime.lockReason}</Text>
-              ) : null}
-
-              <Pressable
-                disabled={!selectedCrime.isRunnable || isAttempting}
-                onPress={() => {
-                  void handleAttemptCrime();
-                }}
-                style={({ pressed }) => [
-                  styles.confirmButton,
-                  (!selectedCrime.isRunnable || isAttempting) ? styles.confirmButtonDisabled : null,
-                  pressed ? styles.buttonPressed : null,
-                ]}
-              >
-                {isAttempting ? (
-                  <View style={styles.buttonContent}>
-                    <ActivityIndicator color={colors.background} size="small" />
-                    <Text style={styles.confirmButtonLabel}>Executando agora...</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.confirmButtonLabel}>Confirmar crime</Text>
-                )}
-              </Pressable>
-            </View>
-          ) : (
-            <Banner copy="Nenhum crime disponível para esta conta ainda." tone="neutral" />
-          )}
-        </View>
-
         {groupedCrimes.map((group) => (
           <View key={group.level} style={styles.section}>
             <Text style={styles.sectionTitle}>{group.label}</Text>
@@ -249,6 +175,74 @@ export function CrimesScreen(): JSX.Element {
                   ) : (
                     <Text style={styles.crimeReady}>Disponível para execução</Text>
                   )}
+                  {selectedCrime?.id === crime.id ? (
+                    <View style={styles.inlineSelectedCard}>
+                      <View style={styles.operationHeader}>
+                        <View style={styles.operationCopy}>
+                          <Text style={styles.operationEyebrow}>{crime.type}</Text>
+                          <Text style={styles.operationDescription}>
+                            Chance estimada {formatCrimeChance(crime.estimatedSuccessChance)} ·
+                            poder atual {crime.playerPower.toLocaleString('pt-BR')}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.stateChip,
+                            crime.isRunnable
+                              ? styles.stateChipReady
+                              : crime.isOnCooldown
+                                ? styles.stateChipCooldown
+                                : styles.stateChipLocked,
+                          ]}
+                        >
+                          <Text style={styles.stateChipLabel}>
+                            {crime.isRunnable
+                              ? 'Pronto'
+                              : crime.isOnCooldown
+                                ? formatCrimeCooldown(crime.cooldownRemainingSeconds)
+                                : 'Bloqueado'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.metricRow}>
+                        <InfoPill
+                          label="Custo"
+                          value={`${crime.staminaCost} STA · ${crime.nerveCost} NRV`}
+                        />
+                        <InfoPill
+                          label="Recompensa"
+                          value={`${formatCrimeCurrency(crime.rewardMin)} → ${formatCrimeCurrency(crime.rewardMax)}`}
+                        />
+                        <InfoPill label="Conceito" value={`+${crime.conceitoReward}`} />
+                      </View>
+
+                      {crime.lockReason ? (
+                        <Text style={styles.lockCopy}>{crime.lockReason}</Text>
+                      ) : null}
+
+                      <Pressable
+                        disabled={!crime.isRunnable || isAttempting}
+                        onPress={() => {
+                          void handleAttemptCrime();
+                        }}
+                        style={({ pressed }) => [
+                          styles.confirmButton,
+                          (!crime.isRunnable || isAttempting) ? styles.confirmButtonDisabled : null,
+                          pressed ? styles.buttonPressed : null,
+                        ]}
+                      >
+                        {isAttempting ? (
+                          <View style={styles.buttonContent}>
+                            <ActivityIndicator color={colors.background} size="small" />
+                            <Text style={styles.confirmButtonLabel}>Executando agora...</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.confirmButtonLabel}>Confirmar crime</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </Pressable>
               ))}
             </View>
@@ -261,11 +255,13 @@ export function CrimesScreen(): JSX.Element {
           setResult(null);
         }}
         onPrisonAction={(actionId) => {
+          setResult(null);
           setBootstrapStatus(
             actionId === 'advogado'
-              ? 'Advogado entra na Fase 13. Por enquanto a prisão segue o fluxo padrão.'
-              : 'Sistema de prisão completo entra na Fase 13.',
+              ? 'Abrindo a prisão para tentar uma saída imediata.'
+              : 'Abrindo a prisão para acompanhar a soltura.',
           );
+          navigation.navigate('Prison');
         }}
         result={result}
         visible={result !== null}
@@ -491,6 +487,15 @@ const styles = StyleSheet.create({
   },
   crimeCardSelected: {
     borderColor: colors.accent,
+  },
+  inlineSelectedCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 12,
+    marginTop: 12,
+    padding: 14,
   },
   crimeCardLocked: {
     opacity: 0.62,

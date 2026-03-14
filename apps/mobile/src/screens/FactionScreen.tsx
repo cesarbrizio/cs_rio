@@ -70,6 +70,7 @@ export function FactionScreen(): JSX.Element {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [createName, setCreateName] = useState('');
@@ -151,7 +152,9 @@ export function FactionScreen(): JSX.Element {
 
   const loadFactionHub = useCallback(async () => {
     setIsLoading(true);
+    setLoadErrorMessage(null);
     setErrorMessage(null);
+    setFeedbackMessage(null);
 
     try {
       const list = await factionApi.list();
@@ -172,7 +175,7 @@ export function FactionScreen(): JSX.Element {
         nextUpgradeBook,
         nextLeadershipCenter,
         nextWarCatalog,
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         factionApi.getMembers(list.playerFactionId),
         factionApi.getBank(list.playerFactionId),
         factionApi.getUpgrades(list.playerFactionId),
@@ -180,13 +183,13 @@ export function FactionScreen(): JSX.Element {
         factionCrimeApi.getCatalog(list.playerFactionId),
       ]);
 
-      setMembersBook(nextMembersBook);
-      setBankBook(nextBankBook);
-      setUpgradeBook(nextUpgradeBook);
-      setLeadershipCenter(nextLeadershipCenter);
-      setWarCatalog(nextWarCatalog);
+      setMembersBook(nextMembersBook.status === 'fulfilled' ? nextMembersBook.value : null);
+      setBankBook(nextBankBook.status === 'fulfilled' ? nextBankBook.value : null);
+      setUpgradeBook(nextUpgradeBook.status === 'fulfilled' ? nextUpgradeBook.value : null);
+      setLeadershipCenter(nextLeadershipCenter.status === 'fulfilled' ? nextLeadershipCenter.value : null);
+      setWarCatalog(nextWarCatalog.status === 'fulfilled' ? nextWarCatalog.value : null);
     } catch (error) {
-      setErrorMessage(formatApiError(error).message);
+      setLoadErrorMessage(formatApiError(error).message);
     } finally {
       setIsLoading(false);
     }
@@ -927,6 +930,10 @@ export function FactionScreen(): JSX.Element {
         subtitle="Depósitos, saques por cargo e ledger das comissões automáticas que entram dos negócios da facção."
         title="Banco da facção"
       >
+        {!bankBook ? (
+          <EmptyState copy="Seu cargo não pode acessar o banco da facção." />
+        ) : (
+          <>
         <View style={styles.summaryGrid}>
           <SummaryCard label="Saldo" tone={colors.warning} value={formatFactionCurrency(bankBook?.faction.bankMoney ?? 0)} />
           <SummaryCard label="Depositar" tone={colors.info} value={bankBook?.permissions.canDeposit ? 'Sim' : 'Não'} />
@@ -972,13 +979,17 @@ export function FactionScreen(): JSX.Element {
             tone="warning"
           />
         </View>
+          </>
+        )}
       </SectionCard>
 
       <SectionCard
         subtitle="Histórico financeiro autoritativo da facção. Comissões de boca, rave, puteiro, fachada e maquininha caem aqui automaticamente."
         title="Ledger"
       >
-        {bankBook?.ledger.length ? (
+        {!bankBook ? (
+          <EmptyState copy="Ledger indisponível para o seu cargo nesta fase." />
+        ) : bankBook.ledger.length ? (
           <View style={styles.listColumn}>
             {bankBook.ledger.map((entry) => (
               <View key={entry.id} style={styles.listCard}>
@@ -1018,19 +1029,25 @@ export function FactionScreen(): JSX.Element {
         subtitle="Centro coletivo com pontos faccionais, efeitos persistentes e desbloqueios de infraestrutura."
         title="Centro de upgrades"
       >
-        <View style={styles.summaryGrid}>
-          <SummaryCard label="Pontos" tone={colors.accent} value={`${upgradeBook?.availablePoints ?? 0}`} />
-          <SummaryCard label="Bônus attr." tone={colors.success} value={`${Math.round((upgradeBook?.effects.attributeBonusMultiplier ?? 0) * 100)}%`} />
-          <SummaryCard label="Mulas" tone={colors.info} value={`${upgradeBook?.effects.muleDeliveryTier ?? 0}`} />
-          <SummaryCard label="Soldados" tone={colors.warning} value={`${Math.round((upgradeBook?.effects.soldierCapacityMultiplier ?? 1) * 100)}%`} />
-        </View>
+        {upgradeBook ? (
+          <View style={styles.summaryGrid}>
+            <SummaryCard label="Pontos" tone={colors.accent} value={`${upgradeBook.availablePoints ?? 0}`} />
+            <SummaryCard label="Bônus attr." tone={colors.success} value={`${Math.round((upgradeBook.effects.attributeBonusMultiplier ?? 0) * 100)}%`} />
+            <SummaryCard label="Mulas" tone={colors.info} value={`${upgradeBook.effects.muleDeliveryTier ?? 0}`} />
+            <SummaryCard label="Soldados" tone={colors.warning} value={`${Math.round((upgradeBook.effects.soldierCapacityMultiplier ?? 1) * 100)}%`} />
+          </View>
+        ) : (
+          <EmptyState copy="Seu cargo ainda não pode acessar o centro de upgrades." />
+        )}
       </SectionCard>
 
       <SectionCard
         subtitle="Cada desbloqueio consome pontos do banco coletivo. O backend continua validando custo e pré-requisitos."
         title="Catálogo coletivo"
       >
-        {upgradeBook?.upgrades.length ? (
+        {!upgradeBook ? (
+          <EmptyState copy="Os upgrades ficam visíveis apenas para cargos autorizados." />
+        ) : upgradeBook.upgrades.length ? (
           <View style={styles.listColumn}>
             {upgradeBook.upgrades.map((upgrade) => (
               <View key={upgrade.type} style={styles.listCard}>
@@ -1442,6 +1459,10 @@ export function FactionScreen(): JSX.Element {
             Sincronizando lista de membros, banco, upgrades, crimes coletivos e sala em tempo real.
           </Text>
         </View>
+      ) : null}
+
+      {loadErrorMessage ? (
+        <Banner copy={loadErrorMessage} tone="danger" />
       ) : null}
 
       {errorMessage ? (

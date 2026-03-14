@@ -1,9 +1,7 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import {
   buildPrisonActionCopy,
@@ -18,7 +16,6 @@ import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
 
 export function PrisonScreen(): JSX.Element {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
@@ -246,36 +243,6 @@ export function PrisonScreen(): JSX.Element {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Próximo passo</Text>
-        {livePrison.isImprisoned ? (
-          <>
-            <Text style={styles.mainReason}>
-              Aguarde a pena ou tente uma saída liberada.
-            </Text>
-            <Text style={styles.helperCopy}>
-              Enquanto a prisão estiver ativa, ações protegidas do jogo seguem bloqueadas pelo backend. Use esta tela para entender o timer e as rotas realmente disponíveis.
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.mainReason}>
-              Volte ao mapa e retome o fluxo normal.
-            </Text>
-            <Pressable
-              onPress={() => {
-                navigation.navigate('Home');
-              }}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed ? styles.buttonPressed : null,
-              ]}
-            >
-              <Text style={styles.primaryButtonLabel}>Voltar para o mapa</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
     </InGameScreenLayout>
   );
 }

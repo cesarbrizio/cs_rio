@@ -8,6 +8,7 @@ import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/nati
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -59,6 +60,7 @@ export function TerritoryScreen(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -149,17 +151,15 @@ export function TerritoryScreen(): JSX.Element {
     setWarBook(null);
 
     try {
-      const [nextServicesBook, nextBaileBook, nextWarBook] = await Promise.all([
+      const [nextServicesBook, nextBaileBook, nextWarBook] = await Promise.allSettled([
         territoryApi.getServices(favelaId),
         territoryApi.getBaile(favelaId),
         territoryApi.getWar(favelaId),
       ]);
 
-      setServicesBook(nextServicesBook);
-      setBaileBook(nextBaileBook);
-      setWarBook(nextWarBook);
-    } catch (error) {
-      setErrorMessage(formatApiError(error).message);
+      setServicesBook(nextServicesBook.status === 'fulfilled' ? nextServicesBook.value : null);
+      setBaileBook(nextBaileBook.status === 'fulfilled' ? nextBaileBook.value : null);
+      setWarBook(nextWarBook.status === 'fulfilled' ? nextWarBook.value : null);
     } finally {
       setIsDetailLoading(false);
     }
@@ -171,7 +171,9 @@ export function TerritoryScreen(): JSX.Element {
       preferredRegionId: string | null,
     ): Promise<string | null> => {
       setIsLoading(true);
+      setLoadErrorMessage(null);
       setErrorMessage(null);
+      setFeedbackMessage(null);
 
       try {
         const nextOverview = await territoryApi.list();
@@ -202,7 +204,7 @@ export function TerritoryScreen(): JSX.Element {
 
         return nextFavelaId;
       } catch (error) {
-        setErrorMessage(formatApiError(error).message);
+        setLoadErrorMessage(formatApiError(error).message);
         return null;
       } finally {
         setIsLoading(false);
@@ -464,18 +466,16 @@ export function TerritoryScreen(): JSX.Element {
         </View>
       ) : null}
 
-      {errorMessage ? (
+      {loadErrorMessage ? (
         <InlineBanner
           actionLabel="Tentar de novo"
-          message={errorMessage}
+          message={loadErrorMessage}
           tone="danger"
           onPress={() => {
             void loadTerritoryHub(selectedFavelaId, selectedRegionId);
           }}
         />
       ) : null}
-
-      {feedbackMessage ? <InlineBanner message={feedbackMessage} tone="info" /> : null}
 
       {overview ? (
         <>
@@ -669,52 +669,61 @@ export function TerritoryScreen(): JSX.Element {
                   Caixa da facção: {formatTerritoryCurrency(servicesBook?.factionBankMoney ?? 0)} · gerenciamento {servicesBook?.canManage ? 'liberado' : 'restrito'}
                 </Text>
 
-                {selectedServices.map((service) => (
-                  <View key={service.definition.type} style={styles.serviceCard}>
-                    <View style={styles.serviceHeader}>
-                      <View style={styles.serviceHeaderCopy}>
-                        <Text style={styles.serviceTitle}>{service.definition.label}</Text>
-                        <Text style={styles.serviceSubtitle}>
-                          {resolveServiceStatusLabel(service)} · receita atual {formatTerritoryCurrency(service.currentDailyRevenue)}/dia
-                        </Text>
+                {servicesBook ? (
+                  selectedServices.map((service) => (
+                    <View key={service.definition.type} style={styles.serviceCard}>
+                      <View style={styles.serviceHeader}>
+                        <View style={styles.serviceHeaderCopy}>
+                          <Text style={styles.serviceTitle}>{service.definition.label}</Text>
+                          <Text style={styles.serviceSubtitle}>
+                            {resolveServiceStatusLabel(service)} · receita atual {formatTerritoryCurrency(service.currentDailyRevenue)}/dia
+                          </Text>
+                        </View>
+                        <StatusTag
+                          label={service.installed ? `Nível ${service.level}` : 'Disponível'}
+                          tone={service.active ? 'success' : 'neutral'}
+                        />
                       </View>
-                      <StatusTag
-                        label={service.installed ? `Nível ${service.level}` : 'Disponível'}
-                        tone={service.active ? 'success' : 'neutral'}
-                      />
-                    </View>
 
-                    <Text style={styles.serviceCopy}>
-                      Mult. total x{service.revenueBreakdown.totalMultiplier.toFixed(2)} · dominação x{service.revenueBreakdown.territoryDominationMultiplier.toFixed(2)} · propina x{service.revenueBreakdown.propinaPenaltyMultiplier.toFixed(2)}
-                    </Text>
-                    <Text style={styles.serviceCopy}>
-                      Receita acumulada {formatTerritoryCurrency(service.grossRevenueTotal)} · upgrade {service.nextUpgradeCost ? formatTerritoryCurrency(service.nextUpgradeCost) : '--'}
-                    </Text>
+                      <Text style={styles.serviceCopy}>
+                        Mult. total x{service.revenueBreakdown.totalMultiplier.toFixed(2)} · dominação x{service.revenueBreakdown.territoryDominationMultiplier.toFixed(2)} · propina x{service.revenueBreakdown.propinaPenaltyMultiplier.toFixed(2)}
+                      </Text>
+                      <Text style={styles.serviceCopy}>
+                        Receita acumulada {formatTerritoryCurrency(service.grossRevenueTotal)} · upgrade {service.nextUpgradeCost ? formatTerritoryCurrency(service.nextUpgradeCost) : '--'}
+                      </Text>
 
-                    <View style={styles.actionRow}>
-                      {!service.installed ? (
-                        <ActionButton
-                          disabled={isMutating || !servicesBook?.canManage}
-                          label={`Instalar ${formatTerritoryCurrency(service.definition.installCost)}`}
-                          onPress={() => {
-                            void handleInstallService(service.definition.type);
-                          }}
-                          tone="accent"
-                        />
-                      ) : null}
-                      {service.installed && service.isUpgradeable ? (
-                        <ActionButton
-                          disabled={isMutating || !servicesBook?.canManage}
-                          label={`Upgrade ${formatTerritoryCurrency(service.nextUpgradeCost ?? 0)}`}
-                          onPress={() => {
-                            void handleUpgradeService(service.definition.type);
-                          }}
-                          tone="info"
-                        />
-                      ) : null}
+                      <View style={styles.actionRow}>
+                        {!service.installed ? (
+                          <ActionButton
+                            disabled={isMutating || !servicesBook?.canManage}
+                            label={`Instalar ${formatTerritoryCurrency(service.definition.installCost)}`}
+                            onPress={() => {
+                              void handleInstallService(service.definition.type);
+                            }}
+                            tone="accent"
+                          />
+                        ) : null}
+                        {service.installed && service.isUpgradeable ? (
+                          <ActionButton
+                            disabled={isMutating || !servicesBook?.canManage}
+                            label={`Upgrade ${formatTerritoryCurrency(service.nextUpgradeCost ?? 0)}`}
+                            onPress={() => {
+                              void handleUpgradeService(service.definition.type);
+                            }}
+                            tone="info"
+                          />
+                        ) : null}
+                      </View>
                     </View>
+                  ))
+                ) : (
+                  <View style={styles.detailCard}>
+                    <Text style={styles.detailTitle}>Serviços bloqueados nesta favela</Text>
+                    <Text style={styles.detailCopy}>
+                      Sua facção precisa controlar a favela para operar serviços territoriais.
+                    </Text>
                   </View>
-                ))}
+                )}
               </View>
 
               <View style={styles.section}>
@@ -907,6 +916,16 @@ export function TerritoryScreen(): JSX.Element {
           ) : null}
         </>
       ) : null}
+
+      <MutationResultModal
+        message={errorMessage ?? feedbackMessage}
+        onClose={() => {
+          setErrorMessage(null);
+          setFeedbackMessage(null);
+        }}
+        tone={errorMessage ? 'danger' : 'info'}
+        visible={Boolean(errorMessage ?? feedbackMessage)}
+      />
     </InGameScreenLayout>
   );
 }
@@ -964,6 +983,39 @@ function InlineBanner({
         </Pressable>
       ) : null}
     </View>
+  );
+}
+
+function MutationResultModal({
+  message,
+  onClose,
+  tone,
+  visible,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone: 'danger' | 'info';
+  visible: boolean;
+}): JSX.Element | null {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" transparent visible={visible}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
+          <Text style={styles.modalCopy}>{message}</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalButton, pressed ? styles.cardPressed : null]}
+          >
+            <Text style={styles.modalButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1390,6 +1442,52 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loadingTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  modalCard: {
+    backgroundColor: colors.panel,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 14,
+    maxWidth: 420,
+    padding: 18,
+    width: '100%',
+  },
+  modalCardDanger: {
+    borderColor: 'rgba(220, 102, 102, 0.4)',
+  },
+  modalCardInfo: {
+    borderColor: 'rgba(123, 178, 255, 0.36)',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalTitle: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
