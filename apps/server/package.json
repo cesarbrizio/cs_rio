@@ -13,6 +13,7 @@
     "ops:alias": "tsx src/scripts/alias-command.ts",
     "ops:audit": "tsx src/scripts/audit-command.ts",
     "ops:config": "tsx src/scripts/config-command.ts",
+    "ops:list": "tsx src/scripts/list-command.ts",
     "ops:player": "tsx src/scripts/player-command.ts",
     "ops:quick": "tsx src/scripts/presets-command.ts",
     "ops:round": "tsx src/scripts/round-command.ts",

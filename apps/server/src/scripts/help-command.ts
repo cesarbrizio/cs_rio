@@ -14,6 +14,7 @@ function main(): void {
 
   console.log(`
 Comandos internos disponíveis:
+  npm run ops:list     --workspace @cs-rio/server -- --help
   npm run ops:player   --workspace @cs-rio/server -- --help
   npm run ops:world    --workspace @cs-rio/server -- --help
   npm run ops:round    --workspace @cs-rio/server -- --help

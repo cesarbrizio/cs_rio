@@ -131,6 +131,7 @@ O objetivo do sistema está **atendido** para uso diário em desenvolvimento e p
 
 Hoje o backend já entrega:
 
+- `ops:list`
 - `ops:player`
 - `ops:world`
 - `ops:scenario`
@@ -166,6 +167,7 @@ npm run ops:help --workspace @cs-rio/server
 Para ver a ajuda detalhada de cada CLI:
 
 ```bash
+npm run ops:list     --workspace @cs-rio/server -- --help
 npm run ops:player   --workspace @cs-rio/server -- --help
 npm run ops:world    --workspace @cs-rio/server -- --help
 npm run ops:round    --workspace @cs-rio/server -- --help
@@ -173,6 +175,83 @@ npm run ops:scenario --workspace @cs-rio/server -- --help
 npm run ops:quick    --workspace @cs-rio/server -- --help
 npm run ops:alias    --workspace @cs-rio/server -- --help
 npm run ops:audit    --workspace @cs-rio/server -- --help
+```
+
+### `ops:list`
+
+Consulta listas de referência para você descobrir nomes, siglas, códigos e UUIDs antes de usar os outros comandos.
+
+Tipos suportados:
+
+- `players` / `users`
+- `factions`
+- `favelas`
+- `regions`
+- `scenarios`
+
+Filtros:
+
+- `--search <texto>`
+- `--region <regionId>`
+- `--faction <sigla|nome|template|uuid>`
+- `--fixed-only`
+- `--all`
+- `--limit <n>`
+- `--json`
+
+Exemplos:
+
+```bash
+cd /home/cesar/projects/cs_rio
+
+# Lista jogadores/usuários
+npm run ops:list --workspace @cs-rio/server -- --type players
+
+# Lista facções
+npm run ops:list --workspace @cs-rio/server -- --type factions
+
+# Lista só facções fixas
+npm run ops:list --workspace @cs-rio/server -- --type factions --fixed-only
+
+# Lista favelas da Zona Norte
+npm run ops:list --workspace @cs-rio/server -- --type favelas --region zona_norte
+
+# Lista jogadores de uma facção
+npm run ops:list --workspace @cs-rio/server -- --type players --faction cv
+
+# Lista regiões
+npm run ops:list --workspace @cs-rio/server -- --type regions
+
+# Lista cenários built-in
+npm run ops:list --workspace @cs-rio/server -- --type scenarios
+```
+
+Exemplos em JSON para referência/copiar:
+
+```bash
+npm run ops:list --workspace @cs-rio/server -- --type favelas --json
+npm run ops:list --workspace @cs-rio/server -- --type factions --json
+npm run ops:list --workspace @cs-rio/server -- --type players --json
+```
+
+### Fluxo recomendado para descobrir referências
+
+Antes de rodar `ops:player`, `ops:world`, `ops:round` ou `ops:scenario`, use `ops:list` para descobrir o identificador correto.
+
+Exemplos práticos:
+
+```bash
+# 1. Descobrir o código/nome da favela
+npm run ops:list --workspace @cs-rio/server -- --type favelas --region zona_norte
+
+# 2. Descobrir a facção correta
+npm run ops:list --workspace @cs-rio/server -- --type factions
+
+# 3. Descobrir o nickname/UUID do jogador
+npm run ops:list --workspace @cs-rio/server -- --type players --search flu
+
+# 4. Só então aplicar a operação
+npm run ops:world --workspace @cs-rio/server -- --player flucesar --favela-code complexo_da_penha --set-favela-controller cv
 ```
 
 ### Guardrails comuns
