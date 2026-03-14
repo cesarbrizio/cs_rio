@@ -29,38 +29,38 @@ const REGION_META: Record<string, MacroRegionMeta> = {
   baixada: {
     accent: '#8fb7ff',
     note: 'Entrada densa, pressão logística e rotas de expansão pela Baixada.',
-    x: 14,
-    y: 68,
+    x: 54,
+    y: 2,
   },
   centro: {
     accent: colors.accent,
     note: 'Coração político e comercial, melhor leitura para mercado, hospital e universidade.',
-    x: 47,
-    y: 45,
+    x: 74,
+    y: 38,
   },
   zona_norte: {
     accent: '#4fd597',
     note: 'Alta densidade, grandes complexos e disputa faccional pesada.',
-    x: 31,
-    y: 28,
+    x: 60,
+    y: 20,
   },
   zona_oeste: {
     accent: '#ff9d6e',
     note: 'Expansão horizontal, áreas grandes e deslocamento mais caro.',
-    x: 58,
-    y: 62,
+    x: 28,
+    y: 29,
   },
   zona_sudoeste: {
     accent: '#f4d77c',
     note: 'Conexão entre litoral, renda alta e leitura turística/comercial.',
-    x: 71,
-    y: 39,
+    x: 30,
+    y: 59,
   },
   zona_sul: {
     accent: '#ff7db2',
     note: 'Renda alta, pressão policial sazonal e eventos premium.',
-    x: 66,
-    y: 19,
+    x: 70,
+    y: 58,
   },
 };
 
@@ -99,10 +99,6 @@ export function MapScreen(): JSX.Element {
               <Text style={styles.mapBadgeEyebrow}>Você está aqui</Text>
               <Text style={styles.mapBadgeLabel}>{currentRegion?.label ?? 'Região atual'}</Text>
             </View>
-            <View style={[styles.mapBadge, selectedRegionId === currentRegionId ? styles.mapBadgeMuted : styles.destinationBadge]}>
-              <Text style={styles.mapBadgeEyebrow}>{selectedRegionId === currentRegionId ? 'Sem viagem' : 'Destino'}</Text>
-              <Text style={styles.mapBadgeLabel}>{selectedRegion?.label ?? 'Escolha a região'}</Text>
-            </View>
           </View>
 
           {selectedRegionId !== currentRegionId ? (
@@ -136,17 +132,7 @@ export function MapScreen(): JSX.Element {
                   selectedRegionId === region.id ? styles.regionNodeHaloSelected : null,
                 ]}
               />
-              {player?.regionId === region.id ? (
-                <View style={styles.regionCurrentChip}>
-                  <Text style={styles.regionCurrentChipLabel}>Agora</Text>
-                </View>
-              ) : null}
               <Text style={styles.regionNodeLabel}>{region.label}</Text>
-              <Text style={styles.regionNodeMeta}>
-                {selectedRegionId === region.id
-                  ? `R$ ${routeEstimate.cost} · ${routeEstimate.minutes} min`
-                  : region.wealth}
-              </Text>
             </Pressable>
           ))}
         </ImageBackground>

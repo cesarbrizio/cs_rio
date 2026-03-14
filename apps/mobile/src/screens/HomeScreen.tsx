@@ -1847,18 +1847,27 @@ export function HomeScreen(): JSX.Element {
                       </Text>
                     </Pressable>
                   </View>
+                  {connectionLabel ? (
+                    <View style={styles.connectionStrip}>
+                      <View style={styles.connectionDivider} />
+                      <Text
+                        style={[
+                          styles.connectionStripText,
+                          realtimeSnapshot.status === 'disconnected'
+                            ? styles.connectionStripTextDanger
+                            : styles.connectionStripTextWarning,
+                        ]}
+                      >
+                        {connectionLabel}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
 
               {/* A.3 — Toasts compactos em vez de cards grandes */}
               <View pointerEvents="box-none" style={styles.toastArea}>
-                {connectionLabel ? (
-                  <HudToast
-                    accent={realtimeSnapshot.status === 'disconnected' ? colors.danger : colors.warning}
-                    autoDismissMs={0}
-                    message={connectionLabel}
-                  />
-                ) : player?.prison.isImprisoned ? (
+                {player?.prison.isImprisoned ? (
                   <HudToast
                     accent={colors.danger}
                     autoDismissMs={0}
@@ -2102,6 +2111,27 @@ const styles = StyleSheet.create({
   minimapCluster: {
     alignItems: 'flex-end',
     gap: 6,
+  },
+  connectionStrip: {
+    alignItems: 'flex-end',
+    gap: 6,
+    minWidth: 112,
+    width: '100%',
+  },
+  connectionDivider: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: 1,
+  },
+  connectionStripText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  connectionStripTextDanger: {
+    color: colors.danger,
+  },
+  connectionStripTextWarning: {
+    color: colors.warning,
   },
   cameraActions: {
     alignItems: 'center',
