@@ -2,14 +2,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   REGIONS,
-  type DocksEventStatusResponse,
-  type PoliceEventStatusResponse,
+  type NpcInflationSummary,
   type RoundSummary,
-  type SeasonalEventStatusResponse,
-  type TerritoryFavelaSummary,
-  type TerritoryRegionSummary,
 } from '@cs-rio/shared';
-import { parseTilemap } from '@engine/tilemap-parser';
 import { type InputRect } from '@engine/input-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -24,18 +19,18 @@ import { ContextMenu } from '../components/hud/ContextMenu';
 import { HudToast } from '../components/hud/HudToast';
 import { Minimap, type MinimapMarker } from '../components/hud/Minimap';
 import { StatusBar } from '../components/hud/StatusBar';
-import {
-  getMapVisualPreset,
-  type MapEntityKind,
-  type MapStructure,
-  resolveZoneAccentFromRelation,
-} from '../data/mapRegionVisuals';
 import { zonaNorteMapData } from '../data/zonaNortePrototypeMap';
 import {
   resolveEventDestinationLabel,
   resolveEventNotificationAccent,
   resolveEventNotificationTimeLabel,
 } from '../features/events';
+import {
+  buildNpcInflationBody,
+  buildNpcInflationDecisionHint,
+  buildNpcInflationHeadline,
+  formatNpcInflationMultiplier,
+} from '../features/inflation';
 import {
   buildHudContextTarget,
   type HudContextAction,
@@ -47,7 +42,6 @@ import {
   getTutorialRemainingMinutes,
   isTutorialStillActive,
 } from '../features/tutorial';
-import { resolveFavelaStateLabel } from '../features/territory';
 import {
   colyseusService,
   type RealtimeSnapshot,
@@ -58,50 +52,17 @@ import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
 import { hapticLight, hapticMedium } from '../utils/haptics';
 import { type RootStackParamList } from '../../App';
-
-interface WorldContextSpot {
-  entityId: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  reach: number;
-  title: string;
-}
-
-interface WorldPulseItem {
-  accent: string;
-  id: string;
-  label: string;
-  value: string;
-}
-
-interface RoundPressure {
-  detail: string;
-  headline: string;
-  labels: string[];
-}
-
-interface EventRuntimeState {
-  docks: DocksEventStatusResponse;
-  police: PoliceEventStatusResponse;
-  seasonal: SeasonalEventStatusResponse;
-}
-
-interface ProjectedFavela {
-  center: {
-    x: number;
-    y: number;
-  };
-  favela: TerritoryFavelaSummary;
-}
-
-interface RegionClimateSummary {
-  accent: string;
-  detail: string;
-  label: string;
-  pressureLabel: string;
-}
+import {
+  buildFavelaOwnerLabel,
+  describeFavelaContext,
+  orderBookBadge,
+} from './home/homeHelpers';
+import {
+  type EventRuntimeState,
+  type RoundPressure,
+  type WorldContextSpot,
+} from './home/homeTypes';
+import { useHomeMapScene } from './home/useHomeMapScene';
 
 interface CriticalUiActionOptions {
   accent?: string;
@@ -126,195 +87,8 @@ export function HomeScreen(): JSX.Element {
   const logout = useAuthStore((state) => state.logout);
   const player = useAuthStore((state) => state.player);
   const token = useAuthStore((state) => state.token);
-  const map = useMemo(() => parseTilemap(zonaNorteMapData), []);
-  const mapVisualPreset = useMemo(
-    () => getMapVisualPreset(player?.regionId),
-    [player?.regionId],
-  );
-  const staticWorldEntities = useMemo(
-    () => mapVisualPreset.entities,
-    [mapVisualPreset.entities],
-  );
-  const zoneSlots = useMemo(
-    () =>
-      mapVisualPreset.zoneSlots.map((slot) => ({
-        ...slot,
-        radiusTiles: {
-          x: Math.max(3, Math.round(slot.radiusTiles.x * 0.5)),
-          y: Math.max(2, Math.round(slot.radiusTiles.y * 0.5)),
-        },
-      })),
-    [mapVisualPreset.zoneSlots],
-  );
-  const staticWorldTrails = useMemo(
-    () => mapVisualPreset.trails,
-    [mapVisualPreset.trails],
-  );
-  const mapCoreCenter = useMemo(() => {
-    if (zoneSlots.length > 0) {
-      const total = zoneSlots.reduce(
-        (accumulator, slot) => ({
-          x: accumulator.x + slot.center.x,
-          y: accumulator.y + slot.center.y,
-        }),
-        { x: 0, y: 0 },
-      );
-
-      return {
-        x: Math.round(total.x / zoneSlots.length),
-        y: Math.round(total.y / zoneSlots.length),
-      };
-    }
-
-    return {
-      x: Math.floor(map.width / 2),
-      y: Math.floor(map.height / 2),
-    };
-  }, [map.height, map.width, zoneSlots]);
-  const staticGroundPatches = useMemo(
-    () => {
-      const focusedGroundPatches = mapVisualPreset.groundPatches
-        .filter((patch) =>
-          patch.kind === 'favela-core'
-          || patch.kind === 'commercial-yard'
-          || patch.kind === 'industrial-yard'
-          || patch.kind === 'blocked',
-        )
-        .map((patch) => ({
-          ...patch,
-          radiusTiles: {
-            x: Math.max(4, Math.round(patch.radiusTiles.x * 0.68)),
-            y: Math.max(3, Math.round(patch.radiusTiles.y * 0.68)),
-          },
-        }));
-
-      return [
-        {
-          accent: '#567052',
-          center: mapCoreCenter,
-          fill: '#50664a',
-          id: `${player?.regionId ?? 'local'}:base-ground`,
-          kind: 'greenery' as const,
-          radiusTiles: { x: 20, y: 13 },
-        },
-        ...focusedGroundPatches,
-      ];
-    },
-    [mapCoreCenter, mapVisualPreset.groundPatches, player?.regionId],
-  );
-  const staticLandmarks = useMemo(
-    () => mapVisualPreset.landmarks,
-    [mapVisualPreset.landmarks],
-  );
-  const presetStructures = useMemo(
-    () => mapVisualPreset.structures,
-    [mapVisualPreset.structures],
-  );
   const [territoryOverview, setTerritoryOverview] = useState<Awaited<ReturnType<typeof territoryApi.list>> | null>(null);
   const [eventRuntimeState, setEventRuntimeState] = useState<EventRuntimeState | null>(null);
-  const currentRegionFavelas = useMemo(
-    () => territoryOverview?.favelas?.filter((favela) => favela.regionId === player?.regionId) ?? [],
-    [player?.regionId, territoryOverview?.favelas],
-  );
-  const currentRegionSummary = useMemo<TerritoryRegionSummary | null>(
-    () => territoryOverview?.regions.find((region) => region.regionId === player?.regionId) ?? null,
-    [player?.regionId, territoryOverview?.regions],
-  );
-  const projectedFavelas = useMemo<ProjectedFavela[]>(
-    () =>
-      zoneSlots.flatMap((slot, index) => {
-        const favela = currentRegionFavelas[index];
-
-        if (!favela) {
-          return [];
-        }
-
-        return [
-          {
-            center: slot.center,
-            favela,
-          },
-        ];
-      }),
-    [currentRegionFavelas, zoneSlots],
-  );
-  const staticStructures = useMemo<MapStructure[]>(
-    () => {
-      const nonFavelaStructures = presetStructures.filter(
-        (structure) => structure.kind !== 'favela-cluster',
-      );
-      const dynamicFavelaStructures = projectedFavelas.map(({ center, favela }) => {
-        const footprint =
-          favela.difficulty >= 8
-            ? { w: 5, h: 4 }
-            : favela.difficulty >= 6
-              ? { w: 5, h: 4 }
-              : { w: 4, h: 3 };
-
-        return {
-          footprint,
-          id: `favela-visual:${favela.id}`,
-          kind: 'favela-cluster' as const,
-          label: favela.name,
-          position: {
-            x: center.x - Math.floor(footprint.w / 2),
-            y: center.y - Math.floor(footprint.h / 2),
-          },
-        };
-      });
-
-      return [...nonFavelaStructures, ...dynamicFavelaStructures];
-    },
-    [presetStructures, projectedFavelas],
-  );
-  const regionalPoliceEvents = useMemo(
-    () =>
-      eventRuntimeState?.police.events.filter((event) => event.regionId === player?.regionId) ?? [],
-    [eventRuntimeState?.police.events, player?.regionId],
-  );
-  const regionalSeasonalEvents = useMemo(
-    () =>
-      eventRuntimeState?.seasonal.events.filter((event) => event.regionId === player?.regionId) ?? [],
-    [eventRuntimeState?.seasonal.events, player?.regionId],
-  );
-  const activeDocksEvent = useMemo(
-    () =>
-      eventRuntimeState?.docks.isActive && eventRuntimeState.docks.regionId === player?.regionId
-        ? eventRuntimeState.docks
-        : null,
-    [eventRuntimeState?.docks, player?.regionId],
-  );
-  const staticWorldZones = useMemo(
-    () => {
-      return projectedFavelas.map(({ center, favela }) => {
-        const radiusTiles =
-          favela.difficulty >= 8
-            ? { x: 4, y: 3 }
-            : favela.difficulty >= 6
-              ? { x: 4, y: 3 }
-              : { x: 3, y: 2 };
-
-        const policeEvent = regionalPoliceEvents.find((event) => event.favelaId === favela.id) ?? null;
-        const relation = resolveFavelaRelation(favela, player?.faction?.id);
-        const accent = resolveLiveZoneAccent({
-          favela,
-          policeEventType: policeEvent?.eventType ?? null,
-          relation,
-        });
-
-        return {
-          accent,
-          center,
-          id: favela.id,
-          label: favela.name,
-          ownerLabel: buildFavelaOwnerLabel(favela),
-          radiusTiles,
-          relation,
-        };
-      });
-    },
-    [player?.faction?.id, projectedFavelas, regionalPoliceEvents],
-  );
   const [realtimeSnapshot, setRealtimeSnapshot] = useState<RealtimeSnapshot>(
     colyseusService.getSnapshot(),
   );
@@ -333,6 +107,7 @@ export function HomeScreen(): JSX.Element {
   );
   const [tutorialNowMs, setTutorialNowMs] = useState(Date.now());
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
+  const [roundInflation, setRoundInflation] = useState<NpcInflationSummary | null>(null);
   const [interactionFeedback, setInteractionFeedback] = useState<{
     accent?: string;
     id: number;
@@ -355,6 +130,55 @@ export function HomeScreen(): JSX.Element {
   const latestHudPlayerStateRef = useRef<GameViewPlayerState | null>(hudPlayerState);
   const cameraCommandTokenRef = useRef(0);
 
+  const loadRoundSummary = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      const response = await roundApi.getCenter();
+
+      if (!cancelled?.()) {
+        setRoundInflation(response.npcInflation);
+        setRoundSummary(response.round);
+      }
+    } catch {
+      // Silently fallback — roundPill stays with placeholder text.
+    }
+  }, []);
+
+  const loadTerritoryOverview = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      const response = await territoryApi.list();
+
+      if (!cancelled?.()) {
+        setTerritoryOverview(response);
+      }
+    } catch {
+      if (!cancelled?.()) {
+        setTerritoryOverview(null);
+      }
+    }
+  }, []);
+
+  const loadEventRuntimeState = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      const [docks, police, seasonal] = await Promise.all([
+        eventApi.getDocksStatus(),
+        eventApi.getPoliceStatus(),
+        eventApi.getSeasonalStatus(),
+      ]);
+
+      if (!cancelled?.()) {
+        setEventRuntimeState({
+          docks,
+          police,
+          seasonal,
+        });
+      }
+    } catch {
+      if (!cancelled?.()) {
+        setEventRuntimeState(null);
+      }
+    }
+  }, []);
+
   useEffect(() => colyseusService.subscribe(setRealtimeSnapshot), []);
 
   useEffect(() => {
@@ -371,102 +195,6 @@ export function HomeScreen(): JSX.Element {
       void colyseusService.disconnect();
     };
   }, [player?.hasCharacter, player?.regionId, token]);
-
-  /* C.1/C.2 — fetch round info on mount and every 60s */
-  useEffect(() => {
-    if (!player?.hasCharacter) return;
-
-    let cancelled = false;
-
-    const fetchRound = async () => {
-      try {
-        const response = await roundApi.getCenter();
-        if (!cancelled) setRoundSummary(response.round);
-      } catch {
-        // Silently fallback — roundPill stays with placeholder text
-      }
-    };
-
-    void fetchRound();
-    const intervalId = setInterval(() => { void fetchRound(); }, 60_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [player?.hasCharacter]);
-
-  useEffect(() => {
-    if (!player?.hasCharacter) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchTerritory = async () => {
-      try {
-        const response = await territoryApi.list();
-
-        if (!cancelled) {
-          setTerritoryOverview(response);
-        }
-      } catch {
-        if (!cancelled) {
-          setTerritoryOverview(null);
-        }
-      }
-    };
-
-    void fetchTerritory();
-    const intervalId = setInterval(() => {
-      void fetchTerritory();
-    }, 60_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [player?.hasCharacter, player?.regionId]);
-
-  useEffect(() => {
-    if (!player?.hasCharacter) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchEvents = async () => {
-      try {
-        const [docks, police, seasonal] = await Promise.all([
-          eventApi.getDocksStatus(),
-          eventApi.getPoliceStatus(),
-          eventApi.getSeasonalStatus(),
-        ]);
-
-        if (!cancelled) {
-          setEventRuntimeState({
-            docks,
-            police,
-            seasonal,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setEventRuntimeState(null);
-        }
-      }
-    };
-
-    void fetchEvents();
-    const intervalId = setInterval(() => {
-      void fetchEvents();
-    }, 45_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [player?.hasCharacter, player?.regionId]);
 
   useEffect(() => {
     if (!selectedMapFavelaId) {
@@ -487,22 +215,6 @@ export function HomeScreen(): JSX.Element {
 
     bootstrapTutorial(player.id);
   }, [bootstrapTutorial, player?.hasCharacter, player?.id]);
-
-  useEffect(() => {
-    if (!tutorial.startedAt) {
-      return;
-    }
-
-    setTutorialNowMs(Date.now());
-
-    const intervalId = setInterval(() => {
-      setTutorialNowMs(Date.now());
-    }, 30_000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [tutorial.startedAt]);
 
   const playerSpawnState = useMemo(
     () =>
@@ -561,6 +273,30 @@ export function HomeScreen(): JSX.Element {
       .filter((entry, index) => entry.distance <= 18 || index < 2)
       .slice(0, 3);
   }, [referencePlayerPosition, remotePlayers]);
+  const {
+    map,
+    nearestWorldSpot,
+    regionClimate,
+    renderEntities,
+    selectedProjectedFavela,
+    staticGroundPatches,
+    staticLandmarks,
+    staticStructures,
+    staticWorldEntities,
+    staticWorldTrails,
+    staticWorldZones,
+    worldContextSpots,
+    worldPulseItems,
+  } = useHomeMapScene({
+    eventRuntimeState,
+    hudPlayerPosition: hudPlayerState?.position,
+    playerFaction: player?.faction,
+    playerRegionId: player?.regionId,
+    playerSpawnPosition: playerSpawnState?.position,
+    relevantRemotePlayers,
+    selectedMapFavelaId,
+    territoryOverview,
+  });
 
   const minimapMarkers = useMemo<MinimapMarker[]>(
     () => [
@@ -619,39 +355,21 @@ export function HomeScreen(): JSX.Element {
     return `Rodada #${roundSummary.number} · Dia ${roundSummary.currentGameDay}/${roundSummary.totalGameDays}`;
   }, [roundSummary]);
   const roundPressure = useMemo<RoundPressure | null>(() => {
-    if (!roundSummary) {
+    if (!roundSummary || !roundInflation) {
       return null;
     }
 
-    const daysRemaining = Math.max(
-      0,
-      roundSummary.totalGameDays - roundSummary.currentGameDay,
-    );
-    const earlyWindow = roundSummary.currentGameDay <= Math.max(3, Math.ceil(roundSummary.totalGameDays * 0.2));
-    const lateWindow = daysRemaining <= Math.max(3, Math.ceil(roundSummary.totalGameDays * 0.15));
-
-    if (earlyWindow) {
-      return {
-        detail: 'Ainda dá tempo de crescer barato, ocupar espaço e montar base antes da pressão subir.',
-        headline: 'Começo de rodada: expansão rápida vale mais do que segurar caixa.',
-        labels: ['Inflação baixa', 'Mapa aberto'],
-      };
-    }
-
-    if (lateWindow) {
-      return {
-        detail: 'O fim da rodada está perto. Cada ação agora mexe mais no ranking e no conceito final.',
-        headline: 'Fechamento chegando: o ranking ficou urgente.',
-        labels: ['Ranking pesa', 'Tempo curto'],
-      };
-    }
-
     return {
-      detail: 'Os eventos já começaram a girar e a economia aperta mais do que no início da rodada.',
-      headline: 'Meio de rodada: inflação e eventos começam a pesar.',
-      labels: ['Eventos vivos', 'Custos subindo'],
+      detail: `${buildNpcInflationBody(roundInflation)} ${buildNpcInflationDecisionHint(roundInflation)}`,
+      headline: buildNpcInflationHeadline(roundInflation),
+      labels: [
+        `Inflação ${formatNpcInflationMultiplier(roundInflation.currentMultiplier)}`,
+        roundInflation.nextIncreaseInDays === null || roundInflation.nextMultiplier === null
+          ? 'Teto da rodada'
+          : `Sobe em ${roundInflation.nextIncreaseInDays}d`,
+      ],
     };
-  }, [roundSummary]);
+  }, [roundInflation, roundSummary]);
   const roundDetail = useMemo(() => {
     if (!roundSummary) {
       return {
@@ -801,6 +519,14 @@ export function HomeScreen(): JSX.Element {
         label: 'Negociar',
       },
       {
+        badge: 0,
+        compactLabel: 'Bicho',
+        description: 'Aposta manual da rua. Abra a banca e entre no sorteio atual.',
+        group: 'Meu corre',
+        id: 'bicho',
+        label: 'Jogo do Bicho',
+      },
+      {
         badge: player?.inventory.length ?? 0,
         compactLabel: 'Equipar',
         description: 'Equipe armas, coletes e consumíveis.',
@@ -815,6 +541,16 @@ export function HomeScreen(): JSX.Element {
         group: 'Meu corre',
         id: 'ops',
         label: 'Tocar negócios',
+      },
+      {
+        badge:
+          player?.properties.filter((property) => property.type === 'slot_machine').length ?? 0,
+        compactLabel: 'Maquininha',
+        description:
+          'Negócio passivo do patrimônio: instale, configure aposta e colete o caixa.',
+        group: 'Meu corre',
+        id: 'slot_machine',
+        label: 'Maquininha',
       },
       {
         badge: 0,
@@ -881,167 +617,10 @@ export function HomeScreen(): JSX.Element {
       player?.id,
       player?.inventory.length,
       player?.prison.isImprisoned,
-      player?.properties.length,
+      player?.properties,
       player?.resources.money,
       realtimeSnapshot.players,
     ],
-  );
-  const renderEntities = useMemo(
-    () => [
-      ...staticWorldEntities.map((entity) =>
-        buildLiveEntity({
-          activeDocksEvent,
-          entity,
-          playerFactionId: player?.faction?.id ?? null,
-          projectedFavelas,
-          regionalSeasonalEvents,
-        }),
-      ),
-      ...relevantRemotePlayers.map(({ distance, player: realtimePlayer }) => ({
-        color: distance <= 8 ? colors.info : '#f0dd8f',
-        id: `player:${realtimePlayer.sessionId}`,
-        kind: 'player' as const,
-        label: distance <= 8 ? realtimePlayer.nickname : undefined,
-        position: {
-          x: realtimePlayer.x,
-          y: realtimePlayer.y,
-        },
-      })),
-    ],
-    [
-      activeDocksEvent,
-      player?.faction?.id,
-      projectedFavelas,
-      regionalSeasonalEvents,
-      relevantRemotePlayers,
-      staticWorldEntities,
-    ],
-  );
-  const worldContextSpots = useMemo<WorldContextSpot[]>(
-    () =>
-      mapVisualPreset.contextSpots.map((spot) => ({
-        entityId: spot.entityId,
-        position: spot.position,
-        reach: spot.reach,
-        title: spot.title,
-      })),
-    [mapVisualPreset.contextSpots],
-  );
-  const nearestWorldSpot = useMemo(() => {
-    const position = hudPlayerState?.position ?? playerSpawnState?.position;
-
-    if (!position) {
-      return null;
-    }
-
-    let bestMatch: WorldContextSpot | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    for (const spot of worldContextSpots) {
-      const distance =
-        Math.abs(spot.position.x - position.x) + Math.abs(spot.position.y - position.y);
-
-      if (distance < bestDistance) {
-        bestMatch = spot;
-        bestDistance = distance;
-      }
-    }
-
-    if (!bestMatch) {
-      return null;
-    }
-
-    return {
-      distance: bestDistance,
-      title: bestMatch.title,
-    };
-  }, [hudPlayerState?.position, playerSpawnState?.position, worldContextSpots]);
-  const regionClimate = useMemo(
-    () =>
-      summarizeRegionClimate({
-        activeDocksEvent,
-        policeEvents: regionalPoliceEvents,
-        regionSummary: currentRegionSummary,
-        seasonalEvents: regionalSeasonalEvents,
-      }),
-    [activeDocksEvent, currentRegionSummary, regionalPoliceEvents, regionalSeasonalEvents],
-  );
-  const worldPulseItems = useMemo<WorldPulseItem[]>(() => {
-    const items: WorldPulseItem[] = [
-      {
-        accent: player?.faction ? colors.accent : colors.muted,
-        id: 'faction',
-        label: 'Facção',
-        value: player?.faction ? player.faction.abbreviation : 'Solo',
-      },
-      {
-        accent: regionClimate.accent,
-        id: 'climate',
-        label: 'Rua',
-        value: regionClimate.label,
-      },
-    ];
-
-    if (currentRegionSummary) {
-      items.push({
-        accent: currentRegionSummary.atWarFavelas > 0 ? colors.danger : colors.info,
-        id: 'control',
-        label: 'Domínio',
-        value: `${currentRegionSummary.playerFactionControlledFavelas}/${currentRegionSummary.totalFavelas}`,
-      });
-    }
-
-    const primaryEvent =
-      regionalPoliceEvents[0]?.headline ??
-      regionalSeasonalEvents[0]?.headline ??
-      (activeDocksEvent ? 'Navio nas Docas' : null);
-
-    if (primaryEvent) {
-      items.push({
-        accent:
-          regionalPoliceEvents.length > 0
-            ? colors.warning
-            : activeDocksEvent
-              ? colors.info
-              : colors.accent,
-        id: 'event',
-        label: 'Evento',
-        value: shortenPulseValue(primaryEvent),
-      });
-    }
-
-    if (relevantRemotePlayers.length > 0) {
-      items.push({
-        accent: colors.info,
-        id: 'presence',
-        label: 'Movimento',
-        value: `${relevantRemotePlayers.length} por perto`,
-      });
-    }
-
-    if (nearestWorldSpot) {
-      items.push({
-        accent: colors.warning,
-        id: 'nearby',
-        label: nearestWorldSpot.distance <= 6 ? 'Perto' : 'Rumo',
-        value: nearestWorldSpot.title,
-      });
-    }
-
-    return items.slice(0, 4);
-  }, [
-    activeDocksEvent,
-    currentRegionSummary,
-    nearestWorldSpot,
-    player?.faction,
-    regionClimate,
-    regionalPoliceEvents,
-    regionalSeasonalEvents,
-    relevantRemotePlayers.length,
-  ]);
-  const selectedProjectedFavela = useMemo(
-    () => projectedFavelas.find((entry) => entry.favela.id === selectedMapFavelaId) ?? null,
-    [projectedFavelas, selectedMapFavelaId],
   );
   const worldDetail = useMemo(() => {
     if (selectedProjectedFavela) {
@@ -1302,6 +881,18 @@ export function HomeScreen(): JSX.Element {
       return;
     }
 
+    if (buttonId === 'bicho') {
+      runCriticalUiAction({
+        accent: colors.warning,
+        bootstrapMessage: 'Abrindo a banca do Jogo do Bicho.',
+        feedbackMessage: 'Jogo do Bicho selecionado.',
+        navigate: () => {
+          navigateNow('Bicho');
+        },
+      });
+      return;
+    }
+
     if (buttonId === 'ops') {
       runCriticalUiAction({
         accent: colors.info,
@@ -1309,6 +900,22 @@ export function HomeScreen(): JSX.Element {
         feedbackMessage: 'Patrimônio selecionado.',
         navigate: () => {
           navigateNow('Operations');
+        },
+      });
+      return;
+    }
+
+    if (buttonId === 'slot_machine') {
+      runCriticalUiAction({
+        accent: colors.info,
+        bootstrapMessage:
+          'Abrindo a operação da Maquininha. Ela é um negócio passivo, não uma aposta manual.',
+        feedbackMessage: 'Maquininha selecionada.',
+        navigate: () => {
+          navigateNow('Operations', {
+            focusPropertyType: 'slot_machine',
+            initialTab: 'business',
+          });
         },
       });
       return;
@@ -1691,6 +1298,7 @@ export function HomeScreen(): JSX.Element {
   }, []);
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
       const nextCue = consumeMapReturnCue();
 
       if (nextCue) {
@@ -1698,7 +1306,43 @@ export function HomeScreen(): JSX.Element {
         setBootstrapStatus(nextCue.message);
         issueCameraCommand('recenter');
       }
-    }, [consumeMapReturnCue, issueCameraCommand, setBootstrapStatus, showInteractionFeedback]),
+
+      if (!player?.hasCharacter) {
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const isCancelled = () => cancelled;
+      const refreshHomeFeeds = () =>
+        Promise.all([
+          loadRoundSummary(isCancelled),
+          loadTerritoryOverview(isCancelled),
+          loadEventRuntimeState(isCancelled),
+        ]);
+
+      setTutorialNowMs(Date.now());
+      void refreshHomeFeeds();
+
+      const intervalId = setInterval(() => {
+        setTutorialNowMs(Date.now());
+        void refreshHomeFeeds();
+      }, 60_000);
+
+      return () => {
+        cancelled = true;
+        clearInterval(intervalId);
+      };
+    }, [
+      consumeMapReturnCue,
+      issueCameraCommand,
+      loadEventRuntimeState,
+      loadRoundSummary,
+      loadTerritoryOverview,
+      player?.hasCharacter,
+      setBootstrapStatus,
+      showInteractionFeedback,
+    ]),
   );
   const toggleExpandedInfoPanel = useCallback((panel: 'focus' | 'round' | 'world') => {
     hapticLight();
@@ -2414,294 +2058,3 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
 });
-
-function orderBookBadge(inventoryCount: number, money: number): number {
-  if (money >= 10000) {
-    return Math.max(1, Math.min(9, Math.ceil(inventoryCount / 5)));
-  }
-
-  return inventoryCount > 0 ? 1 : 0;
-}
-
-function resolveFavelaRelation(
-  favela: TerritoryFavelaSummary,
-  playerFactionId: string | null | undefined,
-): 'ally' | 'enemy' | 'neutral' {
-  if (!favela.controllingFaction?.id || !playerFactionId) {
-    return 'neutral';
-  }
-
-  return favela.controllingFaction.id === playerFactionId ? 'ally' : 'enemy';
-}
-
-function buildFavelaOwnerLabel(favela: TerritoryFavelaSummary): string {
-  if (favela.state === 'at_war') {
-    const attacker = favela.war?.attackerFaction.abbreviation ?? favela.contestingFaction?.abbreviation ?? '--';
-    const defender = favela.war?.defenderFaction.abbreviation ?? favela.controllingFaction?.abbreviation ?? '--';
-
-    return `GUERRA · ${attacker} × ${defender}`;
-  }
-
-  if (favela.state === 'controlled' && favela.controllingFaction) {
-    return `CONTROLADA · ${favela.controllingFaction.abbreviation}`;
-  }
-
-  return resolveFavelaStateLabel(favela.state).toUpperCase();
-}
-
-function resolveLiveZoneAccent(input: {
-  favela: TerritoryFavelaSummary;
-  policeEventType: DocksEventStatusResponse['phase'] | PoliceEventStatusResponse['events'][number]['eventType'] | null;
-  relation: 'ally' | 'enemy' | 'neutral';
-}): string {
-  if (input.favela.state === 'at_war') {
-    return colors.danger;
-  }
-
-  if (input.policeEventType === 'faca_na_caveira') {
-    return colors.danger;
-  }
-
-  if (input.policeEventType === 'operacao_policial' || input.policeEventType === 'blitz_pm') {
-    return colors.warning;
-  }
-
-  if (input.favela.x9?.status === 'warning' || input.favela.x9?.status === 'pending_desenrolo') {
-    return colors.warning;
-  }
-
-  return resolveZoneAccentFromRelation(input.relation);
-}
-
-function summarizeRegionClimate(input: {
-  activeDocksEvent: DocksEventStatusResponse | null;
-  policeEvents: PoliceEventStatusResponse['events'];
-  regionSummary: TerritoryRegionSummary | null;
-  seasonalEvents: SeasonalEventStatusResponse['events'];
-}): RegionClimateSummary {
-  if (input.policeEvents.some((event) => event.eventType === 'faca_na_caveira')) {
-    return {
-      accent: colors.danger,
-      detail: 'BOPE entrou pesado. A rua está sob choque e o mapa exige cautela máxima.',
-      label: 'Rua em choque',
-      pressureLabel: 'Pressão máxima na região',
-    };
-  }
-
-  if (
-    input.policeEvents.length > 0 ||
-    (input.regionSummary?.atWarFavelas ?? 0) > 0 ||
-    input.seasonalEvents.some((event) => event.eventType === 'operacao_verao')
-  ) {
-    return {
-      accent: colors.warning,
-      detail: 'Polícia, guerra ou operação ativa estão aquecendo a região.',
-      label: 'Rua quente',
-      pressureLabel: 'Pressão alta na região',
-    };
-  }
-
-  if (input.activeDocksEvent || input.seasonalEvents.length > 0) {
-    return {
-      accent: colors.accent,
-      detail: 'Eventos ativos estão mudando o ritmo da região e abrindo oportunidade.',
-      label: 'Rua viva',
-      pressureLabel: 'Clima vivo na região',
-    };
-  }
-
-  return {
-    accent: colors.success,
-    detail: 'A região está relativamente estável. Dá para rodar o corre com menos ruído.',
-    label: 'Rua firme',
-    pressureLabel: 'Pressão baixa na região',
-  };
-}
-
-function buildLiveEntity(input: {
-  activeDocksEvent: DocksEventStatusResponse | null;
-  entity: {
-    color?: string;
-    id: string;
-    kind: MapEntityKind;
-    label?: string;
-    position: {
-      x: number;
-      y: number;
-    };
-  };
-  playerFactionId: string | null;
-  projectedFavelas: ProjectedFavela[];
-  regionalSeasonalEvents: SeasonalEventStatusResponse['events'];
-}): {
-  color?: string;
-  id: string;
-  kind: MapEntityKind;
-  label?: string;
-  position: {
-    x: number;
-    y: number;
-  };
-} {
-  const nearestFavela = findProjectedFavelaForPoint(input.projectedFavelas, input.entity.position);
-  const nearestRelation = nearestFavela
-    ? resolveFavelaRelation(nearestFavela.favela, input.playerFactionId)
-    : 'neutral';
-  const nearestAccent = nearestFavela
-    ? resolveLiveZoneAccent({
-        favela: nearestFavela.favela,
-        policeEventType: null,
-        relation: nearestRelation,
-      })
-    : input.entity.color ?? colors.accent;
-
-  if (input.entity.kind === 'docks') {
-    return {
-      ...input.entity,
-      color: input.activeDocksEvent ? colors.info : input.entity.color,
-      label: input.activeDocksEvent ? 'Docas · Navio ativo' : 'Docas',
-    };
-  }
-
-  if (input.entity.kind === 'party') {
-    const activeSeasonalParty = input.regionalSeasonalEvents.find(
-      (event) => event.eventType === 'carnaval' || event.eventType === 'ano_novo_copa',
-    );
-
-    if (activeSeasonalParty) {
-      return {
-        ...input.entity,
-        color: colors.accent,
-        label: 'Baile · Lado cheio',
-      };
-    }
-  }
-
-  if (input.entity.kind === 'boca') {
-    return {
-      ...input.entity,
-      color: nearestAccent,
-      label: nearestFavela ? `Boca · ${buildPoiStateLabel(nearestFavela.favela)}` : 'Boca',
-    };
-  }
-
-  if (input.entity.kind === 'factory') {
-    return {
-      ...input.entity,
-      color: nearestAccent,
-      label: nearestFavela ? `Fábrica · ${buildPoiStateLabel(nearestFavela.favela)}` : 'Fábrica',
-    };
-  }
-
-  if (input.entity.kind === 'scrapyard') {
-    return {
-      ...input.entity,
-      label: 'Desmanche · discreto',
-    };
-  }
-
-  if (input.entity.kind === 'market') {
-    return {
-      ...input.entity,
-      label: 'Mercado Negro · aberto',
-    };
-  }
-
-  if (input.entity.kind === 'hospital') {
-    return {
-      ...input.entity,
-      label: 'Hospital · suporte',
-    };
-  }
-
-  if (input.entity.kind === 'training') {
-    return {
-      ...input.entity,
-      label: 'Treino · liberado',
-    };
-  }
-
-  if (input.entity.kind === 'university') {
-    return {
-      ...input.entity,
-      label: 'Universidade · aberta',
-    };
-  }
-
-  return input.entity;
-}
-
-function buildPoiStateLabel(favela: TerritoryFavelaSummary): string {
-  if (favela.state === 'at_war') {
-    return 'em disputa';
-  }
-
-  if (favela.controllingFaction) {
-    return favela.controllingFaction.abbreviation;
-  }
-
-  return 'neutra';
-}
-
-function findProjectedFavelaForPoint(
-  projectedFavelas: ProjectedFavela[],
-  point: {
-    x: number;
-    y: number;
-  },
-): ProjectedFavela | null {
-  let bestMatch: ProjectedFavela | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-
-  for (const projectedFavela of projectedFavelas) {
-    const distance =
-      Math.abs(projectedFavela.center.x - point.x) +
-      Math.abs(projectedFavela.center.y - point.y);
-
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestMatch = projectedFavela;
-    }
-  }
-
-  return bestMatch;
-}
-
-function shortenPulseValue(value: string): string {
-  if (value.length <= 18) {
-    return value;
-  }
-
-  return `${value.slice(0, 15)}...`;
-}
-
-function describeFavelaContext(
-  favela: TerritoryFavelaSummary,
-  playerFactionId: string | null,
-): string {
-  const relation =
-    favela.controllingFaction?.id && playerFactionId
-      ? favela.controllingFaction.id === playerFactionId
-        ? 'Sua facção controla essa área.'
-        : `Área sob ${favela.controllingFaction.abbreviation}.`
-      : 'Favela ainda sem facção dominante.';
-  const war =
-    favela.state === 'at_war'
-      ? 'Guerra declarada. O confronto já está quente aqui.'
-      : null;
-  const x9 =
-    favela.x9?.status === 'warning' || favela.x9?.status === 'pending_desenrolo'
-      ? 'X9 ativo nessa favela.'
-      : null;
-
-  return [
-    relation,
-    `Dificuldade ${favela.difficulty} · Pop. ${favela.population.toLocaleString('pt-BR')}.`,
-    `Soldados ${favela.soldiers.active}/${favela.soldiers.max} · Bandidos ${favela.bandits.active}.`,
-    `Satisfação ${favela.satisfaction} · ${favela.satisfactionProfile.tier}.`,
-    war,
-    x9,
-  ]
-    .filter(Boolean)
-    .join(' ');
-}

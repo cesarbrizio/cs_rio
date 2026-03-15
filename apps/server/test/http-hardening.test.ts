@@ -1,0 +1,193 @@
+import Fastify, { type FastifyInstance } from 'fastify';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  createHttpRateLimitHook,
+  installHttpInputHardening,
+  HTTP_BODY_LIMIT_BYTES,
+} from '../src/api/http-hardening.js';
+import { installGlobalHttpErrorHandler } from '../src/api/http-errors.js';
+import {
+  buildStandardResponseSchema,
+  factionCreateBodySchema,
+  loginBodySchema,
+} from '../src/api/schemas.js';
+
+const apps: FastifyInstance[] = [];
+
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => app.close()));
+});
+
+describe('HTTP hardening', () => {
+  it('rejects oversized payloads with 413 before reaching the handler', async () => {
+    let called = false;
+    const app = await createHardeningApp(async (instance) => {
+      instance.post(
+        '/auth/login',
+        {
+          schema: {
+            body: loginBodySchema,
+            response: buildStandardResponseSchema(200),
+          },
+        },
+        async () => {
+          called = true;
+          return {
+            ok: true,
+          };
+        },
+      );
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'test@example.com',
+        password: 'x'.repeat(HTTP_BODY_LIMIT_BYTES),
+      },
+      url: '/auth/login',
+    });
+
+    expect(called).toBe(false);
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('normalizes freeform strings before the handler receives the body', async () => {
+    let receivedDescription: string | null | undefined;
+    const app = await createHardeningApp(async (instance) => {
+      instance.post(
+        '/factions',
+        {
+          schema: {
+            body: factionCreateBodySchema,
+            response: buildStandardResponseSchema(201),
+          },
+        },
+        async (request, reply) => {
+          receivedDescription = (request.body as { description?: string | null }).description;
+          return reply.code(201).send({
+            created: true,
+          });
+        },
+      );
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      payload: {
+        abbreviation: 'CV',
+        description: '   Comando \n\r  vermelho\t\t  ',
+        name: 'Comando Vermelho',
+      },
+      url: '/factions',
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(receivedDescription).toBe('Comando vermelho');
+  });
+
+  it('rate limits repeated public auth hits by IP', async () => {
+    const app = await createHardeningApp(async (instance) => {
+      instance.addHook('preHandler', createHttpRateLimitHook());
+      instance.post(
+        '/auth/login',
+        {
+          schema: {
+            body: loginBodySchema,
+            response: buildStandardResponseSchema(200),
+          },
+        },
+        async () => ({
+          ok: true,
+        }),
+      );
+    });
+
+    for (let index = 0; index < 40; index += 1) {
+      const response = await app.inject({
+        method: 'POST',
+        payload: {
+          email: 'test@example.com',
+          password: 'correct-horse-battery-staple',
+        },
+        url: '/auth/login',
+      });
+
+      expect(response.statusCode).toBe(200);
+    }
+
+    const rateLimitedResponse = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'test@example.com',
+        password: 'correct-horse-battery-staple',
+      },
+      url: '/auth/login',
+    });
+
+    expect(rateLimitedResponse.statusCode).toBe(429);
+    expect(rateLimitedResponse.headers['retry-after']).toBeDefined();
+    expect(rateLimitedResponse.json()).toMatchObject({
+      category: 'rate_limited',
+    });
+  });
+
+  it('rate limits repeated protected mutations by authenticated player', async () => {
+    const app = await createHardeningApp(async (instance) => {
+      instance.addHook('preHandler', async (request) => {
+        request.playerId = 'player-1';
+      });
+      instance.addHook('preHandler', createHttpRateLimitHook());
+      instance.post(
+        '/actions/hot',
+        {
+          schema: {
+            response: buildStandardResponseSchema(200),
+          },
+        },
+        async () => ({
+          ok: true,
+        }),
+      );
+    });
+
+    for (let index = 0; index < 120; index += 1) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/actions/hot',
+      });
+
+      expect(response.statusCode).toBe(200);
+    }
+
+    const rateLimitedResponse = await app.inject({
+      method: 'POST',
+      url: '/actions/hot',
+    });
+
+    expect(rateLimitedResponse.statusCode).toBe(429);
+    expect(rateLimitedResponse.json()).toMatchObject({
+      category: 'rate_limited',
+    });
+  });
+});
+
+async function createHardeningApp(
+  configure: (app: FastifyInstance) => Promise<void> | void,
+): Promise<FastifyInstance> {
+  const app = Fastify({
+    bodyLimit: HTTP_BODY_LIMIT_BYTES,
+    logger: false,
+    requestIdHeader: 'x-request-id',
+  });
+
+  installHttpInputHardening(app);
+  installGlobalHttpErrorHandler(app);
+  await configure(app);
+  apps.push(app);
+  return app;
+}

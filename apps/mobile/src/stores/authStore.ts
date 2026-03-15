@@ -1,4 +1,10 @@
 import {
+  hasValidPasswordLength,
+  isValidAuthNickname,
+  isValidEmail,
+  normalizeAuthNickname,
+  normalizeEmail,
+  normalizePasswordInput,
   type AuthLoginInput,
   type AuthRegisterInput,
   type AuthSession,
@@ -152,8 +158,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       validatePassword(input.password);
 
       const session = await authApi.login({
-        email: input.email.trim().toLowerCase(),
-        password: input.password.trim(),
+        email: normalizeEmail(input.email),
+        password: normalizePasswordInput(input.password),
       });
       const player = await applySession(session);
 
@@ -243,9 +249,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       const session = await authApi.register({
-        email: input.email.trim().toLowerCase(),
-        nickname: input.nickname.trim(),
-        password: input.password.trim(),
+        email: normalizeEmail(input.email),
+        nickname: normalizeAuthNickname(input.nickname),
+        password: normalizePasswordInput(input.password),
       });
       const player = await applySession(session);
 
@@ -336,19 +342,19 @@ async function storeSessionTokens(accessToken: string, refreshToken: string): Pr
 }
 
 function validateEmail(email: string): void {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim())) {
+  if (!isValidEmail(email)) {
     throw new Error('Email inválido.');
   }
 }
 
 function validateNickname(nickname: string): void {
-  if (!/^[A-Za-z0-9_]{3,16}$/u.test(nickname.trim())) {
+  if (!isValidAuthNickname(nickname)) {
     throw new Error('Nickname deve ter entre 3 e 16 caracteres usando letras, números e underscore.');
   }
 }
 
 function validatePassword(password: string): void {
-  if (password.trim().length < 8) {
+  if (!hasValidPasswordLength(password)) {
     throw new Error('Senha deve ter no mínimo 8 caracteres.');
   }
 }

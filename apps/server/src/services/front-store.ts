@@ -42,7 +42,7 @@ import {
 } from './economy-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   resolvePropertyDailyUpkeep,
   roundCurrency,
@@ -814,7 +814,7 @@ export class FrontStoreService implements FrontStoreServiceContract {
       throw new FrontStoreError('not_found', 'Loja de fachada nao encontrada para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const frontStore = await this.listSingleFrontStore(playerId, propertyId);
 
     return {
@@ -913,7 +913,7 @@ export class FrontStoreService implements FrontStoreServiceContract {
       throw new FrontStoreError('not_found', 'Loja de fachada nao encontrada para investimento.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const frontStore = await this.listSingleFrontStore(playerId, propertyId);
     const batch = frontStore.batches.find((entry: FrontStoreSummary['batches'][number]) => entry.id === invested.batchId);
 
@@ -983,7 +983,7 @@ export class FrontStoreService implements FrontStoreServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {

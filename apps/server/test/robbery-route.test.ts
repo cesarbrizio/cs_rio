@@ -17,9 +17,51 @@ import {
   favelas,
   players,
 } from '../src/db/schema.js';
-import { RobberyService } from '../src/services/robbery.js';
+import {
+  RobberyService,
+  type RobberyServiceOptions,
+} from '../src/services/robbery.js';
+import type { HospitalizationSystemContract } from '../src/services/action-readiness.js';
+import type { PrisonSystemContract } from '../src/systems/PrisonSystem.js';
 
 const FIXED_NOW = new Date('2026-03-12T15:00:00.000Z');
+
+class SequencedHospitalizationReader implements HospitalizationSystemContract {
+  constructor(private readonly statuses: boolean[]) {}
+
+  async getHospitalizationStatus() {
+    const isHospitalized = this.statuses.shift() ?? false;
+
+    return {
+      endsAt: isHospitalized ? new Date('2026-03-12T15:30:00.000Z').toISOString() : null,
+      isHospitalized,
+      reason: isHospitalized ? 'combat' : null,
+      remainingSeconds: isHospitalized ? 1800 : 0,
+      startedAt: isHospitalized ? new Date('2026-03-12T15:00:00.000Z').toISOString() : null,
+      trigger: null,
+    };
+  }
+
+  async hospitalize() {
+    return this.getHospitalizationStatus();
+  }
+}
+
+class StaticPrisonSystem implements PrisonSystemContract {
+  constructor(private readonly imprisoned: boolean) {}
+
+  async getStatus() {
+    return {
+      endsAt: this.imprisoned ? new Date('2026-03-12T15:30:00.000Z').toISOString() : null,
+      heatScore: 0,
+      heatTier: 'frio' as const,
+      isImprisoned: this.imprisoned,
+      reason: this.imprisoned ? 'Teste' : null,
+      remainingSeconds: this.imprisoned ? 1800 : 0,
+      sentencedAt: this.imprisoned ? new Date('2026-03-12T15:00:00.000Z').toISOString() : null,
+    };
+  }
+}
 
 describe('robbery routes', () => {
   const openApps: Array<Awaited<ReturnType<typeof createApp>>> = [];
@@ -506,20 +548,50 @@ describe('robbery routes', () => {
     });
   });
 
+  it('revalidates hospitalization immediately before persisting a robbery attempt', async () => {
+    const { app } = await createRobberyTestApp(
+      () => 0.1,
+      () => FIXED_NOW,
+      null,
+      {
+        hospitalizationSystem: new SequencedHospitalizationReader([false, true]),
+      },
+    );
+    const player = await registerAndCreateCharacter(app);
+    await attachPlayerToFactionAndFavela(player.id);
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${player.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        executorType: 'player',
+      },
+      url: '/api/robberies/pedestrian/attempt',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('hospitalizado');
+  });
+
   async function createRobberyTestApp(
     random: () => number,
     now: () => Date,
     catalog: ResolvedGameConfigCatalog | null = null,
+    serviceOptions: Partial<RobberyServiceOptions> = {},
   ): Promise<{
     app: Awaited<ReturnType<typeof createApp>>;
     robberyService: RobberyService;
   }> {
     const robberyService = new RobberyService({
       gameConfigService: catalog ? createStaticGameConfigService(catalog) : undefined,
+      ...serviceOptions,
       now,
       random,
     });
     const app = await createApp({
+      prisonSystem: new StaticPrisonSystem(false),
       robberyService,
     });
 

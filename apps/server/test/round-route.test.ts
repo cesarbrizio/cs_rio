@@ -24,6 +24,7 @@ describe('round routes', () => {
               rank: 1,
             },
           ],
+          npcInflation: buildNpcInflationStub(),
           round: {
             currentGameDay: 12,
             endsAt: '2026-04-20T12:00:00.000Z',
@@ -107,6 +108,7 @@ describe('round routes', () => {
       async getCenter() {
         return {
           leaderboard: [],
+          npcInflation: buildNpcInflationStub(),
           round: {
             currentGameDay: 1,
             endsAt: '2026-04-20T12:00:00.000Z',
@@ -228,5 +230,36 @@ async function registerAndCreateCharacter(
   return {
     accessToken: session.accessToken,
     id: session.player.id,
+  };
+}
+
+function buildNpcInflationStub() {
+  return {
+    affectedServices: ['hospital', 'training', 'university', 'black_market'] as const,
+    currentGameDay: 12,
+    currentMultiplier: 1.12,
+    currentSurchargePercent: 12,
+    gameDayDurationHours: 6,
+    maxMultiplier: 1.65,
+    nextIncreaseGameDay: 13,
+    nextIncreaseInDays: 1,
+    nextMultiplier: 1.13,
+    nextSurchargePercent: 13,
+    resetsOnNewRound: true,
+    roundActive: true,
+    schedule: [
+      {
+        gameDay: 1,
+        multiplier: 1,
+        surchargePercent: 0,
+      },
+      {
+        gameDay: 13,
+        multiplier: 1.13,
+        surchargePercent: 13,
+      },
+    ],
+    tier: 'rising' as const,
+    totalGameDays: 156,
   };
 }

@@ -18,6 +18,7 @@ import {
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import { WarResultModal } from '../components/WarResultModal';
 import {
   buildFavelaAlertLines,
   buildTerritoryHeadlineStats,
@@ -37,6 +38,8 @@ import {
   resolveWarStatusLabel,
   resolveX9StatusLabel,
 } from '../features/territory';
+import { rememberSeenWarResult } from '../features/war-result-storage';
+import { buildWarResultCue, type WarResultCue } from '../features/war-results';
 import { formatApiError, territoryApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
@@ -70,6 +73,7 @@ export function TerritoryScreen(): JSX.Element {
   const [warBudgetInput, setWarBudgetInput] = useState('25000');
   const [warSoldierCommitmentInput, setWarSoldierCommitmentInput] = useState('6');
   const [expandedActionId, setExpandedActionId] = useState<'conquer' | 'declare-war' | 'propina' | 'x9' | null>(null);
+  const [warResultCue, setWarResultCue] = useState<WarResultCue | null>(null);
 
   const playerFactionId = overview?.playerFactionId ?? player?.faction?.id ?? null;
   const headlineStats = useMemo(
@@ -117,6 +121,10 @@ export function TerritoryScreen(): JSX.Element {
       ? selectedWar.attackerPreparation
       : selectedWar.defenderPreparation;
   }, [selectedWar, selectedWarSide]);
+  const selectedWarResultCue = useMemo(
+    () => (selectedFavela ? buildWarResultCue(selectedFavela, player) : null),
+    [player, selectedFavela],
+  );
   const selectedAlerts = useMemo(
     () => (selectedFavela ? buildFavelaAlertLines(selectedFavela) : []),
     [selectedFavela],
@@ -133,17 +141,12 @@ export function TerritoryScreen(): JSX.Element {
       selectedWar.status === 'active',
   );
 
-  useEffect(() => {
-    setNowMs(Date.now());
-
-    const intervalId = setInterval(() => {
-      setNowMs(Date.now());
-    }, 30_000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
+  const hasLiveCountdown = Boolean(
+    baileBook?.baile.cooldownEndsAt ||
+      selectedFavela?.x9?.warningEndsAt ||
+      selectedWar?.nextRoundAt ||
+      selectedWar?.preparationEndsAt,
+  );
 
   const loadFavelaDetail = useCallback(async (favelaId: string) => {
     setIsDetailLoading(true);
@@ -223,6 +226,24 @@ export function TerritoryScreen(): JSX.Element {
       void loadTerritoryHub(route.params?.focusFavelaId ?? null, player?.regionId ?? null);
       return undefined;
     }, [loadTerritoryHub, route.params?.focusFavelaId, player?.regionId]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      setNowMs(Date.now());
+
+      if (!hasLiveCountdown) {
+        return undefined;
+      }
+
+      const intervalId = setInterval(() => {
+        setNowMs(Date.now());
+      }, 60_000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }, [hasLiveCountdown]),
   );
 
   useEffect(() => {
@@ -366,11 +387,41 @@ export function TerritoryScreen(): JSX.Element {
       return;
     }
 
-    await runMutation(
-      () => territoryApi.resolveWarRound(selectedFavela.id),
-      `Round de guerra resolvido em ${selectedFavela.name}.`,
-    );
-  }, [runMutation, selectedFavela]);
+    setIsMutating(true);
+    setErrorMessage(null);
+    setFeedbackMessage(null);
+
+    try {
+      const result = await territoryApi.resolveWarRound(selectedFavela.id);
+      await refreshPlayerProfile();
+      await loadTerritoryHub(selectedFavela.id, selectedFavela.regionId);
+
+      const cue = buildWarResultCue(result.favela, player);
+
+      if (cue && player?.id) {
+        await rememberSeenWarResult(player.id, cue.key);
+        setWarResultCue(cue);
+        setBootstrapStatus(cue.body);
+      } else {
+        const message =
+          extractResponseMessage(result) ?? `Round de guerra resolvido em ${selectedFavela.name}.`;
+        setFeedbackMessage(message);
+        setBootstrapStatus(message);
+      }
+    } catch (error) {
+      const message = formatApiError(error).message;
+      setErrorMessage(message);
+      setBootstrapStatus(message);
+    } finally {
+      setIsMutating(false);
+    }
+  }, [
+    loadTerritoryHub,
+    player,
+    refreshPlayerProfile,
+    selectedFavela,
+    setBootstrapStatus,
+  ]);
 
   const handleInstallService = useCallback(async (serviceType: Awaited<ReturnType<typeof territoryApi.getServices>>['services'][number]['definition']['type']) => {
     if (!selectedFavela) {
@@ -927,7 +978,9 @@ export function TerritoryScreen(): JSX.Element {
 
                 {selectedWar ? (
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailTitle}>Teatro de guerra</Text>
+                    <Text style={styles.detailTitle}>
+                      {selectedWarResultCue ? 'Desfecho da guerra' : 'Teatro de guerra'}
+                    </Text>
                     <Text style={styles.detailCopy}>
                       {selectedWar.attackerFaction.abbreviation} x {selectedWar.defenderFaction.abbreviation} · seu lado {selectedWarSide ? resolveWarSideLabel(selectedWarSide) : 'Fora do conflito'} · rounds {selectedWar.roundsResolved}/{selectedWar.roundsTotal}
                     </Text>
@@ -937,6 +990,19 @@ export function TerritoryScreen(): JSX.Element {
                     <Text style={styles.detailCopy}>
                       Espólio {formatTerritoryCurrency(selectedWar.lootMoney)} · vencedor {selectedWar.winnerFactionId ?? '--'}
                     </Text>
+
+                    {selectedWarResultCue ? (
+                      <>
+                        <Text style={styles.detailCopy}>{selectedWarResultCue.territorialImpact}</Text>
+                        <Text style={styles.detailCopy}>{selectedWarResultCue.personalImpact.label}</Text>
+                        {selectedWarResultCue.personalImpact.directParticipation ? (
+                          <Text style={styles.detailCopy}>
+                            Conceito {selectedWarResultCue.personalImpact.conceitoDelta >= 0 ? '+' : ''}
+                            {selectedWarResultCue.personalImpact.conceitoDelta} · HP -{selectedWarResultCue.personalImpact.hpLoss} · NRV -{selectedWarResultCue.personalImpact.nerveLoss} · STA -{selectedWarResultCue.personalImpact.staminaLoss}
+                          </Text>
+                        ) : null}
+                      </>
+                    ) : null}
 
                     {selectedWar.rounds.length > 0 ? (
                       <View style={styles.roundList}>
@@ -1015,6 +1081,13 @@ export function TerritoryScreen(): JSX.Element {
         }}
         tone={errorMessage ? 'danger' : 'info'}
         visible={Boolean(errorMessage ?? feedbackMessage)}
+      />
+      <WarResultModal
+        cue={warResultCue}
+        onClose={() => {
+          setWarResultCue(null);
+        }}
+        visible={Boolean(warResultCue)}
       />
     </InGameScreenLayout>
   );

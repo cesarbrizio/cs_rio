@@ -1,6 +1,8 @@
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { BankError, type BankServiceContract } from '../../services/bank.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import { buildStandardResponseSchema, playerBankMovementBodySchema } from '../schemas.js';
+import { type BankServiceContract } from '../../services/bank.js';
 
 interface BankRouteDependencies {
   bankService: BankServiceContract;
@@ -8,7 +10,14 @@ interface BankRouteDependencies {
 
 export function createBankRoutes({ bankService }: BankRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/bank', async (request, reply) => {
+    fastify.get(
+      '/bank',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({ message: 'Token ausente.' });
       }
@@ -19,9 +28,18 @@ export function createBankRoutes({ bankService }: BankRouteDependencies): Fastif
       } catch (error) {
         return sendBankError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: { amount: number } }>('/bank/deposit', async (request, reply) => {
+    fastify.post<{ Body: { amount: number } }>(
+      '/bank/deposit',
+      {
+        schema: {
+          body: playerBankMovementBodySchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({ message: 'Token ausente.' });
       }
@@ -34,9 +52,18 @@ export function createBankRoutes({ bankService }: BankRouteDependencies): Fastif
       } catch (error) {
         return sendBankError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: { amount: number } }>('/bank/withdraw', async (request, reply) => {
+    fastify.post<{ Body: { amount: number } }>(
+      '/bank/withdraw',
+      {
+        schema: {
+          body: playerBankMovementBodySchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({ message: 'Token ausente.' });
       }
@@ -49,27 +76,11 @@ export function createBankRoutes({ bankService }: BankRouteDependencies): Fastif
       } catch (error) {
         return sendBankError(reply, error);
       }
-    });
+      },
+    );
   };
 }
 
-function sendBankError(reply: FastifyReply, error: unknown) {
-  if (error instanceof BankError) {
-    const statusCode =
-      error.code === 'unauthorized'
-        ? 401
-        : error.code === 'not_found'
-          ? 404
-          : error.code === 'validation'
-            ? 400
-            : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada ao processar o banco.',
-  });
+function sendBankError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada ao processar o banco.');
 }

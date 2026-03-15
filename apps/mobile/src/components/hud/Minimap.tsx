@@ -1,5 +1,5 @@
 import { type GridPoint } from '@engine/types';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -44,21 +44,10 @@ export function Minimap({
   playerPosition,
 }: MinimapProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const [blinkOn, setBlinkOn] = useState(true);
   const { width } = useWindowDimensions();
   const compactSurface = width < 390 ? 64 : COMPACT_SURFACE;
   const compactPadding = width < 390 ? 6 : COMPACT_PADDING;
   const compactCardWidth = compactSurface + 18;
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setBlinkOn((current) => !current);
-    }, 500);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
 
   const compactMarkers = useMemo(
     () =>
@@ -163,7 +152,6 @@ export function Minimap({
                 styles.localMarker,
                 {
                   left: compactPlayer.left - 4,
-                  opacity: blinkOn ? 1 : 0.35,
                   top: compactPlayer.top - 4,
                 },
               ]}
@@ -216,7 +204,6 @@ export function Minimap({
                     styles.localMarker,
                     {
                       left: fullPlayer.left - 5,
-                      opacity: blinkOn ? 1 : 0.35,
                       top: fullPlayer.top - 5,
                     },
                   ]}

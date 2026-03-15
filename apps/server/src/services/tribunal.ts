@@ -12,7 +12,7 @@ import {
   type KeyValueStore,
   toPlayerSummary,
 } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 
 interface TribunalCaseRecord {
   accusedCharismaCommunity: number;
@@ -1123,7 +1123,7 @@ export class TribunalService implements TribunalServiceContract {
       throw new Error('Falha ao registrar o julgamento do tribunal.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
     return {
       activeCase: toTribunalCaseSummary(updated.caseRecord, context.favela),

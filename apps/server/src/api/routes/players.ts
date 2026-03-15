@@ -1,8 +1,13 @@
 import { type PlayerCreationInput, type PlayerTravelInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { AuthError } from '../../services/auth.js';
-import { PlayerError, type PlayerService } from '../../services/player.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildStandardResponseSchema,
+  playerCreationBodySchema,
+  playerTravelBodySchema,
+} from '../schemas.js';
+import { type PlayerService } from '../../services/player.js';
 
 interface PlayerRouteDependencies {
   playerService: PlayerService;
@@ -12,7 +17,14 @@ export function createPlayerRoutes({
   playerService,
 }: PlayerRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/players/me', async (request, reply) => {
+    fastify.get(
+      '/players/me',
+      {
+        schema: {
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -25,9 +37,18 @@ export function createPlayerRoutes({
       } catch (error) {
         return sendPlayerError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: PlayerCreationInput }>('/players/create', async (request, reply) => {
+    fastify.post<{ Body: PlayerCreationInput }>(
+      '/players/create',
+      {
+        schema: {
+          body: playerCreationBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -40,9 +61,18 @@ export function createPlayerRoutes({
       } catch (error) {
         return sendPlayerError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: PlayerTravelInput }>('/players/travel', async (request, reply) => {
+    fastify.post<{ Body: PlayerTravelInput }>(
+      '/players/travel',
+      {
+        schema: {
+          body: playerTravelBodySchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -50,42 +80,16 @@ export function createPlayerRoutes({
       }
 
       try {
-        const body = request.body as PlayerTravelInput;
-        const player = await playerService.travelToRegion(request.playerId, body.regionId);
+        const player = await playerService.travelToRegion(request.playerId, request.body.regionId);
         return reply.send(player);
       } catch (error) {
         return sendPlayerError(reply, error);
       }
-    });
+      },
+    );
   };
 }
 
-function sendPlayerError(reply: FastifyReply, error: unknown) {
-  if (error instanceof AuthError) {
-    const statusCode =
-      error.code === 'validation' ? 400 : error.code === 'conflict' ? 409 : 401;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  if (error instanceof PlayerError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'conflict'
-          ? 409
-          : error.code === 'not_found'
-            ? 404
-            : 401;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao do jogador.',
-  });
+function sendPlayerError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao do jogador.');
 }

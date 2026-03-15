@@ -1,7 +1,13 @@
 import { type PuteiroHireInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { PuteiroError, type PuteiroServiceContract } from '../../services/puteiro.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  puteiroHireBodySchema,
+} from '../schemas.js';
+import { type PuteiroServiceContract } from '../../services/puteiro.js';
 
 interface PuteiroRouteDependencies {
   puteiroService: PuteiroServiceContract;
@@ -11,7 +17,16 @@ export function createPuteiroRoutes({
   puteiroService,
 }: PuteiroRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/puteiros', async (request, reply) => {
+    const propertyIdParamsSchema = buildIdParamsSchema('propertyId');
+
+    fastify.get(
+      '/puteiros',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -24,10 +39,18 @@ export function createPuteiroRoutes({
       } catch (error) {
         return sendPuteiroError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Body: PuteiroHireInput; Params: { propertyId: string } }>(
       '/puteiros/:propertyId/gps',
+      {
+        schema: {
+          body: puteiroHireBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -50,6 +73,12 @@ export function createPuteiroRoutes({
 
     fastify.post<{ Params: { propertyId: string } }>(
       '/puteiros/:propertyId/collect',
+      {
+        schema: {
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -68,29 +97,6 @@ export function createPuteiroRoutes({
   };
 }
 
-function sendPuteiroError(reply: FastifyReply, error: unknown) {
-  if (error instanceof PuteiroError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'not_found'
-            ? 404
-            : error.code === 'capacity' ||
-                error.code === 'conflict' ||
-                error.code === 'character_not_ready'
-              ? 409
-              : error.code === 'insufficient_funds'
-                ? 422
-                : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de puteiros.',
-  });
+function sendPuteiroError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de puteiros.');
 }

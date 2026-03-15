@@ -2,7 +2,597 @@
 
 > Documento vivo de acompanhamento do desenvolvimento do jogo CS Rio.
 > Cada tarefa possui status, dependências e especificação técnica.
-> Última atualização: 2026-03-12
+> Última atualização: 2026-03-14
+
+## Estado Operacional Atual
+
+> O projeto já roda hoje como **Pré-Alpha funcional** e entrou numa fase de **testes, ajuste fino e estabilização**.
+>
+> Pontos já consolidados:
+> - mapa aprovado para o escopo atual em [MAPA.md](./MAPA.md)
+> - cheats internos concluídos em [CHEATS.md](./CHEATS.md)
+> - esteira principal verde (`typecheck`, `lint`, `test`, `build`)
+>
+> Prioridade prática a partir daqui:
+> - hardening técnico
+> - balanceamento
+> - performance percebida
+> - UX em device
+> - correção de bugs reais de playtest
+
+## Backlog Imediato de Produto — Playtest
+
+> Ajustes de produto identificados em playtest real depois do fechamento do mapa.
+> Estes itens não são “nice to have”; eles afetam clareza de loop, feedback e descoberta de sistemas.
+
+### B.1 — Expor `Jogo do Bicho` e `Maquininha de Caça-Níquel`
+
+> **Status atual**
+>
+> - `Jogo do Bicho` agora está exposto no mobile, com screen própria, rota, CTA de descoberta e UX inline
+> - `Maquininha` agora tem descoberta explícita na home e fluxo operacional direto em `Operações`
+> - O bloco passou do estado “escondido” para **descoberto, jogável e autoexplicativo**
+
+> **Decisões operacionais**
+>
+> - `Jogo do Bicho` deve entrar como **ação/aposta**, não como propriedade
+> - `Maquininha` deve entrar como **ativo/operação**, não como jogo de aposta instantânea
+> - os dois precisam aparecer em pontos diferentes da UX:
+>   - `Jogo do Bicho` em tela própria de ação
+>   - `Maquininha` no fluxo de patrimônio/operações
+> - ambos devem seguir o padrão novo de UX:
+>   - seleção inline
+>   - ação confirmada na própria card
+>   - resultado imediato em modal quando fizer sentido
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/mobile/App.tsx`
+> - `apps/mobile/src/services/api.ts`
+> - `apps/mobile/src/components/hud/ActionBar.tsx`
+> - `apps/mobile/src/screens/OperationsScreen.tsx`
+> - `apps/mobile/src/screens/` com nova screen de `Jogo do Bicho`
+> - opcionalmente `apps/mobile/src/features/operations.ts` para copy e descoberta de `Maquininha`
+
+- [x] **B.1.1** Criar infraestrutura mobile de `Jogo do Bicho`
+  - criar client API no mobile para:
+    - consultar estado atual
+    - listar histórico recente
+    - apostar
+  - adicionar screen própria no app
+  - registrar rota e tipo de navegação no `RootStack`
+
+- [x] **B.1.2** Criar UX de `Jogo do Bicho` no padrão atual do app
+  - tela própria
+  - resumo curto do sistema
+  - estado atual do bicho/sorteio
+  - histórico recente
+  - cards de aposta com expansão inline
+  - confirmação da aposta na própria card
+  - resultado/feedback imediato sem depender de scroll
+
+- [x] **B.1.3** Expor `Jogo do Bicho` no fluxo de descoberta do jogador
+  - CTA claro no `Mais` e/ou outro ponto da home
+  - texto curto deixando claro que:
+    - isso é uma aposta
+    - não é um patrimônio
+    - não é uma operação passiva
+
+- [x] **B.1.4** Tornar `Maquininha de Caça-Níquel` descoberta no fluxo do jogador
+  - criar ponto de entrada visível
+  - explicar o que é
+  - mostrar que ela vive em `Operações`
+  - deixar claro que é um negócio/passivo, não uma aposta manual
+
+- [x] **B.1.5** Fechar o fluxo operacional da `Maquininha`
+  - revisar suporte mobile para:
+    - listar
+    - instalar
+    - configurar
+    - coletar
+  - o fluxo precisa ficar navegável sem depender de conhecimento prévio escondido
+
+- [x] **B.1.6** Melhorar a linguagem da `Maquininha` dentro de `Operações`
+  - copy clara
+  - cards legíveis
+  - explicação de caixa, comissão faccional, rendimento e capacidade
+  - distinção entre:
+    - adquirir/instalar
+    - configurar
+    - coletar caixa
+
+- [x] **B.1.7** Validar a distinção entre os dois sistemas
+  - `Jogo do Bicho` = ação/aposta
+  - `Maquininha` = ativo/propriedade/operação
+  - critério:
+    - o jogador entende a diferença sem precisar perguntar
+    - o jogador sabe onde abrir cada um
+
+- [x] **B.1.8** Critério final do bloco
+  - `Jogo do Bicho` está exposto e jogável no mobile
+  - `Maquininha` está descoberta e gerenciável sem fricção
+  - os dois usam o padrão novo de UX do projeto
+
+### B.2 — Fechar feedback assíncrono de guerra
+
+> **Status atual**
+>
+> - concluído
+> - o app agora detecta guerra encerrada mesmo depois de retorno offline
+> - o desfecho vira:
+>   - notificação local quando disponível
+>   - modal imediato ao reabrir
+>   - resumo persistente no `Painel Territorial`
+> - o impacto pessoal também ficou explícito:
+>   - se o jogador participou diretamente
+>   - ou se sua facção participou sem ele estar na região
+
+> **Decisões operacionais**
+>
+> - o fim da guerra precisa virar **evento assíncrono de resultado**, não só mudança de estado territorial
+> - o feedback deve existir em 3 camadas:
+>   - notificação assíncrona ao voltar para o app
+>   - modal de resultado imediato ao abrir
+>   - histórico/estado legível no `Painel Territorial`
+> - o resultado precisa separar:
+>   - desfecho da guerra
+>   - impacto territorial
+>   - impacto pessoal do jogador
+> - não pode depender do jogador rolar tela, abrir aba errada ou interpretar score cru
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/mobile/src/screens/TerritoryScreen.tsx`
+> - `apps/mobile/src/screens/HomeScreen.tsx`
+> - `apps/mobile/src/features/notifications.ts`
+> - `apps/mobile/src/notifications/NotificationProvider.tsx`
+> - `apps/mobile/src/services/api.ts`
+> - `packages/shared/src/types.ts`
+> - `apps/server/src/services/territory.ts`
+> - opcionalmente `apps/server/src/api/routes/territory.ts` se o payload precisar ser enriquecido
+
+- [x] **B.2.1** Criar detecção de guerra encerrada para retorno assíncrono
+  - identificar quando uma guerra saiu de:
+    - `declared`
+    - `preparing`
+    - `active`
+    para:
+    - `attacker_won`
+    - `defender_won`
+    - `draw`
+    - `cancelled`
+  - o app precisa detectar isso mesmo se o jogador estiver offline no momento da resolução
+
+- [x] **B.2.2** Disparar notificação/alerta quando a guerra terminar
+  - notificação local quando fizer sentido
+  - fallback por toast/modal ao reabrir o app
+  - sem depender de o jogador “caçar” o resultado no `Painel Territorial`
+
+- [x] **B.2.3** Exibir resumo final da guerra em modal de resultado
+  - facções envolvidas
+  - favela disputada
+  - vencedor
+  - score final
+  - rounds resolvidos
+  - espólio
+  - impacto territorial
+
+- [x] **B.2.4** Exibir impacto pessoal do jogador na guerra
+  - conceito ganho/perdido
+  - HP / nervos / stamina consumidos ou perdidos
+  - qualquer recompensa individual relevante
+  - se o jogador não participou diretamente, isso também precisa ficar claro
+
+- [x] **B.2.5** Manter o desfecho legível dentro do `Painel Territorial`
+  - resumo final não pode sumir depois do modal
+  - a favela precisa manter um estado final claro por um período útil
+  - o painel deve explicar quem ganhou e o que mudou naquela favela
+
+- [x] **B.2.6** Critério final do bloco
+  - o jogador recebe aviso quando a guerra termina
+  - o jogador entende quem ganhou
+  - o jogador entende o que aconteceu com a favela
+  - o jogador entende o que aconteceu com ele
+
+### B.3 — Fechar feedback assíncrono de treino e universidade
+
+> **Status atual**
+>
+> - concluído
+> - `Treino` agora dispara lembrete assíncrono, modal de retorno e persistência local de visto
+> - `Universidade` agora dispara lembrete assíncrono, modal de conclusão e persistência local de visto
+> - o jogador não precisa mais “caçar” o fim do treino/curso ou lembrar sozinho de voltar
+
+> **Decisões operacionais**
+>
+> - treino e universidade precisam seguir a mesma linha que já fechamos em:
+>   - crimes
+>   - tribunal
+>   - guerra
+> - o término deve existir em 3 camadas:
+>   - detecção assíncrona ao voltar para o app
+>   - notificação local quando fizer sentido
+>   - modal imediato de resultado ao reabrir
+> - o feedback precisa separar:
+>   - ação concluída
+>   - custo já consumido
+>   - ganho/passivo liberado
+>   - impacto prático no personagem
+> - o jogador não pode depender de:
+>   - scroll
+>   - banner perdido na tela
+>   - “lembrar de voltar” depois
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/mobile/src/screens/TrainingScreen.tsx`
+> - `apps/mobile/src/screens/UniversityScreen.tsx`
+> - `apps/mobile/src/features/notifications.ts`
+> - `apps/mobile/src/notifications/NotificationProvider.tsx`
+> - `apps/mobile/App.tsx`
+> - `apps/mobile/src/stores/appStore.ts`
+> - `apps/mobile/src/services/api.ts`
+> - opcionalmente helpers novos em `apps/mobile/src/features/`
+> - opcionalmente payloads mais explícitos no backend se faltar contexto do resultado
+
+- [x] **B.3.1** Notificar término de treino
+  - local notification quando a sessão terminar
+  - CTA claro para resgatar
+
+- [x] **B.3.2** Exibir resultado do treino imediatamente no retorno
+  - atributos ganhos
+  - custo já gasto
+  - streak / multiplicador aplicado
+  - sem depender de leitura escondida na tela
+
+- [x] **B.3.3** Notificar término de curso universitário
+  - local notification quando o curso acabar
+  - explicação curta do passivo liberado
+
+- [x] **B.3.4** Exibir conclusão da universidade como resultado
+  - curso concluído
+  - passivo liberado
+  - impacto prático no personagem
+
+- [x] **B.3.5** Persistir conclusão já vista para não repetir modal indefinidamente
+  - guardar localmente quais treinos/cursos já tiveram resultado consumido visualmente
+  - evitar repetição infinita de pop-up a cada abertura do app
+
+- [x] **B.3.6** Critério final do bloco
+  - o jogador recebe aviso quando o treino termina
+  - o jogador entende o que ganhou com o treino
+  - o jogador recebe aviso quando o curso termina
+  - o jogador entende qual passivo foi liberado e o impacto prático
+  - conclusão de treino/estudo não pode ser silenciosa
+
+### B.4 — Explicar inflação de forma jogável
+
+> **Status atual**
+>
+> - concluído
+> - a inflação agora é comunicada de forma explícita no app
+> - o sistema cobre:
+>   - hospital
+>   - treino
+>   - universidade
+>   - ofertas sistêmicas do `Mercado Negro`
+> - a leitura existe em 3 camadas:
+>   - resumo curto na `Home`
+>   - painel detalhado nas telas de NPC
+>   - tabela completa por dia/multiplicador
+
+> **Decisões operacionais**
+>
+> - inflação deve continuar sendo tratada como **pressão sistêmica de NPC**, não como ruído abstrato
+> - a comunicação precisa responder, sem exigir interpretação:
+>   - o que é inflação
+>   - o que ela afeta
+>   - quanto está hoje
+>   - quando sobe de novo
+>   - quanto vai subir
+> - a UX deve existir em 3 camadas:
+>   - leitura curta na home
+>   - leitura detalhada em painéis que cobram preço de NPC
+>   - tabela didática completa para quem quiser entender a progressão da rodada
+> - a inflação deve ser expandida para os serviços de NPC relevantes antes de ser “vendida” como sistema global
+> - o sistema deve explicar a decisão prática:
+>   - resolver cedo = mais barato
+>   - deixar para depois = mais caro
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/server/src/services/npc-inflation.ts`
+> - `apps/server/src/services/hospital.ts`
+> - `apps/server/src/services/training.ts`
+> - `apps/server/src/services/university.ts`
+> - `apps/server/src/services/market.ts`
+> - outros serviços de NPC relevantes que hoje ainda usem custo estático
+> - `apps/mobile/src/screens/HomeScreen.tsx`
+> - `apps/mobile/src/screens/MarketScreen.tsx`
+> - `apps/mobile/src/screens/HospitalScreen.tsx`
+> - `apps/mobile/src/screens/TrainingScreen.tsx`
+> - `apps/mobile/src/screens/UniversityScreen.tsx`
+> - opcionalmente helper novo em `apps/mobile/src/features/` para copiar a tabela e a leitura de progressão
+> - `packages/shared/src/types.ts` se o payload precisar trazer:
+>   - multiplicador atual
+>   - próximo multiplicador
+>   - dias restantes
+>   - tabela completa
+
+- [x] **B.4.1** Criar explicação curta e clara de inflação no jogo
+  - o que é
+  - o que ela afeta
+  - o que muda ao longo da rodada
+
+- [x] **B.4.2** Expandir a inflação para todos os serviços de NPC relevantes
+  - incluir os preços oferecidos por NPCs além de hospital, treino e universidade
+  - revisar especialmente `Mercado Negro` e demais painéis operados por NPC
+  - critério: o jogador percebe que inflação é uma regra sistêmica de NPC, não uma exceção escondida
+
+- [x] **B.4.3** Mostrar no app o efeito prático atual da inflação
+  - multiplicador atual
+  - serviços afetados
+  - leitura de “barato / subindo / caro”
+  - dias restantes para o próximo aumento
+  - qual será o próximo multiplicador
+
+- [x] **B.4.4** Exibir tabela clara de progressão da inflação ao longo da rodada
+  - lista de faixas por dia
+  - multiplicador correspondente
+  - leitura didática para jogador novo
+
+- [x] **B.4.5** Conectar inflação com decisão do jogador
+  - explicar que agir cedo torna NPC services mais baratos
+  - explicar que late game pune quem deixou serviços de NPC para depois
+
+- [x] **B.4.6** Critério final
+  - o jogador entende:
+    - o que ganha
+    - o que perde
+    - e por que a inflação existe
+
+### B.5 — Progressão automática em facções fixas lideradas por NPC
+
+> **Status atual**
+>
+> - concluído
+> - facções fixas sob liderança NPC agora promovem automaticamente por regra de permanência + level + conceito + vaga
+> - facções lideradas por jogador continuam com promoção manual pela cadeia de comando
+
+> **Decisões operacionais**
+>
+> - a ascensão automática vale **somente** para facções fixas que ainda estejam sob liderança NPC
+> - facções criadas/lideradas por jogador continuam com promoção manual por cadeia de comando
+> - a promoção automática não deve disparar só por:
+>   - entrar forte na facção
+>   - ter level alto isoladamente
+>   - ter conceito alto isoladamente
+> - a regra deve combinar:
+>   - tempo mínimo dentro da facção
+>   - level mínimo
+>   - conceito mínimo
+>   - existência de vaga no cargo seguinte
+> - a checagem deve acontecer em pontos naturais do jogo:
+>   - login/retorno ao app
+>   - refresh de perfil
+>   - abertura do QG / estado de facção
+> - o resultado precisa ter feedback claro:
+>   - promoção concluída
+>   - motivo da promoção
+>   - cargo antigo
+>   - cargo novo
+>   - ou motivo do bloqueio quando ainda não subiu
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/server/src/services/faction.ts`
+> - `apps/server/src/services/player.ts`
+> - `apps/server/src/api/routes/factions.ts`
+> - `apps/server/src/api/routes/players.ts`
+> - `packages/shared/src/types.ts`
+> - `apps/mobile/src/screens/FactionScreen.tsx`
+> - `apps/mobile/src/screens/HomeScreen.tsx`
+> - `apps/mobile/src/features/notifications.ts`
+> - `apps/mobile/src/notifications/NotificationProvider.tsx`
+> - `apps/mobile/src/services/api.ts`
+
+- [x] **B.5.1** Criar progressão automática de cargo em facções fixas com liderança NPC
+  - enquanto a facção fixa estiver sob liderança NPC, a ascensão não deve depender de ação manual de general/patrão
+  - a regra deve continuar manual em facções comandadas por jogador
+
+- [x] **B.5.2** Definir regra de promoção automática sem exploit óbvio
+  - avaliar promoção por combinação de:
+    - dias na facção
+    - level mínimo
+    - conceito mínimo
+    - existência de vaga no cargo
+  - evitar promoção instantânea sem permanência mínima quando o jogador entra já forte na facção
+
+- [x] **B.5.3** Disparar notificação e resultado de ascensão
+  - modal / toast / notificação local
+  - cargo anterior
+  - novo cargo
+  - motivo da promoção
+  - eventual bloqueio quando não houver vaga
+
+- [x] **B.5.4** Critério final
+  - em facções fixas com líder NPC, o jogador sente progressão orgânica de hierarquia
+  - em facções lideradas por jogador, continua valendo a promoção manual por cadeia de comando
+
+### B.6 — Fechar economia coletiva da facção
+
+> **Status atual**
+>
+> - concluído
+> - o banco da facção agora funciona como caixa coletivo real
+> - o ledger cobre entradas e saídas legíveis, incluindo negócio e upgrade
+> - o `Jogo do Bicho` já repassa comissão automática para a facção
+> - upgrades da facção agora consomem tesouraria faccional e aparecem no ledger
+> - o `QG da Facção` agora explica visualmente como a economia coletiva funciona
+
+> **Decisões operacionais**
+>
+> - o banco da facção deve virar **caixa coletivo real**, não só saldo decorativo
+> - toda entrada e saída precisa virar evento de ledger legível e auditável
+> - o ledger precisa responder claramente:
+>   - quanto entrou ou saiu
+>   - de onde veio ou para onde foi
+>   - qual jogador causou a movimentação, quando existir
+>   - qual negócio ou sistema causou a movimentação, quando existir
+> - o repasse automático deve cobrir:
+>   - `Boca`
+>   - `Rave`
+>   - `Puteiro`
+>   - `Loja de Fachada`
+>   - `Maquininha`
+>   - `Jogo do Bicho`
+>   - e qualquer negócio equivalente que declare comissão faccional
+> - upgrade da facção deve consumir dinheiro do banco da facção
+> - se pontos continuarem existindo, eles devem virar:
+>   - requisito complementar
+>   - ou métrica secundária
+>   - nunca substituto opaco do caixa faccional
+> - o `QG da Facção` precisa explicar o ciclo completo da economia coletiva sem exigir leitura de backend
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/server/src/services/faction.ts`
+> - `apps/server/src/services/faction/repository.ts`
+> - `apps/server/src/services/boca.ts`
+> - `apps/server/src/services/rave.ts`
+> - `apps/server/src/services/puteiro.ts`
+> - `apps/server/src/services/front-store.ts`
+> - `apps/server/src/services/slot-machine.ts`
+> - `apps/server/src/services/bicho.ts`
+> - outros serviços que declarem ou apliquem comissão faccional
+> - `apps/server/src/api/routes/factions.ts`
+> - `packages/shared/src/types.ts`
+> - `apps/mobile/src/screens/FactionScreen.tsx`
+> - `apps/mobile/src/screens/OperationsScreen.tsx`
+> - `apps/mobile/src/screens/BichoScreen.tsx`
+> - opcionalmente helpers novos em `apps/mobile/src/features/faction/`
+
+- [x] **B.6.1** Garantir ledger completo de entrada e saída do banco da facção
+  - toda movimentação precisa registrar:
+    - valor
+    - origem/destino
+    - tipo
+    - jogador envolvido quando existir
+    - negócio envolvido quando existir
+  - cobrir explicitamente:
+    - depósito manual
+    - saque manual
+    - comissão automática de negócio
+    - gasto com upgrade
+    - estorno/correção operacional quando existir
+
+- [x] **B.6.2** Incluir `Jogo do Bicho` no repasse automático para a facção
+  - se o negócio/aposta estiver ligado à facção do jogador, a comissão automática também deve cair no banco faccional
+  - precisa aparecer no ledger do mesmo jeito que boca, rave, fachada, puteiro e maquininha
+  - a tela do `Jogo do Bicho` também precisa deixar claro quando existe repasse faccional embutido
+
+- [x] **B.6.3** Fazer upgrades da facção consumirem dinheiro do banco da facção
+  - hoje o fluxo de upgrade está ancorado em pontos
+  - revisar para usar a tesouraria faccional como recurso principal, ou explicitar claramente um modelo híbrido se mantiver pontos
+  - critério:
+    - antes de comprar, o jogador vê custo e saldo disponível
+    - depois da compra, o ledger registra a saída
+    - o upgrade não “brota” só de pontos sem impacto econômico
+
+- [x] **B.6.4** Deixar visível no QG da facção como a tesouraria está sendo usada
+  - entradas automáticas
+  - depósitos manuais
+  - saques
+  - gastos com upgrade
+  - saldo atual
+  - idealmente com:
+    - resumo por tipo de entrada/saída
+    - histórico recente
+    - leitura curta de “como a facção se sustenta”
+
+- [x] **B.6.5** Critério final
+  - o jogador entende como o dinheiro da facção entra
+  - para onde ele vai
+  - e por que vale a pena fortalecer a economia coletiva
+
+### B.7 — Revisar documentação operacional de rollout
+
+> **Status atual**
+>
+> - concluído
+> - o [ROLL_OUT.md](./ROLL_OUT.md) foi reduzido para um checklist curto e operacional
+> - o smoke crítico foi alinhado ao estado real do produto hoje
+> - a referência no `README` foi ajustada para o papel correto do rollout
+> - o documento ficou pronto para uso direto em deploy/smoke/rollback
+
+> **Decisões operacionais**
+>
+> - o [ROLL_OUT.md](./ROLL_OUT.md) deve continuar existindo como checklist curto e operacional
+> - ele não deve virar documento de visão, changelog ou backlog
+> - ele deve responder de forma objetiva:
+>   - o que precisa validar antes de subir
+>   - o que precisa subir
+>   - o que precisa testar imediatamente depois
+>   - quando precisa voltar atrás
+> - o smoke do documento deve refletir os fluxos realmente relevantes do jogo hoje:
+>   - login
+>   - home
+>   - mapa
+>   - crimes
+>   - mercado
+>   - território
+>   - facção
+>   - hospital
+>   - prisão
+>   - realtime
+> - o checklist precisa continuar legível por qualquer pessoa do time sem depender de contexto implícito
+
+> **Arquivos-alvo esperados**
+>
+> - `ROLL_OUT.md`
+> - `README.md` se a referência ao rollout precisar ser ajustada
+> - `TODO.md` para registrar o bloco como concluído depois da revisão
+
+- [x] **B.7.1** Revisar o [ROLL_OUT.md](./ROLL_OUT.md) contra o estado real atual do projeto
+  - revalidar:
+    - pre-deploy
+    - variáveis obrigatórias
+    - smoke crítico
+    - observabilidade mínima
+    - rollback
+  - remover qualquer instrução velha ou redundante
+  - evitar depender de fases já encerradas ou linguagem de plano antigo
+
+- [x] **B.7.2** Atualizar o smoke crítico para o estado real do produto
+  - refletir os fluxos móveis que hoje mais importam no playtest:
+    - home
+    - mapa local
+    - macro mapa
+    - crimes
+    - mercado negro
+    - território
+    - QG da facção
+    - hospital
+    - prisão
+    - realtime regional e de facção
+  - remover smoke que não agrega ou que não existe mais como fluxo primário
+
+- [x] **B.7.3** Tornar o checklist mais curto, direto e usável
+  - separar claramente:
+    - pre-deploy
+    - deploy
+    - smoke
+    - pos-deploy
+    - rollback
+  - reduzir blocos redundantes
+  - deixar os critérios de falha/rollback mais rápidos de escanear
+
+- [x] **B.7.4** Alinhar a referência ao rollout no `README`, se necessário
+  - garantir que o [README.md](./README.md) aponte para o rollout como checklist operacional
+  - evitar duplicar o conteúdo do rollout no README
+
+- [x] **B.7.5** Critério final
+  - qualquer pessoa do time consegue usar o `ROLL_OUT.md` como checklist real de subida e validação
 
 ## Legenda de Status
 

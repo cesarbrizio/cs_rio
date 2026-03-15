@@ -161,7 +161,7 @@ describe('ScenarioOpsService', () => {
       origin: 'test',
       variables: {
         bocaDrugCode: 'maconha',
-        factionCode: faction.abbreviation,
+        factionCode: faction.id,
         favelaCode: favela.code,
         player: player.nickname,
         regionId: RegionId.ZonaNorte,

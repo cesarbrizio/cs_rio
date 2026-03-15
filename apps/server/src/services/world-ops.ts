@@ -25,7 +25,7 @@ import {
   worldOperationLogs,
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCaches } from './player-cache.js';
 
 const BUSINESS_PROPERTY_TYPES = new Set<PropertyType>([
   'boca',
@@ -1270,11 +1270,7 @@ export class WorldOpsService {
       }
     }
 
-    for (const playerId of playerIds) {
-      if (this.keyValueStore.delete) {
-        await this.keyValueStore.delete(buildPlayerProfileCacheKey(playerId));
-      }
-    }
+    await invalidatePlayerProfileCaches(this.keyValueStore, playerIds);
   }
 
   private async resolvePlayer(selector: WorldOpsSelector): Promise<WorldPlayerRecord | null> {

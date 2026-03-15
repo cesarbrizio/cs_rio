@@ -12,6 +12,7 @@ import { type NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import { NpcInflationPanel } from '../components/NpcInflationPanel';
 import {
   filterAuctionableInventoryItems,
   filterMarketAuctions,
@@ -66,16 +67,6 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
       setActiveTab(route.params.initialTab);
     }
   }, [route.params?.initialTab]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setAuctionNowMs(Date.now());
-    }, 1000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
 
   const loadMarket = useCallback(async () => {
     setError(null);
@@ -162,6 +153,28 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
       myOrders.filter((order) => order.status === 'open').length +
       myAuctions.filter((auction) => auction.status === 'open').length,
     [myAuctions, myOrders],
+  );
+  const hasAuctionCountdowns = activeTab === 'auction' && (
+    marketAuctions.length > 0 ||
+    myAuctions.some((auction) => auction.status === 'open')
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      setAuctionNowMs(Date.now());
+
+      if (!hasAuctionCountdowns) {
+        return undefined;
+      }
+
+      const intervalId = setInterval(() => {
+        setAuctionNowMs(Date.now());
+      }, 5_000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }, [hasAuctionCountdowns]),
   );
 
   useEffect(() => {
@@ -407,6 +420,8 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
         />
         <SummaryCard label="Leilões vivos" value={`${marketAuctions.length}`} />
       </View>
+
+      <NpcInflationPanel summary={orderBook?.npcInflation ?? null} />
 
       <View style={styles.segmentRow}>
         {(['buy', 'sell', 'repair', 'auction'] as const).map((tab) => (

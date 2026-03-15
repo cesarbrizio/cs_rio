@@ -1,7 +1,13 @@
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { AuthError } from '../../services/auth.js';
-import { TribunalError, type TribunalServiceContract } from '../../services/tribunal.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  genericObjectResponseSchema,
+  tribunalJudgmentBodySchema,
+} from '../schemas.js';
+import { type TribunalServiceContract } from '../../services/tribunal.js';
 
 interface TribunalRouteDependencies {
   tribunalService: TribunalServiceContract;
@@ -11,23 +17,43 @@ export function createTribunalRoutes({
   tribunalService,
 }: TribunalRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get<{ Params: { favelaId: string } }>('/tribunal/favelas/:favelaId/case', async (request, reply) => {
-      if (!request.playerId) {
-        return reply.code(401).send({
-          message: 'Token ausente.',
-        });
-      }
+    const favelaIdParamsSchema = buildIdParamsSchema('favelaId');
 
-      try {
-        const result = await tribunalService.getTribunalCenter(request.playerId, request.params.favelaId);
-        return reply.send(result);
-      } catch (error) {
-        return sendTribunalError(reply, error);
-      }
-    });
+    fastify.get<{ Params: { favelaId: string } }>(
+      '/tribunal/favelas/:favelaId/case',
+      {
+        schema: {
+          params: favelaIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const result = await tribunalService.getTribunalCenter(request.playerId, request.params.favelaId);
+          return reply.send(result);
+        } catch (error) {
+          return sendTribunalError(reply, error);
+        }
+      },
+    );
 
     fastify.post<{ Params: { favelaId: string } }>(
       '/tribunal/favelas/:favelaId/case',
+      {
+        schema: {
+          params: favelaIdParamsSchema,
+          response: {
+            ...buildStandardResponseSchema(),
+            201: genericObjectResponseSchema,
+          },
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -46,16 +72,17 @@ export function createTribunalRoutes({
 
     fastify.post<{ Body: { punishment?: string }; Params: { favelaId: string } }>(
       '/tribunal/favelas/:favelaId/case/judgment',
+      {
+        schema: {
+          body: tribunalJudgmentBodySchema,
+          params: favelaIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
             message: 'Token ausente.',
-          });
-        }
-
-        if (!request.body?.punishment) {
-          return reply.code(400).send({
-            message: 'Punicao obrigatoria.',
           });
         }
 
@@ -78,31 +105,6 @@ export function createTribunalRoutes({
   };
 }
 
-function sendTribunalError(reply: FastifyReply, error: unknown) {
-  if (error instanceof AuthError) {
-    return reply.code(401).send({
-      message: error.message,
-    });
-  }
-
-  if (error instanceof TribunalError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'not_found'
-          ? 404
-          : error.code === 'forbidden'
-            ? 403
-            : error.code === 'character_not_ready'
-              ? 409
-              : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada no tribunal do trafico.',
-  });
+function sendTribunalError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada no tribunal do trafico.');
 }

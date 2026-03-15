@@ -29,17 +29,23 @@ import {
   toPlayerSummary,
 } from './auth.js';
 import {
+  buildNpcInflationSummary,
   DatabaseNpcInflationReader,
   inflateNpcMoney,
   type NpcInflationProfile,
   type NpcInflationReaderContract,
 } from './npc-inflation.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
+import { PrisonSystem, type PrisonSystemContract } from '../systems/PrisonSystem.js';
 import {
   NoopUniversityEffectReader,
   type UniversityEffectReaderContract,
 } from './university.js';
+import {
+  assertPlayerActionUnlocked,
+  type HospitalizationStatusReaderContract,
+} from './action-readiness.js';
 
 export interface TrainingRepository {
   claimTrainingSession(
@@ -62,7 +68,8 @@ export interface TrainingServiceOptions {
   inflationReader?: NpcInflationReaderContract;
   keyValueStore?: KeyValueStore;
   now?: () => Date;
-  overdoseSystem?: OverdoseSystem;
+  overdoseSystem?: HospitalizationStatusReaderContract;
+  prisonSystem?: PrisonSystemContract;
   repository?: TrainingRepository;
   universityReader?: UniversityEffectReaderContract;
 }
@@ -286,11 +293,15 @@ export class TrainingService implements TrainingServiceContract {
 
   private readonly now: () => Date;
 
-  private readonly overdoseSystem: OverdoseSystem;
+  private readonly overdoseSystem: HospitalizationStatusReaderContract;
+
+  private readonly prisonSystem: PrisonSystemContract;
 
   private readonly ownsKeyValueStore: boolean;
 
   private readonly ownsOverdoseSystem: boolean;
+
+  private readonly ownsPrisonSystem: boolean;
 
   private readonly repository: TrainingRepository;
 
@@ -299,6 +310,7 @@ export class TrainingService implements TrainingServiceContract {
   constructor(options: TrainingServiceOptions = {}) {
     this.ownsKeyValueStore = !options.keyValueStore;
     this.ownsOverdoseSystem = !options.overdoseSystem;
+    this.ownsPrisonSystem = !options.prisonSystem;
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
     this.now = options.now ?? (() => new Date());
     this.inflationReader = options.inflationReader ?? new DatabaseNpcInflationReader(this.now);
@@ -308,13 +320,23 @@ export class TrainingService implements TrainingServiceContract {
         keyValueStore: this.keyValueStore,
         now: () => this.now().getTime(),
       });
+    this.prisonSystem =
+      options.prisonSystem ??
+      new PrisonSystem({
+        keyValueStore: this.keyValueStore,
+        now: this.now,
+      });
     this.repository = options.repository ?? new DatabaseTrainingRepository();
     this.universityReader = options.universityReader ?? new NoopUniversityEffectReader();
   }
 
   async close(): Promise<void> {
     if (this.ownsOverdoseSystem) {
-      await this.overdoseSystem.close();
+      await this.overdoseSystem.close?.();
+    }
+
+    if (this.ownsPrisonSystem) {
+      await this.prisonSystem.close?.();
     }
 
     if (this.ownsKeyValueStore) {
@@ -341,7 +363,7 @@ export class TrainingService implements TrainingServiceContract {
       throw new TrainingError('not_found', 'Sessao de treino nao encontrada.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
     return {
       appliedGains: extractSessionGains(mutation.session),
@@ -397,6 +419,7 @@ export class TrainingService implements TrainingServiceContract {
       catalog,
       completedBasicSessions,
       nextDiminishingMultiplier: nextTrainingPreview.multiplier,
+      npcInflation: buildNpcInflationSummary(inflationProfile),
       player: toPlayerSummary(player),
     };
   }
@@ -470,6 +493,7 @@ export class TrainingService implements TrainingServiceContract {
     const startedAt = this.now();
     const endsAt = new Date(startedAt.getTime() + definition.durationMinutes * 60 * 1000);
     const gains = resolveTrainingGains(player.vocation, definition, nextTrainingPreview.multiplier);
+    await this.assertTrainingActionUnlocked(playerId);
     const mutation = await this.repository.createTrainingSession(playerId, {
       costMoney: inflatedMoneyCost,
       costStamina: definition.staminaCost,
@@ -485,12 +509,23 @@ export class TrainingService implements TrainingServiceContract {
       throw new TrainingError('not_found', 'Jogador nao encontrado para iniciar o treino.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
     return {
       player: toPlayerSummary(mutation.player),
       session: serializeTrainingSession(mutation.session, startedAt.getTime()),
     };
+  }
+
+  private async assertTrainingActionUnlocked(playerId: string): Promise<void> {
+    await assertPlayerActionUnlocked({
+      getHospitalizationStatus: () => this.overdoseSystem.getHospitalizationStatus(playerId),
+      getPrisonStatus: () => this.prisonSystem.getStatus(playerId),
+      hospitalizedError: () =>
+        new TrainingError('action_locked', 'Jogador hospitalizado nao pode treinar.'),
+      imprisonedError: () =>
+        new TrainingError('action_locked', 'Jogador preso nao pode treinar.'),
+    });
   }
 
   private buildCatalogItem(input: {

@@ -1,12 +1,7 @@
 import { type FastifyReply, type FastifyRequest } from 'fastify';
 
+import { refreshRequestContext } from '../../observability/request-context.js';
 import { type AuthService } from '../../services/auth.js';
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    playerId?: string;
-  }
-}
 
 export function createAuthMiddleware(authService: AuthService) {
   return async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
@@ -29,6 +24,7 @@ export function createAuthMiddleware(authService: AuthService) {
     try {
       const identity = authService.verifyAccessToken(token);
       request.playerId = identity.playerId;
+      refreshRequestContext(request);
     } catch {
       return reply.code(401).send({
         message: 'Token invalido ou expirado.',

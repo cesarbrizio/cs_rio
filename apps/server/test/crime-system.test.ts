@@ -14,6 +14,10 @@ import {
   type CrimeRepository,
   type CrimeResourcesSnapshot,
 } from '../src/systems/CrimeSystem.js';
+import type {
+  HospitalizationStatusReaderContract,
+  PrisonStatusReaderContract,
+} from '../src/services/action-readiness.js';
 import { CooldownSystem } from '../src/systems/CooldownSystem.js';
 import { PoliceHeatSystem } from '../src/systems/PoliceHeatSystem.js';
 
@@ -113,6 +117,41 @@ class InMemoryCrimeRepository implements CrimeRepository {
       resources: {
         ...input.nextResources,
       },
+    };
+  }
+}
+
+class SequencedHospitalizationReader implements HospitalizationStatusReaderContract {
+  constructor(private readonly statuses: boolean[]) {}
+
+  async getHospitalizationStatus() {
+    const isHospitalized = this.statuses.shift() ?? false;
+
+    return {
+      endsAt: isHospitalized ? new Date('2026-03-10T12:30:00.000Z').toISOString() : null,
+      isHospitalized,
+      reason: isHospitalized ? 'overdose' : null,
+      remainingSeconds: isHospitalized ? 1800 : 0,
+      startedAt: isHospitalized ? new Date('2026-03-10T12:00:00.000Z').toISOString() : null,
+      trigger: isHospitalized ? 'max_addiction' : null,
+    };
+  }
+}
+
+class SequencedPrisonStatusReader implements PrisonStatusReaderContract {
+  constructor(private readonly statuses: boolean[]) {}
+
+  async getStatus() {
+    const isImprisoned = this.statuses.shift() ?? false;
+
+    return {
+      endsAt: isImprisoned ? new Date('2026-03-10T12:30:00.000Z').toISOString() : null,
+      isImprisoned,
+      heatScore: 0,
+      heatTier: 'frio' as const,
+      reason: isImprisoned ? 'Teste' : null,
+      remainingSeconds: isImprisoned ? 1800 : 0,
+      sentencedAt: isImprisoned ? new Date('2026-03-10T12:00:00.000Z').toISOString() : null,
     };
   }
 }
@@ -392,6 +431,95 @@ describe('crime system', () => {
       },
     ]);
     expect(playerContext.equipment.weapon?.proficiency).toBe(1);
+  });
+
+  it('revalidates hospitalization immediately before persisting the crime attempt', async () => {
+    const now = Date.parse('2026-03-10T12:00:00.000Z');
+    const store = new InMemoryKeyValueStore(() => now);
+    const cooldownSystem = new CooldownSystem({
+      keyValueStore: store,
+      now: () => now,
+    });
+    const policeHeatSystem = new PoliceHeatSystem({
+      keyValueStore: store,
+      now: () => now,
+    });
+    const crime: CrimeDefinitionRecord = {
+      arrestChance: 8,
+      code: 'furtar_turista',
+      conceitoReward: 10,
+      cooldownSeconds: 120,
+      id: 'crime-atomic-1',
+      levelRequired: 2,
+      minPower: 150,
+      name: 'Furtar turista',
+      nerveCost: 0,
+      rewardMax: 300,
+      rewardMin: 100,
+      staminaCost: 10,
+      type: CrimeType.Solo,
+    };
+    const playerContext = createPlayerContext();
+    const repository = new InMemoryCrimeRepository(crime, playerContext);
+    const system = new CrimeSystem({
+      cooldownSystem,
+      hospitalizationSystem: new SequencedHospitalizationReader([false, true]),
+      now: () => new Date(now),
+      policeHeatSystem,
+      random: createRandomSequence([0.2, 0.5]),
+      repository,
+    });
+
+    await expect(system.attemptCrime(playerContext.player.id, crime.id)).rejects.toMatchObject({
+      code: 'conflict',
+      message: 'Jogador hospitalizado nao pode cometer crimes.',
+    });
+    expect(repository.lastPersistInput).toBeNull();
+  });
+
+  it('blocks imprisoned players before mutating crime state', async () => {
+    const now = Date.parse('2026-03-10T12:00:00.000Z');
+    const store = new InMemoryKeyValueStore(() => now);
+    const cooldownSystem = new CooldownSystem({
+      keyValueStore: store,
+      now: () => now,
+    });
+    const policeHeatSystem = new PoliceHeatSystem({
+      keyValueStore: store,
+      now: () => now,
+    });
+    const crime: CrimeDefinitionRecord = {
+      arrestChance: 8,
+      code: 'furtar_turista',
+      conceitoReward: 10,
+      cooldownSeconds: 120,
+      id: 'crime-atomic-2',
+      levelRequired: 2,
+      minPower: 150,
+      name: 'Furtar turista',
+      nerveCost: 0,
+      rewardMax: 300,
+      rewardMin: 100,
+      staminaCost: 10,
+      type: CrimeType.Solo,
+    };
+    const playerContext = createPlayerContext();
+    const repository = new InMemoryCrimeRepository(crime, playerContext);
+    const system = new CrimeSystem({
+      cooldownSystem,
+      hospitalizationSystem: new SequencedHospitalizationReader([false, false]),
+      now: () => new Date(now),
+      policeHeatSystem,
+      prisonSystem: new SequencedPrisonStatusReader([true]),
+      random: createRandomSequence([0.2, 0.5]),
+      repository,
+    });
+
+    await expect(system.attemptCrime(playerContext.player.id, crime.id)).rejects.toMatchObject({
+      code: 'conflict',
+      message: 'Jogador preso nao pode cometer crimes.',
+    });
+    expect(repository.lastPersistInput).toBeNull();
   });
 
   it('adds a tiered proficiency bonus to weapon power', () => {

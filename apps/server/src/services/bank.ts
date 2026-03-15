@@ -1,4 +1,6 @@
 import {
+  normalizePositiveMoney,
+  normalizeRoundedMoney,
   type PlayerBankActionResponse,
   type PlayerBankCenterResponse,
   type PlayerBankDepositInput,
@@ -11,7 +13,7 @@ import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { playerBankDailyDeposits, playerBankLedger, players } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 
 const BANK_DAILY_DEPOSIT_LIMIT_BASE = 500_000;
 const BANK_DAILY_DEPOSIT_LIMIT_PER_LEVEL = 25_000;
@@ -370,10 +372,6 @@ async function insertPlayerBankLedgerEntry(
   });
 }
 
-async function invalidatePlayerProfileCache(keyValueStore: KeyValueStore, playerId: string): Promise<void> {
-  await keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
-}
-
 async function listPlayerBankLedger(
   executor: DatabaseClient,
   playerId: string,
@@ -414,13 +412,9 @@ function ensureCharacterReady(player: BankPlayerRecord): void {
 }
 
 function normalizeTransactionAmount(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new BankError('validation', 'Valor invalido para a operacao bancaria.');
-  }
+  const normalized = normalizePositiveMoney(value);
 
-  const normalized = roundCurrency(value);
-
-  if (normalized <= 0) {
+  if (normalized === null) {
     throw new BankError('validation', 'Valor invalido para a operacao bancaria.');
   }
 
@@ -524,5 +518,5 @@ function parseCycleKeyAsUtc(cycleKey: string): Date {
 }
 
 function roundCurrency(value: number): number {
-  return Math.round(value * 100) / 100;
+  return normalizeRoundedMoney(value);
 }

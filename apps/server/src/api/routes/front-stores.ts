@@ -1,7 +1,13 @@
 import { type FrontStoreInvestInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { FrontStoreError, type FrontStoreServiceContract } from '../../services/front-store.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  frontStoreInvestBodySchema,
+} from '../schemas.js';
+import { type FrontStoreServiceContract } from '../../services/front-store.js';
 
 interface FrontStoreRouteDependencies {
   frontStoreService: FrontStoreServiceContract;
@@ -11,7 +17,16 @@ export function createFrontStoreRoutes({
   frontStoreService,
 }: FrontStoreRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/front-stores', async (request, reply) => {
+    const propertyIdParamsSchema = buildIdParamsSchema('propertyId');
+
+    fastify.get(
+      '/front-stores',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -24,10 +39,18 @@ export function createFrontStoreRoutes({
       } catch (error) {
         return sendFrontStoreError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Body: FrontStoreInvestInput; Params: { propertyId: string } }>(
       '/front-stores/:propertyId/invest',
+      {
+        schema: {
+          body: frontStoreInvestBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -50,6 +73,12 @@ export function createFrontStoreRoutes({
 
     fastify.post<{ Params: { propertyId: string } }>(
       '/front-stores/:propertyId/collect',
+      {
+        schema: {
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -68,29 +97,6 @@ export function createFrontStoreRoutes({
   };
 }
 
-function sendFrontStoreError(reply: FastifyReply, error: unknown) {
-  if (error instanceof FrontStoreError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'not_found'
-            ? 404
-            : error.code === 'insufficient_funds'
-              ? 422
-              : error.code === 'capacity' ||
-                  error.code === 'conflict' ||
-                  error.code === 'character_not_ready'
-                ? 409
-                : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de lojas de fachada.',
-  });
+function sendFrontStoreError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de lojas de fachada.');
 }

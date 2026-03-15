@@ -6,6 +6,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import { NpcInflationPanel } from '../components/NpcInflationPanel';
 import {
   formatUniversityCurrency,
   formatUniversityDurationHours,
@@ -17,6 +18,7 @@ import {
   sortUniversityCourses,
   summarizeUniversityPassives,
 } from '../features/university';
+import { useNotifications } from '../notifications/NotificationProvider';
 import { formatApiError, universityApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
@@ -27,6 +29,7 @@ export function UniversityScreen(): JSX.Element {
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
+  const { syncUniversityNotifications } = useNotifications();
   const [center, setCenter] = useState<UniversityCenterResponse | null>(null);
   const [selectedCourseCode, setSelectedCourseCode] = useState<UniversityCourseCode | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -44,12 +47,13 @@ export function UniversityScreen(): JSX.Element {
     try {
       const response = await universityApi.getCenter();
       setCenter(response);
+      await syncUniversityNotifications(response.activeCourse);
     } catch (error) {
       setErrorMessage(formatApiError(error).message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [syncUniversityNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -171,7 +175,12 @@ export function UniversityScreen(): JSX.Element {
     } finally {
       setIsMutating(false);
     }
-  }, [loadUniversityCenter, refreshPlayerProfile, selectedCourse, setBootstrapStatus]);
+  }, [
+    loadUniversityCenter,
+    refreshPlayerProfile,
+    selectedCourse,
+    setBootstrapStatus,
+  ]);
 
   const handleOpenTraining = useCallback(() => {
     navigation.navigate('Training');
@@ -213,6 +222,8 @@ export function UniversityScreen(): JSX.Element {
           value={`${passiveLines.length}`}
         />
       </View>
+
+      <NpcInflationPanel summary={center?.npcInflation ?? null} />
 
       {isLoading && !center ? (
         <View style={styles.loadingCard}>

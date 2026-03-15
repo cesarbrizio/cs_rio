@@ -9,12 +9,14 @@ import {
 import { Client } from 'colyseus.js';
 
 import { appEnv } from '../config/env';
+import {
+  BaseRealtimeRoomService,
+  type BaseColyseusClientLike,
+  type BaseColyseusRoomLike,
+  type BaseRealtimeConnectionStatus,
+} from './realtime/baseRealtimeRoom';
 
-export type FactionRealtimeConnectionStatus =
-  | 'connected'
-  | 'connecting'
-  | 'disconnected'
-  | 'reconnecting';
+export type FactionRealtimeConnectionStatus = BaseRealtimeConnectionStatus;
 
 export interface FactionRealtimeMemberSnapshot {
   isLeader: boolean;
@@ -72,29 +74,6 @@ interface FactionRealtimeStateShape {
   members?: unknown;
 }
 
-interface ColyseusClientLike {
-  joinOrCreate: (
-    roomName: string,
-    options?: unknown,
-  ) => Promise<ColyseusRoomLike<FactionRealtimeStateShape>>;
-  reconnect: (reconnectionToken: string) => Promise<ColyseusRoomLike<FactionRealtimeStateShape>>;
-}
-
-interface ColyseusRoomLike<State = unknown> {
-  name: string;
-  onError: (callback: (code: number, message?: string) => void) => unknown;
-  onLeave: (callback: (code: number, reason?: string) => void) => unknown;
-  onStateChange: (callback: (state: State) => void) => unknown;
-  reconnectionToken: string;
-  roomId: string;
-  send: (type: string, message?: unknown) => unknown;
-  state: State;
-  leave: (consented?: boolean) => Promise<number>;
-}
-
-type Listener = (snapshot: FactionRealtimeSnapshot) => void;
-type TimerHandle = ReturnType<typeof setTimeout>;
-
 const INITIAL_SNAPSHOT: FactionRealtimeSnapshot = {
   chatMessages: [],
   coordinationCalls: [],
@@ -108,25 +87,15 @@ const INITIAL_SNAPSHOT: FactionRealtimeSnapshot = {
   status: 'disconnected',
 };
 
-export class FactionRealtimeService {
-  private readonly listeners = new Set<Listener>();
-
-  private readonly clientFactory: () => ColyseusClientLike;
-
-  private client: ColyseusClientLike | null = null;
-
-  private currentRoom: ColyseusRoomLike<FactionRealtimeStateShape> | null = null;
-
-  private disconnectRequested = false;
-
-  private reconnectAttempts = 0;
-
-  private reconnectTimer: TimerHandle | null = null;
-
-  private snapshot: FactionRealtimeSnapshot = INITIAL_SNAPSHOT;
-
-  constructor(clientFactory: () => ColyseusClientLike = () => new Client(appEnv.wsUrl)) {
-    this.clientFactory = clientFactory;
+export class FactionRealtimeService extends BaseRealtimeRoomService<
+  FactionRealtimeSnapshot,
+  FactionRealtimeStateShape
+> {
+  constructor(
+    clientFactory: () => BaseColyseusClientLike<FactionRealtimeStateShape> = () =>
+      new Client(appEnv.wsUrl),
+  ) {
+    super(INITIAL_SNAPSHOT, clientFactory);
   }
 
   async connectToFactionRoom(input: ConnectToFactionRoomInput): Promise<FactionRealtimeSnapshot> {
@@ -139,10 +108,10 @@ export class FactionRealtimeService {
     }
 
     this.disconnectRequested = false;
-    this.clearReconnectTimer();
+    super.clearReconnectTimer();
 
     if (this.currentRoom) {
-      await this.disconnect();
+      await this.leaveCurrentRoom();
     }
 
     this.setSnapshot({
@@ -157,38 +126,19 @@ export class FactionRealtimeService {
       factionId: input.factionId,
     });
 
-    this.bindRoom(room, input.factionId);
+    this.bindFactionRoom(room, input.factionId);
     return this.snapshot;
   }
 
   async disconnect(): Promise<void> {
-    this.disconnectRequested = true;
-    this.reconnectAttempts = 0;
-    this.clearReconnectTimer();
-
-    const room = this.currentRoom;
-    this.currentRoom = null;
-
-    if (room) {
-      try {
-        await room.leave(true);
-      } catch {
-        // Best-effort cleanup on navigation/logout.
-      }
-    }
-
-    this.setSnapshot({
+    await this.disconnectRoom((current) => ({
       ...INITIAL_SNAPSHOT,
-      factionId: this.snapshot.factionId,
-      factionName: this.snapshot.factionName,
-      factionAbbreviation: this.snapshot.factionAbbreviation,
-      roomName: this.snapshot.roomName,
+      factionId: current.factionId,
+      factionName: current.factionName,
+      factionAbbreviation: current.factionAbbreviation,
+      roomName: current.roomName,
       status: 'disconnected',
-    });
-  }
-
-  getSnapshot(): FactionRealtimeSnapshot {
-    return this.snapshot;
+    }));
   }
 
   sendChatMessage(message: FactionChatSendMessage | string): void {
@@ -224,128 +174,45 @@ export class FactionRealtimeService {
     } satisfies FactionCoordinationSendMessage);
   }
 
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    listener(this.snapshot);
-
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  private bindRoom(
-    room: ColyseusRoomLike<FactionRealtimeStateShape>,
+  private bindFactionRoom(
+    room: BaseColyseusRoomLike<FactionRealtimeStateShape>,
     fallbackFactionId: string,
   ): void {
-    this.currentRoom = room;
-    this.reconnectAttempts = 0;
-    this.updateFromState(room.state, room, 'connected', fallbackFactionId);
-
-    room.onStateChange((state) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.updateFromState(state, room, 'connected', fallbackFactionId);
-    });
-
-    room.onError((code, message) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.setSnapshot({
-        ...this.snapshot,
+    super.bindRoom(room, {
+      buildDisconnectedSnapshot: (current) => ({
+        ...current,
+        errorMessage: null,
+        roomId: null,
+        status: 'disconnected',
+      }),
+      buildErrorSnapshot: (current, code, message) => ({
+        ...current,
         errorMessage: `[${code}] ${message ?? 'Erro na sala da facção.'}`,
-      });
-    });
-
-    room.onLeave((_code, reason) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.currentRoom = null;
-
-      if (this.disconnectRequested) {
-        this.setSnapshot({
-          ...this.snapshot,
-          errorMessage: null,
-          roomId: null,
-          status: 'disconnected',
-        });
-        return;
-      }
-
-      this.setSnapshot({
-        ...this.snapshot,
+      }),
+      buildReconnectErrorSnapshot: (current, error) => ({
+        ...current,
+        errorMessage: normalizeRealtimeError(error),
+        status: 'reconnecting',
+      }),
+      buildReconnectingSnapshot: (current, reason) => ({
+        ...current,
         errorMessage: reason ?? 'Conexão com a sala da facção perdida.',
         roomId: null,
         status: 'reconnecting',
-      });
-      this.scheduleReconnect(room.reconnectionToken, fallbackFactionId);
+      }),
+      fallbackContext: fallbackFactionId,
+      updateFromState: (state, activeRoom, status, factionId) =>
+        this.buildSnapshotFromState(state, activeRoom, status, factionId),
     });
   }
 
-  private clearReconnectTimer(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-  }
-
-  private ensureClient(): ColyseusClientLike {
-    if (!this.client) {
-      this.client = this.clientFactory();
-    }
-
-    return this.client;
-  }
-
-  private scheduleReconnect(reconnectionToken: string, factionId: string): void {
-    this.clearReconnectTimer();
-    const attempt = this.reconnectAttempts + 1;
-    const delayMs = Math.min(500 * 2 ** (attempt - 1), 4_000);
-
-    this.reconnectAttempts = attempt;
-    this.reconnectTimer = setTimeout(() => {
-      void this.reconnect(reconnectionToken, factionId);
-    }, delayMs);
-  }
-
-  private async reconnect(reconnectionToken: string, factionId: string): Promise<void> {
-    if (this.disconnectRequested) {
-      return;
-    }
-
-    try {
-      const room = await this.ensureClient().reconnect(reconnectionToken);
-      this.bindRoom(room, factionId);
-    } catch (error) {
-      this.setSnapshot({
-        ...this.snapshot,
-        errorMessage: normalizeRealtimeError(error),
-        status: 'reconnecting',
-      });
-      this.scheduleReconnect(reconnectionToken, factionId);
-    }
-  }
-
-  private setSnapshot(snapshot: FactionRealtimeSnapshot): void {
-    this.snapshot = snapshot;
-
-    for (const listener of this.listeners) {
-      listener(snapshot);
-    }
-  }
-
-  private updateFromState(
+  private buildSnapshotFromState(
     state: FactionRealtimeStateShape | undefined,
-    room: ColyseusRoomLike<FactionRealtimeStateShape>,
+    room: BaseColyseusRoomLike<FactionRealtimeStateShape>,
     status: FactionRealtimeConnectionStatus,
     fallbackFactionId: string,
-  ): void {
-    this.setSnapshot({
+  ): FactionRealtimeSnapshot {
+    return {
       chatMessages: extractFactionChatMessages(state?.chatMessages),
       coordinationCalls: extractFactionCoordinationCalls(state?.coordinationCalls),
       errorMessage: null,
@@ -356,7 +223,7 @@ export class FactionRealtimeService {
       roomId: room.roomId,
       roomName: room.name,
       status,
-    });
+    };
   }
 }
 

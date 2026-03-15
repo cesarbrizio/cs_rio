@@ -121,7 +121,7 @@ describe('realtime rooms', () => {
         }),
       },
       playerService: {
-        getPlayerProfile: async () => baseProfile,
+        getFreshPlayerProfile: async () => baseProfile,
       },
     });
     const room = new GameRoom();
@@ -221,7 +221,7 @@ describe('realtime rooms', () => {
         }),
       },
       playerService: {
-        getPlayerProfile: async () => ({
+        getFreshPlayerProfile: async () => ({
           ...baseProfile,
           location: {
             ...baseProfile.location,
@@ -251,6 +251,46 @@ describe('realtime rooms', () => {
     ).rejects.toThrow('Jogador nao pertence a esta room de regiao.');
   });
 
+  it('uses the fresh region snapshot for room auth instead of a stale cached profile', async () => {
+    const playerService = {
+      getFreshPlayerProfile: async () => ({
+        ...baseProfile,
+        location: {
+          ...baseProfile.location,
+          regionId: RegionId.ZonaNorte,
+        },
+        regionId: RegionId.ZonaNorte,
+      }),
+      getPlayerProfile: async () => baseProfile,
+    } as const;
+    const GameRoom = createGameRoom({
+      authService: {
+        verifyAccessToken: () => ({
+          playerId: baseProfile.id,
+        }),
+      },
+      playerService,
+    });
+    const room = new GameRoom();
+
+    room.onCreate({
+      regionId: RegionId.Centro,
+      roomName: REGION_REALTIME_ROOM_NAMES.centro,
+    });
+
+    await expect(
+      room.onAuth(
+        {} as Client,
+        {},
+        {
+          headers: new Headers(),
+          ip: '127.0.0.1',
+          token: 'access-token',
+        },
+      ),
+    ).rejects.toThrow('Jogador nao pertence a esta room de regiao.');
+  });
+
   it('authenticates a faction member and mirrors the join into faction room state', async () => {
     const FactionRoom = createFactionRoom({
       authService: {
@@ -259,7 +299,7 @@ describe('realtime rooms', () => {
         }),
       },
       playerService: {
-        getPlayerProfile: async () => factionProfile,
+        getFreshPlayerProfile: async () => factionProfile,
       },
     });
     const room = new FactionRoom();
@@ -308,7 +348,7 @@ describe('realtime rooms', () => {
         }),
       },
       playerService: {
-        getPlayerProfile: async () => baseProfile,
+        getFreshPlayerProfile: async () => baseProfile,
       },
     });
     const room = new FactionRoom();
@@ -331,6 +371,48 @@ describe('realtime rooms', () => {
         },
       ),
     ).rejects.toThrow('Jogador nao pertence a nenhuma faccao.');
+  });
+
+  it('uses the fresh faction membership for room auth instead of a stale cached profile', async () => {
+    const playerService = {
+      getFreshPlayerProfile: async () => ({
+        ...factionProfile,
+        faction: {
+          ...factionProfile.faction!,
+          id: 'faction-2',
+          name: 'Terceiro Comando',
+        },
+      }),
+      getPlayerProfile: async () => factionProfile,
+    } as const;
+    const FactionRoom = createFactionRoom({
+      authService: {
+        verifyAccessToken: () => ({
+          playerId: factionProfile.id,
+        }),
+      },
+      playerService,
+    });
+    const room = new FactionRoom();
+
+    room.onCreate({
+      factionId: 'faction-1',
+      roomName: FACTION_REALTIME_ROOM_NAME,
+    });
+
+    await expect(
+      room.onAuth(
+        {} as Client,
+        {
+          factionId: 'faction-1',
+        },
+        {
+          headers: new Headers(),
+          ip: '127.0.0.1',
+          token: 'access-token',
+        },
+      ),
+    ).rejects.toThrow('Jogador nao pertence a esta room de faccao.');
   });
 
   it('accepts faction chat and coordination messages for online members', () => {

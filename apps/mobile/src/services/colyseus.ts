@@ -8,12 +8,14 @@ import {
 import { Client } from 'colyseus.js';
 
 import { appEnv } from '../config/env';
+import {
+  BaseRealtimeRoomService,
+  type BaseColyseusClientLike,
+  type BaseColyseusRoomLike,
+  type BaseRealtimeConnectionStatus,
+} from './realtime/baseRealtimeRoom';
 
-export type RealtimeConnectionStatus =
-  | 'connected'
-  | 'connecting'
-  | 'disconnected'
-  | 'reconnecting';
+export type RealtimeConnectionStatus = BaseRealtimeConnectionStatus;
 
 export interface RealtimePlayerSnapshot {
   animation: string;
@@ -41,32 +43,11 @@ interface ConnectToRegionRoomInput {
   regionId: RegionId;
 }
 
-interface ColyseusClientLike {
-  joinOrCreate: (
-    roomName: string,
-    options?: unknown,
-  ) => Promise<ColyseusRoomLike<RealtimeStateShape>>;
-  reconnect: (reconnectionToken: string) => Promise<ColyseusRoomLike<RealtimeStateShape>>;
-}
-
-interface ColyseusRoomLike<State = unknown> {
-  name: string;
-  onError: (callback: (code: number, message?: string) => void) => unknown;
-  onLeave: (callback: (code: number, reason?: string) => void) => unknown;
-  onStateChange: (callback: (state: State) => void) => unknown;
-  reconnectionToken: string;
-  roomId: string;
-  send: (type: string, message?: unknown) => unknown;
-  state: State;
-  leave: (consented?: boolean) => Promise<number>;
-}
-
 interface RealtimeStateShape {
   players?: unknown;
   regionId?: string;
 }
 
-type Listener = (snapshot: RealtimeSnapshot) => void;
 type TimerHandle = ReturnType<typeof setTimeout>;
 
 const INITIAL_SNAPSHOT: RealtimeSnapshot = {
@@ -81,31 +62,21 @@ const INITIAL_SNAPSHOT: RealtimeSnapshot = {
 const MAX_RECONNECT_ATTEMPTS = 8;
 const OFFLINE_FALLBACK_MS = 10_000;
 
-export class ColyseusService {
-  private readonly listeners = new Set<Listener>();
-
-  private readonly clientFactory: () => ColyseusClientLike;
-
-  private client: ColyseusClientLike | null = null;
-
-  private currentRoom: ColyseusRoomLike<RealtimeStateShape> | null = null;
-
-  private disconnectRequested = false;
-
-  private reconnectAttempts = 0;
-
-  private reconnectTimer: TimerHandle | null = null;
-
+export class ColyseusService extends BaseRealtimeRoomService<
+  RealtimeSnapshot,
+  RealtimeStateShape
+> {
   private movementTimer: TimerHandle | null = null;
 
   private queuedMovement: MovePlayerMessage | null = null;
 
   private lastMovementSentAt = 0;
 
-  private snapshot: RealtimeSnapshot = INITIAL_SNAPSHOT;
-
-  constructor(clientFactory: () => ColyseusClientLike = () => new Client(appEnv.wsUrl)) {
-    this.clientFactory = clientFactory;
+  constructor(
+    clientFactory: () => BaseColyseusClientLike<RealtimeStateShape> = () =>
+      new Client(appEnv.wsUrl),
+  ) {
+    super(INITIAL_SNAPSHOT, clientFactory);
   }
 
   async connectToRegionRoom(input: ConnectToRegionRoomInput): Promise<RealtimeSnapshot> {
@@ -119,14 +90,14 @@ export class ColyseusService {
       return this.snapshot;
     }
 
-    this.disconnectRequested = false;
-    this.clearReconnectTimer();
     this.clearMovementTimer();
+    this.disconnectRequested = false;
+    super.clearReconnectTimer();
     this.lastMovementSentAt = 0;
     this.queuedMovement = null;
 
     if (this.currentRoom) {
-      await this.disconnect();
+      await this.leaveCurrentRoom();
     }
 
     this.setSnapshot({
@@ -144,7 +115,7 @@ export class ColyseusService {
         regionId: input.regionId,
       });
 
-      this.bindRoom(room, input.regionId);
+      this.bindRegionRoom(room, input.regionId);
     } catch (error) {
       this.setSnapshot({
         ...this.snapshot,
@@ -165,45 +136,21 @@ export class ColyseusService {
   }
 
   async disconnect(): Promise<void> {
-    this.disconnectRequested = true;
-    this.reconnectAttempts = 0;
-    this.clearReconnectTimer();
-    this.clearMovementTimer();
-    this.queuedMovement = null;
-    this.lastMovementSentAt = 0;
-
-    const room = this.currentRoom;
-    this.currentRoom = null;
-
-    if (room) {
-      try {
-        await room.leave(true);
-      } catch {
-        // Best-effort cleanup on mobile navigation/logout.
-      }
-    }
-
-    this.setSnapshot({
-      errorMessage: null,
-      players: [],
-      regionId: this.snapshot.regionId,
-      roomId: null,
-      roomName: this.snapshot.roomName,
-      status: 'disconnected',
-    });
-  }
-
-  getSnapshot(): RealtimeSnapshot {
-    return this.snapshot;
-  }
-
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    listener(this.snapshot);
-
-    return () => {
-      this.listeners.delete(listener);
-    };
+    await this.disconnectRoom(
+      (current) => ({
+        errorMessage: null,
+        players: [],
+        regionId: current.regionId,
+        roomId: null,
+        roomName: current.roomName,
+        status: 'disconnected',
+      }),
+      () => {
+        this.clearMovementTimer();
+        this.queuedMovement = null;
+        this.lastMovementSentAt = 0;
+      },
+    );
   }
 
   sendPlayerMove(message: MovePlayerMessage): void {
@@ -221,120 +168,10 @@ export class ColyseusService {
     this.flushQueuedMovement();
   }
 
-  private bindRoom(room: ColyseusRoomLike<RealtimeStateShape>, regionId: RegionId): void {
-    this.currentRoom = room;
-    this.reconnectAttempts = 0;
-    this.lastMovementSentAt = Date.now() - REALTIME_MOVEMENT_THROTTLE_MS;
-    this.updateFromState(room.state, room, 'connected', regionId);
-
-    room.onStateChange((state) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.updateFromState(state, room, 'connected', regionId);
-    });
-
-    room.onError((code, message) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.setSnapshot({
-        ...this.snapshot,
-        errorMessage: `[${code}] ${message ?? 'Erro na room realtime.'}`,
-      });
-    });
-
-    room.onLeave((_code, reason) => {
-      if (room !== this.currentRoom) {
-        return;
-      }
-
-      this.currentRoom = null;
-      this.clearMovementTimer();
-      this.queuedMovement = null;
-
-      if (this.disconnectRequested) {
-        this.setSnapshot({
-          ...this.snapshot,
-          errorMessage: null,
-          players: [],
-          roomId: null,
-          status: 'disconnected',
-        });
-        return;
-      }
-
-      this.setSnapshot({
-        ...this.snapshot,
-        errorMessage: reason ?? 'Conexão em tempo real perdida.',
-        players: [],
-        roomId: null,
-        status: 'reconnecting',
-      });
-      this.scheduleReconnect(room.reconnectionToken, regionId);
-    });
-  }
-
-  private clearReconnectTimer(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-  }
-
   private clearMovementTimer(): void {
     if (this.movementTimer) {
       clearTimeout(this.movementTimer);
       this.movementTimer = null;
-    }
-  }
-
-  private ensureClient(): ColyseusClientLike {
-    if (!this.client) {
-      this.client = this.clientFactory();
-    }
-
-    return this.client;
-  }
-
-  private scheduleReconnect(reconnectionToken: string, regionId: RegionId): void {
-    this.clearReconnectTimer();
-    const attempt = this.reconnectAttempts + 1;
-
-    if (attempt > MAX_RECONNECT_ATTEMPTS) {
-      this.setSnapshot({
-        ...this.snapshot,
-        errorMessage: 'Não foi possível reconectar. Jogo em modo offline.',
-        status: 'disconnected',
-      });
-      return;
-    }
-
-    const delayMs = Math.min(500 * 2 ** (attempt - 1), 4_000);
-
-    this.reconnectAttempts = attempt;
-    this.reconnectTimer = setTimeout(() => {
-      void this.reconnect(reconnectionToken, regionId);
-    }, delayMs);
-  }
-
-  private async reconnect(reconnectionToken: string, regionId: RegionId): Promise<void> {
-    if (this.disconnectRequested) {
-      return;
-    }
-
-    try {
-      const room = await this.ensureClient().reconnect(reconnectionToken);
-      this.bindRoom(room, regionId);
-    } catch (error) {
-      this.setSnapshot({
-        ...this.snapshot,
-        errorMessage: normalizeRealtimeError(error),
-        status: 'reconnecting',
-      });
-      this.scheduleReconnect(reconnectionToken, regionId);
     }
   }
 
@@ -362,30 +199,69 @@ export class ColyseusService {
     this.clearMovementTimer();
   }
 
-  private setSnapshot(snapshot: RealtimeSnapshot): void {
-    this.snapshot = snapshot;
-
-    for (const listener of this.listeners) {
-      listener(snapshot);
-    }
+  private bindRegionRoom(
+    room: BaseColyseusRoomLike<RealtimeStateShape>,
+    regionId: RegionId,
+  ): void {
+    super.bindRoom(room, {
+      buildDisconnectedSnapshot: (current) => ({
+        ...current,
+        errorMessage: null,
+        players: [],
+        roomId: null,
+        status: 'disconnected',
+      }),
+      buildErrorSnapshot: (current, code, message) => ({
+        ...current,
+        errorMessage: `[${code}] ${message ?? 'Erro na room realtime.'}`,
+      }),
+      buildReconnectErrorSnapshot: (current, error) => ({
+        ...current,
+        errorMessage: normalizeRealtimeError(error),
+        status: 'reconnecting',
+      }),
+      buildReconnectingSnapshot: (current, reason) => ({
+        ...current,
+        errorMessage: reason ?? 'Conexão em tempo real perdida.',
+        players: [],
+        roomId: null,
+        status: 'reconnecting',
+      }),
+      buildReconnectExhaustedSnapshot: (current) => ({
+        ...current,
+        errorMessage: 'Não foi possível reconectar. Jogo em modo offline.',
+        status: 'disconnected',
+      }),
+      fallbackContext: regionId,
+      maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
+      onBeforeBind: () => {
+        this.lastMovementSentAt = Date.now() - REALTIME_MOVEMENT_THROTTLE_MS;
+      },
+      onBeforeUnexpectedLeave: () => {
+        this.clearMovementTimer();
+        this.queuedMovement = null;
+      },
+      updateFromState: (state, activeRoom, status, fallbackRegionId) =>
+        this.buildSnapshotFromState(state, activeRoom, status, fallbackRegionId),
+    });
   }
 
-  private updateFromState(
+  private buildSnapshotFromState(
     state: RealtimeStateShape | undefined,
-    room: ColyseusRoomLike<RealtimeStateShape>,
+    room: BaseColyseusRoomLike<RealtimeStateShape>,
     status: RealtimeConnectionStatus,
     fallbackRegionId: RegionId,
-  ): void {
+  ): RealtimeSnapshot {
     const regionId = normalizeRegionId(state?.regionId) ?? fallbackRegionId;
 
-    this.setSnapshot({
+    return {
       errorMessage: null,
       players: extractPlayers(state?.players),
       regionId,
       roomId: room.roomId,
       roomName: room.name,
       status,
-    });
+    };
   }
 }
 

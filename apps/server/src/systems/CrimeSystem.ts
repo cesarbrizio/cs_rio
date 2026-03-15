@@ -19,13 +19,20 @@ import {
 } from '../services/university.js';
 import { type FactionUpgradeEffectReaderContract } from '../services/faction.js';
 import {
+  assertPlayerActionUnlocked,
+  type HospitalizationStatusReaderContract,
+  type PrisonStatusReaderContract,
+} from '../services/action-readiness.js';
+import {
   buildEmptyResolvedCatalog,
   resolveCrimePolicy,
 } from '../services/gameplay-config.js';
 import { type GameConfigService } from '../services/game-config.js';
 import { CooldownSystem } from './CooldownSystem.js';
 import { LevelSystem } from './LevelSystem.js';
+import { OverdoseSystem } from './OverdoseSystem.js';
 import { PoliceHeatSystem } from './PoliceHeatSystem.js';
+import { PrisonSystem } from './PrisonSystem.js';
 
 const MAX_ARREST_CHANCE = 0.95;
 const MIN_SUCCESS_CHANCE = 0.05;
@@ -179,9 +186,11 @@ export interface CrimeSystemOptions {
   cooldownSystem?: CooldownSystem;
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
   gameConfigService?: Pick<GameConfigService, 'getResolvedCatalog'>;
+  hospitalizationSystem?: HospitalizationStatusReaderContract;
   levelSystem?: LevelSystem;
   now?: () => Date;
   policeHeatSystem?: PoliceHeatSystem;
+  prisonSystem?: PrisonStatusReaderContract;
   random?: () => number;
   repository?: CrimeRepository;
   universityReader?: UniversityEffectReaderContract;
@@ -449,13 +458,21 @@ export class CrimeSystem {
 
   private readonly levelSystem: LevelSystem;
 
+  private readonly hospitalizationSystem: HospitalizationStatusReaderContract;
+
   private readonly now: () => Date;
 
   private readonly ownsCooldownSystem: boolean;
 
+  private readonly ownsHospitalizationSystem: boolean;
+
   private readonly ownsPoliceHeatSystem: boolean;
 
+  private readonly ownsPrisonSystem: boolean;
+
   private readonly policeHeatSystem: PoliceHeatSystem;
+
+  private readonly prisonSystem: PrisonStatusReaderContract;
 
   private readonly random: () => number;
 
@@ -469,11 +486,19 @@ export class CrimeSystem {
 
   constructor(options: CrimeSystemOptions = {}) {
     this.ownsCooldownSystem = !options.cooldownSystem;
+    this.ownsHospitalizationSystem = !options.hospitalizationSystem;
     this.ownsPoliceHeatSystem = !options.policeHeatSystem;
+    this.ownsPrisonSystem = !options.prisonSystem;
     this.cooldownSystem = options.cooldownSystem ?? new CooldownSystem();
     this.levelSystem = options.levelSystem ?? new LevelSystem();
     this.now = options.now ?? (() => new Date());
+    this.hospitalizationSystem =
+      options.hospitalizationSystem ??
+      new OverdoseSystem();
     this.policeHeatSystem = options.policeHeatSystem ?? new PoliceHeatSystem();
+    this.prisonSystem =
+      options.prisonSystem ??
+      new PrisonSystem();
     this.random = options.random ?? (() => Math.random());
     this.repository = options.repository ?? new DatabaseCrimeRepository();
     this.gameConfigService = options.gameConfigService ?? {
@@ -500,8 +525,16 @@ export class CrimeSystem {
       await this.cooldownSystem.close();
     }
 
+    if (this.ownsHospitalizationSystem) {
+      await this.hospitalizationSystem.close?.();
+    }
+
     if (this.ownsPoliceHeatSystem) {
       await this.policeHeatSystem.close();
+    }
+
+    if (this.ownsPrisonSystem) {
+      await this.prisonSystem.close?.();
     }
   }
 
@@ -520,6 +553,8 @@ export class CrimeSystem {
     if (!playerContext.player.characterCreatedAt) {
       throw new CrimeError('character_not_ready', 'Crie o personagem antes de cometer crimes.');
     }
+
+    await this.assertCrimeActionUnlocked(playerId);
 
     const effectivePlayerContext = await this.applyFactionUpgradeEffects(playerContext);
     const crimePolicy = resolveCrimePolicy(configCatalog);
@@ -655,6 +690,8 @@ export class CrimeSystem {
       throw new CrimeError('character_not_ready', 'Crie o personagem antes de cometer crimes.');
     }
 
+    await this.assertCrimeActionUnlocked(playerId);
+
     const effectivePlayerContext = await this.applyFactionUpgradeEffects(playerContext);
 
     if (crime.type !== CrimeType.Solo && !effectivePlayerContext.factionId) {
@@ -771,7 +808,7 @@ export class CrimeSystem {
       nextResources.conceito,
       effectivePlayerContext.player.level,
     );
-    const heatAfterState = await this.policeHeatSystem.addHeat(playerId, calculateHeatGain(crime));
+    await this.assertCrimeActionUnlocked(playerId);
     const persistedState = await this.repository.persistCrimeAttempt({
       arrested,
       crime,
@@ -791,6 +828,7 @@ export class CrimeSystem {
       prisonReleaseAt,
       proficiencyUpdates,
     });
+    const heatAfterState = await this.policeHeatSystem.addHeat(playerId, calculateHeatGain(crime));
 
     const nextCooldown = await this.cooldownSystem.activateCrimeCooldown(
       playerId,
@@ -843,6 +881,17 @@ export class CrimeSystem {
     );
 
     return candidates[index] ?? null;
+  }
+
+  private async assertCrimeActionUnlocked(playerId: string): Promise<void> {
+    await assertPlayerActionUnlocked({
+      getHospitalizationStatus: () => this.hospitalizationSystem.getHospitalizationStatus(playerId),
+      getPrisonStatus: () => this.prisonSystem.getStatus(playerId),
+      hospitalizedError: () =>
+        new CrimeError('conflict', 'Jogador hospitalizado nao pode cometer crimes.'),
+      imprisonedError: () =>
+        new CrimeError('conflict', 'Jogador preso nao pode cometer crimes.'),
+    });
   }
 
   private async applyFactionUpgradeEffects(

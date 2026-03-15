@@ -4,7 +4,14 @@ import {
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { PropertyError, type PropertyServiceContract } from '../../services/property.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  propertyHireSoldiersBodySchema,
+  propertyPurchaseBodySchema,
+} from '../schemas.js';
+import { type PropertyServiceContract } from '../../services/property.js';
 
 interface PropertyRouteDependencies {
   propertyService: PropertyServiceContract;
@@ -14,7 +21,16 @@ export function createPropertyRoutes({
   propertyService,
 }: PropertyRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/properties', async (request, reply) => {
+    const propertyIdParamsSchema = buildIdParamsSchema('propertyId');
+
+    fastify.get(
+      '/properties',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -27,9 +43,18 @@ export function createPropertyRoutes({
       } catch (error) {
         return sendPropertyError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: PropertyPurchaseInput }>('/properties', async (request, reply) => {
+    fastify.post<{ Body: PropertyPurchaseInput }>(
+      '/properties',
+      {
+        schema: {
+          body: propertyPurchaseBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -42,10 +67,17 @@ export function createPropertyRoutes({
       } catch (error) {
         return sendPropertyError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Params: { propertyId: string } }>(
       '/properties/:propertyId/upgrade',
+      {
+        schema: {
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -67,6 +99,13 @@ export function createPropertyRoutes({
 
     fastify.post<{ Body: PropertyHireSoldiersInput; Params: { propertyId: string } }>(
       '/properties/:propertyId/soldiers',
+      {
+        schema: {
+          body: propertyHireSoldiersBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -89,27 +128,6 @@ export function createPropertyRoutes({
   };
 }
 
-function sendPropertyError(reply: FastifyReply, error: unknown) {
-  if (error instanceof PropertyError) {
-    const statusCode =
-      error.code === 'validation' || error.code === 'invalid_property' || error.code === 'invalid_favela'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'not_found'
-            ? 404
-            : error.code === 'insufficient_funds' || error.code === 'capacity'
-              ? 409
-              : error.code === 'character_not_ready'
-                ? 409
-                : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de propriedades.',
-  });
+function sendPropertyError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de propriedades.');
 }

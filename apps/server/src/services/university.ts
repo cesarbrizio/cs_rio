@@ -22,12 +22,19 @@ import {
   toPlayerSummary,
 } from './auth.js';
 import {
+  assertPlayerActionUnlocked,
+  type HospitalizationStatusReaderContract,
+} from './action-readiness.js';
+import {
+  buildNpcInflationSummary,
   DatabaseNpcInflationReader,
   inflateNpcMoney,
   type NpcInflationProfile,
   type NpcInflationReaderContract,
 } from './npc-inflation.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
+import { OverdoseSystem } from '../systems/OverdoseSystem.js';
+import { PrisonSystem, type PrisonSystemContract } from '../systems/PrisonSystem.js';
 
 type TrainingGateRecord = Pick<typeof trainingSessions.$inferSelect, 'claimedAt' | 'endsAt' | 'id'>;
 type UniversityEnrollmentRecord = typeof universityEnrollments.$inferSelect;
@@ -57,6 +64,8 @@ export interface UniversityServiceOptions {
   inflationReader?: NpcInflationReaderContract;
   keyValueStore?: KeyValueStore;
   now?: () => Date;
+  overdoseSystem?: HospitalizationStatusReaderContract;
+  prisonSystem?: PrisonSystemContract;
   repository?: UniversityRepository;
 }
 
@@ -208,19 +217,49 @@ export class UniversityService implements UniversityServiceContract {
 
   private readonly now: () => Date;
 
+  private readonly overdoseSystem: HospitalizationStatusReaderContract;
+
+  private readonly prisonSystem: PrisonSystemContract;
+
   private readonly ownsKeyValueStore: boolean;
+
+  private readonly ownsOverdoseSystem: boolean;
+
+  private readonly ownsPrisonSystem: boolean;
 
   private readonly repository: UniversityRepository;
 
   constructor(options: UniversityServiceOptions = {}) {
     this.ownsKeyValueStore = !options.keyValueStore;
+    this.ownsOverdoseSystem = !options.overdoseSystem;
+    this.ownsPrisonSystem = !options.prisonSystem;
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
     this.now = options.now ?? (() => new Date());
     this.inflationReader = options.inflationReader ?? new DatabaseNpcInflationReader(this.now);
+    this.overdoseSystem =
+      options.overdoseSystem ??
+      new OverdoseSystem({
+        keyValueStore: this.keyValueStore,
+        now: () => this.now().getTime(),
+      });
+    this.prisonSystem =
+      options.prisonSystem ??
+      new PrisonSystem({
+        keyValueStore: this.keyValueStore,
+        now: this.now,
+      });
     this.repository = options.repository ?? new DatabaseUniversityRepository();
   }
 
   async close(): Promise<void> {
+    if (this.ownsOverdoseSystem) {
+      await this.overdoseSystem.close?.();
+    }
+
+    if (this.ownsPrisonSystem) {
+      await this.prisonSystem.close?.();
+    }
+
     if (this.ownsKeyValueStore) {
       await this.keyValueStore.close?.();
     }
@@ -245,8 +284,9 @@ export class UniversityService implements UniversityServiceContract {
 
     await this.syncPlayerUniversity(playerId);
 
-    const [enrollments, inflationProfile, trainingGate] = await Promise.all([
+    const [enrollments, hospitalization, inflationProfile, trainingGate] = await Promise.all([
       this.repository.listEnrollments(playerId),
+      this.overdoseSystem.getHospitalizationStatus(playerId),
       this.inflationReader.getProfile(),
       this.repository.getUnclaimedTrainingSession(playerId),
     ]);
@@ -274,6 +314,13 @@ export class UniversityService implements UniversityServiceContract {
       );
     }
 
+    if (hospitalization.isHospitalized) {
+      throw new UniversityError(
+        'action_locked',
+        'Jogador hospitalizado nao pode iniciar curso universitario.',
+      );
+    }
+
     ensureUniversityCourseUnlocked(definition, player, completedCourseCodes);
 
     if (Number.parseFloat(player.money) < inflatedMoneyCost) {
@@ -285,6 +332,7 @@ export class UniversityService implements UniversityServiceContract {
 
     const startedAt = this.now();
     const endsAt = new Date(startedAt.getTime() + definition.durationHours * 60 * 60 * 1000);
+    await this.assertUniversityActionUnlocked(playerId);
     const mutation = await this.repository.createEnrollment(playerId, {
       costMoney: inflatedMoneyCost,
       courseCode: definition.code,
@@ -296,7 +344,7 @@ export class UniversityService implements UniversityServiceContract {
       throw new UniversityError('not_found', 'Nao foi possivel iniciar o curso universitario.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
     return {
       course: buildUniversityCourseSummary({
@@ -395,6 +443,7 @@ export class UniversityService implements UniversityServiceContract {
       activeCourse: courses.find((entry) => entry.isInProgress) ?? null,
       completedCourseCodes,
       courses,
+      npcInflation: buildNpcInflationSummary(inflationProfile),
       passiveProfile: buildUniversityPassiveProfile(completedCourseCodes),
       player: toPlayerSummary(player),
     };
@@ -419,8 +468,22 @@ export class UniversityService implements UniversityServiceContract {
     const completedCount = await this.repository.completeFinishedEnrollments(playerId, this.now());
 
     if (completedCount > 0) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
+  }
+
+  private async assertUniversityActionUnlocked(playerId: string): Promise<void> {
+    await assertPlayerActionUnlocked({
+      getHospitalizationStatus: () => this.overdoseSystem.getHospitalizationStatus(playerId),
+      getPrisonStatus: () => this.prisonSystem.getStatus(playerId),
+      hospitalizedError: () =>
+        new UniversityError(
+          'action_locked',
+          'Jogador hospitalizado nao pode iniciar curso universitario.',
+        ),
+      imprisonedError: () =>
+        new UniversityError('action_locked', 'Jogador preso nao pode iniciar curso universitario.'),
+    });
   }
 }
 

@@ -30,7 +30,7 @@ import {
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { type FactionUpgradeEffectReaderContract } from './faction.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   NoopUniversityEffectReader,
   type UniversityEffectReaderContract,
@@ -694,7 +694,7 @@ export class PropertyService implements PropertyServiceContract {
       throw new PropertyError('not_found', 'Nao foi possivel contratar soldados para esta propriedade.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const refreshedProperty = await this.listSingleProperty(playerId, propertyId);
 
     return {
@@ -752,7 +752,7 @@ export class PropertyService implements PropertyServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {
@@ -802,7 +802,7 @@ export class PropertyService implements PropertyServiceContract {
       throw new PropertyError('invalid_property', 'Nao foi possivel comprar a propriedade solicitada.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const property = await this.listSingleProperty(playerId, created.id);
 
     return {
@@ -833,7 +833,7 @@ export class PropertyService implements PropertyServiceContract {
       throw new PropertyError('not_found', 'Nao foi possivel aplicar upgrade nesta propriedade.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const refreshedProperty = await this.listSingleProperty(playerId, propertyId);
 
     return {

@@ -3,6 +3,9 @@ import {
   type AuthLoginInput,
   type AuthRefreshInput,
   type AuthRegisterInput,
+  type BichoListResponse,
+  type BichoPlaceBetInput,
+  type BichoPlaceBetResponse,
   type BocaCollectResponse,
   type BocaListResponse,
   type CrimeAttemptResponse,
@@ -74,7 +77,11 @@ import {
   type RaveCollectResponse,
   type RaveListResponse,
   type RoundCenterResponse,
+  type SlotMachineConfigureInput,
+  type SlotMachineConfigureResponse,
   type SlotMachineCollectResponse,
+  type SlotMachineInstallInput,
+  type SlotMachineInstallResponse,
   type SlotMachineListResponse,
   type SeasonalEventStatusResponse,
   type TrainingCenterResponse,
@@ -407,9 +414,36 @@ export const frontStoreApi = {
   },
 };
 
+export const bichoApi = {
+  getState(): Promise<BichoListResponse> {
+    return get<BichoListResponse>('/jogo-do-bicho');
+  },
+  placeBet(input: BichoPlaceBetInput): Promise<BichoPlaceBetResponse> {
+    return post<BichoPlaceBetResponse, BichoPlaceBetInput>('/jogo-do-bicho/bets', input);
+  },
+};
+
 export const slotMachineApi = {
+  configure(
+    propertyId: string,
+    input: SlotMachineConfigureInput,
+  ): Promise<SlotMachineConfigureResponse> {
+    return post<SlotMachineConfigureResponse, SlotMachineConfigureInput>(
+      `/slot-machines/${propertyId}/configure`,
+      input,
+    );
+  },
   collect(propertyId: string): Promise<SlotMachineCollectResponse> {
     return postEmpty<SlotMachineCollectResponse>(`/slot-machines/${propertyId}/collect`);
+  },
+  install(
+    propertyId: string,
+    input: SlotMachineInstallInput,
+  ): Promise<SlotMachineInstallResponse> {
+    return post<SlotMachineInstallResponse, SlotMachineInstallInput>(
+      `/slot-machines/${propertyId}/install`,
+      input,
+    );
   },
   list(): Promise<SlotMachineListResponse> {
     return get<SlotMachineListResponse>('/slot-machines');

@@ -4,7 +4,14 @@ import {
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { SlotMachineError, type SlotMachineServiceContract } from '../../services/slot-machine.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  slotMachineConfigureBodySchema,
+  slotMachineInstallBodySchema,
+} from '../schemas.js';
+import { type SlotMachineServiceContract } from '../../services/slot-machine.js';
 
 interface SlotMachineRouteDependencies {
   slotMachineService: SlotMachineServiceContract;
@@ -14,7 +21,16 @@ export function createSlotMachineRoutes({
   slotMachineService,
 }: SlotMachineRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/slot-machines', async (request, reply) => {
+    const propertyIdParamsSchema = buildIdParamsSchema('propertyId');
+
+    fastify.get(
+      '/slot-machines',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -27,10 +43,18 @@ export function createSlotMachineRoutes({
       } catch (error) {
         return sendSlotMachineError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Body: SlotMachineInstallInput; Params: { propertyId: string } }>(
       '/slot-machines/:propertyId/install',
+      {
+        schema: {
+          body: slotMachineInstallBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -53,6 +77,13 @@ export function createSlotMachineRoutes({
 
     fastify.post<{ Body: SlotMachineConfigureInput; Params: { propertyId: string } }>(
       '/slot-machines/:propertyId/configure',
+      {
+        schema: {
+          body: slotMachineConfigureBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -75,6 +106,12 @@ export function createSlotMachineRoutes({
 
     fastify.post<{ Params: { propertyId: string } }>(
       '/slot-machines/:propertyId/collect',
+      {
+        schema: {
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -96,29 +133,6 @@ export function createSlotMachineRoutes({
   };
 }
 
-function sendSlotMachineError(reply: FastifyReply, error: unknown) {
-  if (error instanceof SlotMachineError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'not_found'
-            ? 404
-            : error.code === 'insufficient_funds'
-              ? 422
-              : error.code === 'capacity' ||
-                  error.code === 'conflict' ||
-                  error.code === 'character_not_ready'
-                ? 409
-                : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de maquininhas.',
-  });
+function sendSlotMachineError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de maquininhas.');
 }

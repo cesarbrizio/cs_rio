@@ -3,6 +3,7 @@ import {
   type FactionCoordinationKind,
   type FactionLeadershipElectionStatus,
   type FactionMemberSummary,
+  type FactionNpcProgressionStatus,
   type FactionRank,
   type FactionSummary,
 } from '@cs-rio/shared';
@@ -115,6 +116,10 @@ export function resolveFactionLedgerEntryLabel(entry: FactionBankLedgerEntry): s
       return 'Investimento em serviços de favela';
     }
 
+    if (entry.originType === 'upgrade') {
+      return 'Gasto coletivo com upgrade';
+    }
+
     return `Saque de ${entry.playerNickname ?? 'liderança'}`;
   }
 
@@ -123,6 +128,8 @@ export function resolveFactionLedgerEntryLabel(entry: FactionBankLedgerEntry): s
   }
 
   switch (entry.originType) {
+    case 'bicho':
+      return 'Comissão automática do bicho';
     case 'boca':
       return 'Comissão automática de boca';
     case 'rave':
@@ -136,6 +143,58 @@ export function resolveFactionLedgerEntryLabel(entry: FactionBankLedgerEntry): s
     default:
       return 'Comissão automática';
   }
+}
+
+export function resolveFactionLedgerDisplayedAmount(entry: FactionBankLedgerEntry): number {
+  if (entry.entryType === 'business_commission' || entry.entryType === 'robbery_commission') {
+    return entry.commissionAmount;
+  }
+
+  return entry.netAmount;
+}
+
+export function summarizeFactionLedger(entries: FactionBankLedgerEntry[]): {
+  automaticIncome: number;
+  manualDeposits: number;
+  manualWithdrawals: number;
+  upgradeSpend: number;
+} {
+  return entries.reduce(
+    (summary, entry) => {
+      const amount = resolveFactionLedgerDisplayedAmount(entry);
+
+      if (entry.entryType === 'deposit' && entry.originType === 'manual') {
+        summary.manualDeposits += amount;
+        return summary;
+      }
+
+      if (entry.entryType === 'withdrawal' && entry.originType === 'upgrade') {
+        summary.upgradeSpend += amount;
+        return summary;
+      }
+
+      if (entry.entryType === 'withdrawal') {
+        summary.manualWithdrawals += amount;
+        return summary;
+      }
+
+      if (
+        entry.entryType === 'business_commission' ||
+        entry.entryType === 'robbery_commission' ||
+        entry.entryType === 'service_income'
+      ) {
+        summary.automaticIncome += amount;
+      }
+
+      return summary;
+    },
+    {
+      automaticIncome: 0,
+      manualDeposits: 0,
+      manualWithdrawals: 0,
+      upgradeSpend: 0,
+    },
+  );
 }
 
 export function sortFactionsForDisplay(
@@ -189,4 +248,81 @@ export function sortFactionMembersForDisplay(
 
     return left.nickname.localeCompare(right.nickname, 'pt-BR');
   });
+}
+
+export function resolveFactionNpcProgressionHeadline(
+  progression: FactionNpcProgressionStatus | null | undefined,
+): string {
+  if (!progression?.nextRank) {
+    return 'Topo da trilha automática';
+  }
+
+  if (progression.eligibleNow) {
+    return `Promoção para ${resolveFactionRankLabel(progression.nextRank)} pronta`;
+  }
+
+  return `Próximo cargo: ${resolveFactionRankLabel(progression.nextRank)}`;
+}
+
+export function resolveFactionNpcProgressionCopy(
+  progression: FactionNpcProgressionStatus | null | undefined,
+): string {
+  if (!progression) {
+    return 'Sem progressão automática disponível neste momento.';
+  }
+
+  if (!progression.nextRank) {
+    return 'Você já alcançou o topo da trilha automática enquanto a facção segue sob liderança NPC.';
+  }
+
+  if (progression.eligibleNow) {
+    return `A próxima sincronização já pode subir você para ${resolveFactionRankLabel(progression.nextRank)}.`;
+  }
+
+  return progression.blockedReason ?? 'A promoção ainda não está liberada.';
+}
+
+export function resolveFactionNpcProgressionMetrics(
+  progression: FactionNpcProgressionStatus | null | undefined,
+): Array<{ label: string; value: string }> {
+  if (!progression) {
+    return [];
+  }
+
+  const metrics = [
+    {
+      label: 'Dias na facção',
+      value: `${progression.daysInFaction}`,
+    },
+  ];
+
+  if (progression.minimumDaysInFactionForNextRank !== null) {
+    metrics.push({
+      label: 'Meta de dias',
+      value: `${progression.minimumDaysInFactionForNextRank}`,
+    });
+  }
+
+  if (progression.minimumLevelForNextRank !== null) {
+    metrics.push({
+      label: 'Nível mínimo',
+      value: `${progression.minimumLevelForNextRank}`,
+    });
+  }
+
+  if (progression.minimumConceitoForNextRank !== null) {
+    metrics.push({
+      label: 'Conceito mínimo',
+      value: `${progression.minimumConceitoForNextRank}`,
+    });
+  }
+
+  if (progression.slotLimitForNextRank !== null) {
+    metrics.push({
+      label: 'Vagas no cargo',
+      value: `${progression.occupiedSlotsForNextRank ?? 0}/${progression.slotLimitForNextRank}`,
+    });
+  }
+
+  return metrics;
 }

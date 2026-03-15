@@ -6,6 +6,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import { NpcInflationPanel } from '../components/NpcInflationPanel';
 import {
   formatTrainingCurrency,
   formatTrainingDuration,
@@ -15,6 +16,7 @@ import {
   getLiveTrainingSessionState,
   sortTrainingCatalog,
 } from '../features/training';
+import { useNotifications } from '../notifications/NotificationProvider';
 import { formatApiError, trainingApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
@@ -25,6 +27,7 @@ export function TrainingScreen(): JSX.Element {
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
+  const { syncTrainingNotifications } = useNotifications();
   const [center, setCenter] = useState<TrainingCenterResponse | null>(null);
   const [selectedType, setSelectedType] = useState<TrainingType>('basic');
   const [nowMs, setNowMs] = useState(Date.now());
@@ -43,12 +46,13 @@ export function TrainingScreen(): JSX.Element {
     try {
       const response = await trainingApi.getCenter();
       setCenter(response);
+      await syncTrainingNotifications(response.activeSession);
     } catch (error) {
       setErrorMessage(formatApiError(error).message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [syncTrainingNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -158,6 +162,7 @@ export function TrainingScreen(): JSX.Element {
     try {
       const response = await trainingApi.claim(center.activeSession.id);
       await Promise.all([loadTrainingCenter(), refreshPlayerProfile()]);
+      await syncTrainingNotifications(null);
 
       const resultLabel = `${formatTrainingTypeLabel(response.session.type)} concluído: ${formatTrainingGains(response.appliedGains)}`;
       setBootstrapStatus(resultLabel);
@@ -172,7 +177,13 @@ export function TrainingScreen(): JSX.Element {
     } finally {
       setIsMutating(false);
     }
-  }, [center?.activeSession, loadTrainingCenter, refreshPlayerProfile, setBootstrapStatus]);
+  }, [
+    center?.activeSession,
+    loadTrainingCenter,
+    refreshPlayerProfile,
+    setBootstrapStatus,
+    syncTrainingNotifications,
+  ]);
 
   return (
     <InGameScreenLayout
@@ -212,6 +223,8 @@ export function TrainingScreen(): JSX.Element {
           value={`${(center?.nextDiminishingMultiplier ?? 1).toFixed(2)}x`}
         />
       </View>
+
+      <NpcInflationPanel summary={center?.npcInflation ?? null} />
 
       {isLoading && !center ? (
         <View style={styles.loadingCard}>

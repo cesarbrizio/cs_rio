@@ -35,8 +35,12 @@ import {
 import { CooldownSystem } from '../systems/CooldownSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
-import { resolvePoliceHeatTier } from '../systems/PrisonSystem.js';
+import { PrisonSystem, type PrisonSystemContract, resolvePoliceHeatTier } from '../systems/PrisonSystem.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import {
+  assertPlayerActionUnlocked,
+  type HospitalizationSystemContract,
+} from './action-readiness.js';
 import {
   buildBanditReturnSchedule,
   resolveFavelaBanditTarget,
@@ -54,7 +58,7 @@ import {
 } from './gameplay-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { roundCurrency } from './property.js';
 import {
   NoopUniversityEffectReader,
@@ -190,10 +194,11 @@ interface RobberyAttemptResponse extends SharedRobberyAttemptResponse {
 export interface RobberyServiceOptions {
   cooldownSystem?: CooldownSystem;
   gameConfigService?: GameConfigService;
-  hospitalizationSystem?: OverdoseSystem;
+  hospitalizationSystem?: HospitalizationSystemContract;
   keyValueStore?: KeyValueStore;
   now?: () => Date;
   policeHeatSystem?: PoliceHeatSystem;
+  prisonSystem?: PrisonSystemContract;
   random?: () => number;
   universityReader?: UniversityEffectReaderContract;
 }
@@ -230,7 +235,7 @@ export class RobberyError extends Error {
 export class RobberyService implements RobberyServiceContract {
   private readonly cooldownSystem: CooldownSystem;
 
-  private readonly hospitalizationSystem: OverdoseSystem;
+  private readonly hospitalizationSystem: HospitalizationSystemContract;
 
   private readonly gameConfigService: GameConfigService;
 
@@ -242,11 +247,15 @@ export class RobberyService implements RobberyServiceContract {
 
   private readonly ownsHospitalizationSystem: boolean;
 
+  private readonly ownsPrisonSystem: boolean;
+
   private readonly ownsKeyValueStore: boolean;
 
   private readonly ownsPoliceHeatSystem: boolean;
 
   private readonly policeHeatSystem: PoliceHeatSystem;
+
+  private readonly prisonSystem: PrisonSystemContract;
 
   private readonly random: () => number;
 
@@ -258,6 +267,8 @@ export class RobberyService implements RobberyServiceContract {
     this.ownsCooldownSystem = !options.cooldownSystem;
     this.ownsPoliceHeatSystem = !options.policeHeatSystem;
     this.ownsHospitalizationSystem = !options.hospitalizationSystem;
+    this.ownsPrisonSystem = !options.prisonSystem;
+    this.now = options.now ?? (() => new Date());
     this.cooldownSystem =
       options.cooldownSystem ??
       new CooldownSystem({
@@ -273,8 +284,13 @@ export class RobberyService implements RobberyServiceContract {
       new OverdoseSystem({
         keyValueStore: this.keyValueStore,
       });
+    this.prisonSystem =
+      options.prisonSystem ??
+      new PrisonSystem({
+        keyValueStore: this.keyValueStore,
+        now: this.now,
+      });
     this.gameConfigService = options.gameConfigService ?? new GameConfigService();
-    this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
     this.universityReader = options.universityReader ?? new NoopUniversityEffectReader();
   }
@@ -290,6 +306,10 @@ export class RobberyService implements RobberyServiceContract {
 
     if (this.ownsHospitalizationSystem) {
       await this.hospitalizationSystem.close?.();
+    }
+
+    if (this.ownsPrisonSystem) {
+      await this.prisonSystem.close?.();
     }
 
     if (this.ownsKeyValueStore) {
@@ -366,11 +386,7 @@ export class RobberyService implements RobberyServiceContract {
     );
 
     const currentTime = this.now();
-    const hospitalization = await this.hospitalizationSystem.getHospitalizationStatus(playerId);
-
-    if (hospitalization.isHospitalized) {
-      throw new RobberyError('conflict', 'Jogador hospitalizado nao pode iniciar roubos.');
-    }
+    await this.assertRobberyActionUnlocked(playerId);
 
     if (player.level < definition.minimumLevel) {
       throw new RobberyError(
@@ -481,6 +497,7 @@ export class RobberyService implements RobberyServiceContract {
           )
         : null;
 
+    await this.assertRobberyActionUnlocked(player.id);
     await db.transaction(async (tx) => {
       await tx
         .update(players)
@@ -561,7 +578,7 @@ export class RobberyService implements RobberyServiceContract {
         buildRobberyCooldownId('player', player.id, definition.id, definition.vehicleRoute),
         definition.baseCooldownSeconds,
       ),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(player.id)),
+      invalidatePlayerProfileCache(this.keyValueStore, player.id),
     ]);
 
     return {
@@ -689,6 +706,7 @@ export class RobberyService implements RobberyServiceContract {
           )
         : null;
 
+    await this.assertRobberyActionUnlocked(player.id);
     await db.transaction(async (tx) => {
       await tx
         .update(regions)
@@ -757,7 +775,7 @@ export class RobberyService implements RobberyServiceContract {
         buildRobberyCooldownId('bandits', favela.id, definition.id, definition.vehicleRoute),
         definition.baseCooldownSeconds,
       ),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(player.id)),
+      invalidatePlayerProfileCache(this.keyValueStore, player.id),
     ]);
 
     return {
@@ -832,6 +850,17 @@ export class RobberyService implements RobberyServiceContract {
       nextReturnAt: nextReturnMap.get(row.id) ?? null,
       regionId: row.regionId as RegionId,
     }));
+  }
+
+  private async assertRobberyActionUnlocked(playerId: string): Promise<void> {
+    await assertPlayerActionUnlocked({
+      getHospitalizationStatus: () => this.hospitalizationSystem.getHospitalizationStatus(playerId),
+      getPrisonStatus: () => this.prisonSystem.getStatus(playerId),
+      hospitalizedError: () =>
+        new RobberyError('conflict', 'Jogador hospitalizado nao pode iniciar roubos.'),
+      imprisonedError: () =>
+        new RobberyError('conflict', 'Jogador preso nao pode iniciar roubos.'),
+    });
   }
 
   private async syncFavelaBandits(

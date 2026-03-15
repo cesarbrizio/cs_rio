@@ -5,6 +5,12 @@ import {
 } from '@cs-rio/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../src/config/env', () => ({
+  appEnv: {
+    wsUrl: 'ws://127.0.0.1:2567',
+  },
+}));
+
 import { FactionRealtimeService } from '../src/services/factionRealtime';
 
 class FakeFactionRoom {

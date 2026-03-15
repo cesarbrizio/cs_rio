@@ -119,6 +119,7 @@ export type FactionBankEntryType =
   | 'service_income';
 export type FactionBankOriginType =
   | 'manual'
+  | 'bicho'
   | 'boca'
   | 'rave'
   | 'puteiro'
@@ -126,7 +127,8 @@ export type FactionBankOriginType =
   | 'robbery'
   | 'slot_machine'
   | 'favela_service'
-  | 'propina';
+  | 'propina'
+  | 'upgrade';
 export type PlayerBankEntryType = 'deposit' | 'withdrawal' | 'interest';
 export type RoundStatus = 'scheduled' | 'active' | 'finished';
 export type GameConfigStatus = 'active' | 'inactive';
@@ -308,6 +310,7 @@ export interface FactionRobberyPolicy {
 
 export interface FactionSummary {
   availableJoinSlots: number | null;
+  autoPromotionResult?: FactionAutoPromotionResult | null;
   abbreviation: string;
   bankMoney: number;
   canConfigure: boolean;
@@ -324,9 +327,37 @@ export interface FactionSummary {
   memberCount: number;
   myRank: FactionRank | null;
   name: string;
+  npcProgression?: FactionNpcProgressionStatus | null;
   npcLeaderName: string | null;
   points: number;
   robberyPolicy: FactionRobberyPolicy;
+}
+
+export interface FactionAutoPromotionResult {
+  factionAbbreviation: string;
+  factionId: string;
+  factionName: string;
+  newRank: FactionRank;
+  previousRank: FactionRank;
+  promotedAt: string;
+  promotionReason: string;
+}
+
+export interface FactionNpcProgressionStatus {
+  blockedReason: string | null;
+  currentRank: FactionRank | null;
+  daysInFaction: number;
+  eligibleNow: boolean;
+  minimumConceitoForNextRank: number | null;
+  minimumDaysInFactionForNextRank: number | null;
+  minimumLevelForNextRank: number | null;
+  nextRank: FactionRank | null;
+  occupiedSlotsForNextRank: number | null;
+  remainingConceito: number | null;
+  remainingDaysInFaction: number | null;
+  remainingLevel: number | null;
+  slotAvailable: boolean;
+  slotLimitForNextRank: number | null;
 }
 
 export interface FactionCreateInput {
@@ -439,6 +470,7 @@ export interface FactionUpgradeEffectsProfile {
 }
 
 export interface FactionUpgradeDefinitionSummary {
+  bankMoneyCost: number;
   effectSummary: string;
   label: string;
   pointsCost: number;
@@ -454,6 +486,7 @@ export interface FactionUpgradeSummary extends FactionUpgradeDefinitionSummary {
 }
 
 export interface FactionUpgradeCenterResponse {
+  availableBankMoney: number;
   availablePoints: number;
   effects: FactionUpgradeEffectsProfile;
   faction: FactionSummary;
@@ -586,6 +619,34 @@ export interface PlayerPropertySummary {
   createdAt: string;
 }
 
+export type NpcInflationAffectedService = 'black_market' | 'hospital' | 'training' | 'university';
+
+export type NpcInflationTier = 'high' | 'low' | 'peak' | 'rising';
+
+export interface NpcInflationScheduleEntry {
+  gameDay: number;
+  multiplier: number;
+  surchargePercent: number;
+}
+
+export interface NpcInflationSummary {
+  affectedServices: NpcInflationAffectedService[];
+  currentGameDay: number;
+  currentMultiplier: number;
+  currentSurchargePercent: number;
+  gameDayDurationHours: number;
+  maxMultiplier: number;
+  nextIncreaseGameDay: number | null;
+  nextIncreaseInDays: number | null;
+  nextMultiplier: number | null;
+  nextSurchargePercent: number | null;
+  resetsOnNewRound: boolean;
+  roundActive: boolean;
+  schedule: NpcInflationScheduleEntry[];
+  tier: NpcInflationTier;
+  totalGameDays: number;
+}
+
 export interface RoundSummary {
   currentGameDay: number;
   endsAt: string;
@@ -608,6 +669,7 @@ export interface RoundLeaderboardEntry {
 
 export interface RoundCenterResponse {
   leaderboard: RoundLeaderboardEntry[];
+  npcInflation: NpcInflationSummary;
   round: RoundSummary;
   topTenCreditReward: number;
 }
@@ -964,6 +1026,7 @@ export interface HospitalCenterPlayerState {
 export interface HospitalCenterResponse {
   currentCycleKey: string;
   hospitalization: PlayerHospitalizationStatus;
+  npcInflation: NpcInflationSummary;
   player: HospitalCenterPlayerState;
   services: {
     detox: HospitalServiceAvailability;
@@ -1039,6 +1102,7 @@ export interface TrainingCenterResponse {
   catalog: TrainingCatalogItem[];
   completedBasicSessions: number;
   nextDiminishingMultiplier: number;
+  npcInflation: NpcInflationSummary;
   player: PlayerSummary;
 }
 
@@ -1123,6 +1187,7 @@ export interface UniversityCenterResponse {
   activeCourse: UniversityCourseSummary | null;
   completedCourseCodes: UniversityCourseCode[];
   courses: UniversityCourseSummary[];
+  npcInflation: NpcInflationSummary;
   passiveProfile: UniversityPassiveProfile;
   player: PlayerSummary;
 }
@@ -1224,6 +1289,7 @@ export interface MarketOrderBookResponse {
   buyOrders: MarketOrderSummary[];
   marketFeeRate: number;
   myOrders: MarketOrderSummary[];
+  npcInflation: NpcInflationSummary;
   sellOrders: MarketOrderSummary[];
 }
 
@@ -2644,10 +2710,17 @@ export interface BichoBetSummary {
   status: BichoBetStatus;
 }
 
+export interface BichoFactionCommissionSummary {
+  active: boolean;
+  amount: number;
+  ratePercent: number;
+}
+
 export interface BichoListResponse {
   animals: BichoAnimalSummary[];
   bets: BichoBetSummary[];
   currentDraw: BichoCurrentDrawSummary;
+  factionCommission: BichoFactionCommissionSummary;
   recentDraws: BichoHistoryDrawSummary[];
 }
 
@@ -2661,6 +2734,7 @@ export interface BichoPlaceBetInput {
 export interface BichoPlaceBetResponse {
   bet: BichoBetSummary;
   currentDraw: BichoCurrentDrawSummary;
+  factionCommission: BichoFactionCommissionSummary;
   playerMoneyAfterBet: number;
 }
 

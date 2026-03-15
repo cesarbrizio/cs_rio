@@ -22,6 +22,7 @@ import {
   UniversityService,
   type UniversityRepository,
 } from '../src/services/university.js';
+import type { PrisonSystemContract } from '../src/systems/PrisonSystem.js';
 
 interface InMemoryTrainingGateRecord {
   claimedAt: Date | null;
@@ -218,6 +219,39 @@ class InMemoryKeyValueStore implements KeyValueStore {
   }
 }
 
+class SequencedHospitalizationReader {
+  constructor(private readonly statuses: boolean[]) {}
+
+  async getHospitalizationStatus() {
+    const isHospitalized = this.statuses.shift() ?? false;
+
+    return {
+      endsAt: isHospitalized ? new Date('2026-03-10T15:45:00.000Z').toISOString() : null,
+      isHospitalized,
+      reason: isHospitalized ? 'overdose' : null,
+      remainingSeconds: isHospitalized ? 1800 : 0,
+      startedAt: isHospitalized ? new Date('2026-03-10T15:15:00.000Z').toISOString() : null,
+      trigger: isHospitalized ? 'max_addiction' : null,
+    };
+  }
+}
+
+class StaticPrisonSystem implements PrisonSystemContract {
+  constructor(private readonly imprisoned: boolean) {}
+
+  async getStatus() {
+    return {
+      endsAt: this.imprisoned ? new Date('2026-03-10T15:45:00.000Z').toISOString() : null,
+      heatScore: 0,
+      heatTier: 'frio' as const,
+      isImprisoned: this.imprisoned,
+      reason: this.imprisoned ? 'Teste' : null,
+      remainingSeconds: this.imprisoned ? 1800 : 0,
+      sentencedAt: this.imprisoned ? new Date('2026-03-10T15:00:00.000Z').toISOString() : null,
+    };
+  }
+}
+
 describe('university routes', () => {
   let app: Awaited<ReturnType<typeof buildTestApp>>;
   let now: Date;
@@ -403,11 +437,66 @@ describe('university routes', () => {
       isInProgress: false,
     });
   });
+
+  it('revalidates hospitalization immediately before enrolling in a course', async () => {
+    await app.server.close();
+    app = await buildTestApp({
+      now: () => now,
+      overdoseSystem: new SequencedHospitalizationReader([false, true]),
+      state,
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        courseCode: 'mao_leve',
+      },
+      url: '/api/university/enrollments',
+    });
+
+    const playerId = Array.from(state.players.keys())[0] as string;
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('hospitalizado');
+    expect(state.enrollmentsByPlayerId.get(playerId) ?? []).toHaveLength(0);
+  });
+
+  it('blocks enrollment when the player is imprisoned', async () => {
+    await app.server.close();
+    app = await buildTestApp({
+      now: () => now,
+      prisonSystem: new StaticPrisonSystem(true),
+      state,
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        courseCode: 'mao_leve',
+      },
+      url: '/api/university/enrollments',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('preso');
+  });
 });
 
 async function buildTestApp(input: {
   inflationMultiplier?: number;
   now: () => Date;
+  overdoseSystem?: ConstructorParameters<typeof UniversityService>[0]['overdoseSystem'];
+  prisonSystem?: ConstructorParameters<typeof UniversityService>[0]['prisonSystem'];
   state: TestState;
 }) {
   const server = Fastify();
@@ -430,6 +519,8 @@ async function buildTestApp(input: {
         : undefined,
     keyValueStore,
     now: input.now,
+    overdoseSystem: input.overdoseSystem,
+    prisonSystem: input.prisonSystem,
     repository,
   });
 

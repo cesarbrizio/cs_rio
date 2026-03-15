@@ -54,7 +54,7 @@ interface InMemoryFactionLedgerRecord {
   grossAmount: number;
   id: string;
   netAmount: number;
-  originType: 'boca' | 'front_store' | 'manual' | 'puteiro' | 'rave' | 'slot_machine';
+  originType: 'bicho' | 'boca' | 'front_store' | 'manual' | 'puteiro' | 'rave' | 'slot_machine' | 'upgrade';
   playerId: string | null;
   propertyId: string | null;
 }
@@ -798,14 +798,15 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
   }
 
   async unlockFactionUpgrade(
+    playerId: string,
     factionId: string,
     upgradeType: FactionUpgradeType,
-    pointsCost: number,
+    bankMoneyCost: number,
     now: Date,
   ): Promise<boolean> {
     const faction = this.state.factions.get(factionId);
 
-    if (!faction || faction.points < pointsCost) {
+    if (!faction || Number.parseFloat(faction.bankMoney) < bankMoneyCost) {
       return false;
     }
 
@@ -821,7 +822,19 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
       unlockedAt: now,
     });
     this.state.factionUpgradesByFactionId.set(factionId, upgrades);
-    faction.points -= pointsCost;
+    faction.bankMoney = (Number.parseFloat(faction.bankMoney) - bankMoneyCost).toFixed(2);
+    this.pushLedgerEntry(factionId, {
+      balanceAfter: Number.parseFloat(faction.bankMoney),
+      commissionAmount: 0,
+      createdAt: now,
+      description: `Desbloqueio do upgrade ${upgradeType}.`,
+      entryType: 'withdrawal',
+      grossAmount: bankMoneyCost,
+      netAmount: bankMoneyCost,
+      originType: 'upgrade',
+      playerId,
+      propertyId: null,
+    });
     return true;
   }
 
@@ -1133,6 +1146,161 @@ describe('faction routes', () => {
       ],
       playerFactionId: 'fixed-faction',
     });
+  });
+
+  it('auto promotes members in npc-led fixed factions when time, level and conceito thresholds are met', async () => {
+    const member = await registerAndExtractSession(app.server, 'autonpc1');
+    const scenarioNow = new Date('2026-03-11T15:00:00.000Z');
+    const fixedPlayer = state.players.get(member.player.id);
+
+    if (!fixedPlayer) {
+      throw new Error('Jogador de promoção automática não encontrado no estado de teste.');
+    }
+
+    fixedPlayer.conceito = 6200;
+    fixedPlayer.factionId = 'fixed-faction';
+    fixedPlayer.level = 6;
+    state.factionMembers.push({
+      factionId: 'fixed-faction',
+      joinedAt: new Date(scenarioNow.getTime() - 10 * 6 * 60 * 60 * 1000),
+      playerId: fixedPlayer.id,
+      rank: 'cria',
+    });
+
+    const listResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${member.accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/factions',
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().factions[0]).toMatchObject({
+      autoPromotionResult: {
+        factionAbbreviation: 'CV',
+        newRank: 'gerente',
+        previousRank: 'cria',
+      },
+      id: 'fixed-faction',
+      myRank: 'gerente',
+      npcProgression: {
+        currentRank: 'gerente',
+        eligibleNow: false,
+        nextRank: 'general',
+      },
+    });
+    expect(findStoredMemberRank(state.factionMembers, fixedPlayer.id)).toBe('gerente');
+  });
+
+  it('blocks npc auto promotion when the member has just entered the fixed faction', async () => {
+    const member = await registerAndExtractSession(app.server, 'autonpc2');
+    const scenarioNow = new Date('2026-03-11T15:00:00.000Z');
+    const fixedPlayer = state.players.get(member.player.id);
+
+    if (!fixedPlayer) {
+      throw new Error('Jogador recém-ingresso não encontrado no estado de teste.');
+    }
+
+    fixedPlayer.conceito = 99999;
+    fixedPlayer.factionId = 'fixed-faction';
+    fixedPlayer.level = 10;
+    state.factionMembers.push({
+      factionId: 'fixed-faction',
+      joinedAt: scenarioNow,
+      playerId: fixedPlayer.id,
+      rank: 'cria',
+    });
+
+    const listResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${member.accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/factions',
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().factions[0]).toMatchObject({
+      id: 'fixed-faction',
+      myRank: 'cria',
+      npcProgression: {
+        blockedReason: expect.stringContaining('faltam 2 dias na facção'),
+        currentRank: 'cria',
+        eligibleNow: false,
+        nextRank: 'soldado',
+        remainingDaysInFaction: 2,
+      },
+    });
+    expect(findStoredMemberRank(state.factionMembers, fixedPlayer.id)).toBe('cria');
+  });
+
+  it('surfaces slot blockage when npc progression reaches a capped rank', async () => {
+    const member = await registerAndExtractSession(app.server, 'autonpc3');
+    const scenarioNow = new Date('2026-03-11T15:00:00.000Z');
+    const fixedPlayer = state.players.get(member.player.id);
+
+    if (!fixedPlayer) {
+      throw new Error('Jogador de bloqueio por vaga não encontrado no estado de teste.');
+    }
+
+    fixedPlayer.conceito = 120000;
+    fixedPlayer.factionId = 'fixed-faction';
+    fixedPlayer.level = 10;
+    state.factionMembers.push(
+      {
+        factionId: 'fixed-faction',
+        joinedAt: new Date(scenarioNow.getTime() - 20 * 6 * 60 * 60 * 1000),
+        playerId: fixedPlayer.id,
+        rank: 'gerente',
+      },
+      {
+        factionId: 'fixed-faction',
+        joinedAt: new Date('2026-03-01T12:00:00.000Z'),
+        playerId: 'ocupante-general-1',
+        rank: 'general',
+      },
+      {
+        factionId: 'fixed-faction',
+        joinedAt: new Date('2026-03-02T12:00:00.000Z'),
+        playerId: 'ocupante-general-2',
+        rank: 'general',
+      },
+    );
+    state.players.set('ocupante-general-1', {
+      ...(fixedPlayer),
+      id: 'ocupante-general-1',
+      nickname: 'ocupante-general-1',
+    });
+    state.players.set('ocupante-general-2', {
+      ...(fixedPlayer),
+      id: 'ocupante-general-2',
+      nickname: 'ocupante-general-2',
+    });
+
+    const listResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${member.accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/factions',
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().factions[0]).toMatchObject({
+      id: 'fixed-faction',
+      myRank: 'gerente',
+      npcProgression: {
+        blockedReason: expect.stringContaining('não há vaga para General'),
+        currentRank: 'gerente',
+        eligibleNow: false,
+        nextRank: 'general',
+        occupiedSlotsForNextRank: 2,
+        slotAvailable: false,
+        slotLimitForNextRank: 2,
+      },
+    });
+    expect(findStoredMemberRank(state.factionMembers, fixedPlayer.id)).toBe('gerente');
   });
 
   it('rejects duplicate config and prevents creating a second faction for the same player', async () => {
@@ -1597,7 +1765,7 @@ describe('faction routes', () => {
     expect(emptyBankWithdrawResponse.json().message).toContain('Saldo insuficiente');
   });
 
-  it('earns faction points from deposits and unlocks upgrades for the patron only', async () => {
+  it('uses faction bank money for upgrades and records the spend in the ledger', async () => {
     const leader = await registerAndExtractSession(app.server, 'lider11');
     const general = await registerAndExtractSession(app.server, 'general11');
     const factionId = await createFaction(app.server, leader.accessToken, {
@@ -1632,6 +1800,7 @@ describe('faction routes', () => {
 
     expect(upgradesResponse.statusCode).toBe(200);
     expect(upgradesResponse.json()).toMatchObject({
+      availableBankMoney: 10000,
       availablePoints: 10000,
       effects: {
         attributeBonusMultiplier: 1,
@@ -1641,6 +1810,7 @@ describe('faction routes', () => {
     expect(
       upgradesResponse.json().upgrades.find((entry: { type: string }) => entry.type === 'bonus_atributos_5'),
     ).toMatchObject({
+      bankMoneyCost: 10000,
       canUnlock: true,
       isUnlocked: false,
       pointsCost: 10000,
@@ -1666,7 +1836,8 @@ describe('faction routes', () => {
 
     expect(unlockResponse.statusCode).toBe(200);
     expect(unlockResponse.json()).toMatchObject({
-      availablePoints: 0,
+      availableBankMoney: 0,
+      availablePoints: 10000,
       effects: {
         attributeBonusMultiplier: 1.05,
       },
@@ -1679,7 +1850,29 @@ describe('faction routes', () => {
       isUnlocked: true,
     });
 
-    const insufficientPointsResponse = await app.server.inject({
+    const bankResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${leader.accessToken}`,
+      },
+      method: 'GET',
+      url: `/api/factions/${factionId}/bank`,
+    });
+
+    expect(bankResponse.statusCode).toBe(200);
+    expect(bankResponse.json().faction.bankMoney).toBe(0);
+    expect(bankResponse.json().ledger).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          description: expect.stringContaining('bonus_atributos_5'),
+          entryType: 'withdrawal',
+          grossAmount: 10000,
+          originType: 'upgrade',
+          playerNickname: 'lider11',
+        }),
+      ]),
+    );
+
+    const insufficientBankResponse = await app.server.inject({
       headers: {
         authorization: `Bearer ${leader.accessToken}`,
       },
@@ -1687,8 +1880,8 @@ describe('faction routes', () => {
       url: `/api/factions/${factionId}/upgrades/bonus_atributos_10/unlock`,
     });
 
-    expect(insufficientPointsResponse.statusCode).toBe(409);
-    expect(insufficientPointsResponse.json().message).toContain('Pontos insuficientes');
+    expect(insufficientBankResponse.statusCode).toBe(409);
+    expect(insufficientBankResponse.json().message).toContain('Caixa faccional insuficiente');
   });
 
   it('supports, votes and resolves a leadership election in a fixed faction', async () => {

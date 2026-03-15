@@ -4,6 +4,11 @@ import { useMemo } from 'react';
 import type { MapStructureKind } from './mapRegionVisuals';
 import { mapStructureSvgMarkupByKind } from './generated/mapStructureSvgCatalog.generated';
 
+export type MapStructureSvgCatalog = Record<
+  MapStructureKind,
+  ReturnType<typeof Skia.SVG.MakeFromString>
+>;
+
 export function useMapStructureSvgCatalog() {
   return useMemo(
     () =>
@@ -13,7 +18,7 @@ export function useMapStructureSvgCatalog() {
           // Strip the baked-in floor shadow so structures sit directly on the map.
           Skia.SVG.MakeFromString(markup.replace(/<ellipse\b[^>]*\/>/g, '')),
         ]),
-      ) as Record<MapStructureKind, ReturnType<typeof Skia.SVG.MakeFromString>>,
+      ) as MapStructureSvgCatalog,
     [],
   );
 }

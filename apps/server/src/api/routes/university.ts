@@ -1,11 +1,9 @@
 import { type UniversityEnrollInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { AuthError } from '../../services/auth.js';
-import {
-  UniversityError,
-  type UniversityServiceContract,
-} from '../../services/university.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import { buildStandardResponseSchema, universityEnrollBodySchema } from '../schemas.js';
+import { type UniversityServiceContract } from '../../services/university.js';
 
 interface UniversityRouteDependencies {
   universityService: UniversityServiceContract;
@@ -15,7 +13,14 @@ export function createUniversityRoutes({
   universityService,
 }: UniversityRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/university', async (request, reply) => {
+    fastify.get(
+      '/university',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -28,9 +33,18 @@ export function createUniversityRoutes({
       } catch (error) {
         return sendUniversityError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: UniversityEnrollInput }>('/university/enrollments', async (request, reply) => {
+    fastify.post<{ Body: UniversityEnrollInput }>(
+      '/university/enrollments',
+      {
+        schema: {
+          body: universityEnrollBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -43,33 +57,11 @@ export function createUniversityRoutes({
       } catch (error) {
         return sendUniversityError(reply, error);
       }
-    });
+      },
+    );
   };
 }
 
-function sendUniversityError(reply: FastifyReply, error: unknown) {
-  if (error instanceof AuthError) {
-    return reply.code(401).send({
-      message: error.message,
-    });
-  }
-
-  if (error instanceof UniversityError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'not_found'
-          ? 404
-          : error.code === 'character_not_ready'
-            ? 409
-            : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na universidade do crime.',
-  });
+function sendUniversityError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na universidade do crime.');
 }

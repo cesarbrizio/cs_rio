@@ -4,7 +4,14 @@ import {
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { RaveError, type RaveServiceContract } from '../../services/rave.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  ravePricingBodySchema,
+  raveStockBodySchema,
+} from '../schemas.js';
+import { type RaveServiceContract } from '../../services/rave.js';
 
 interface RaveRouteDependencies {
   raveService: RaveServiceContract;
@@ -14,7 +21,16 @@ export function createRaveRoutes({
   raveService,
 }: RaveRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/raves', async (request, reply) => {
+    const propertyIdParamsSchema = buildIdParamsSchema('propertyId');
+
+    fastify.get(
+      '/raves',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -27,10 +43,18 @@ export function createRaveRoutes({
       } catch (error) {
         return sendRaveError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Body: RaveStockInput; Params: { propertyId: string } }>(
       '/raves/:propertyId/stock',
+      {
+        schema: {
+          body: raveStockBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -53,6 +77,13 @@ export function createRaveRoutes({
 
     fastify.post<{ Body: RavePricingInput; Params: { propertyId: string } }>(
       '/raves/:propertyId/pricing',
+      {
+        schema: {
+          body: ravePricingBodySchema,
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -75,6 +106,12 @@ export function createRaveRoutes({
 
     fastify.post<{ Params: { propertyId: string } }>(
       '/raves/:propertyId/collect',
+      {
+        schema: {
+          params: propertyIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -93,25 +130,6 @@ export function createRaveRoutes({
   };
 }
 
-function sendRaveError(reply: FastifyReply, error: unknown) {
-  if (error instanceof RaveError) {
-    const statusCode =
-      error.code === 'validation' || error.code === 'invalid_lineup'
-        ? 400
-        : error.code === 'not_found'
-          ? 404
-          : error.code === 'unauthorized'
-            ? 401
-            : error.code === 'character_not_ready'
-              ? 409
-              : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de raves.',
-  });
+function sendRaveError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de raves.');
 }

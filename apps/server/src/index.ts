@@ -1,6 +1,7 @@
 import { createRealtimeServer } from './realtime.js';
 import { createApp } from './app.js';
-import { env } from './config/env.js';
+import { getValidatedServerBootEnv, InvalidEnvironmentError } from './config/env.js';
+import { registerProcessErrorHandlers } from './observability/process-errors.js';
 import { AuthService } from './services/auth.js';
 import { EventSchedulerService } from './services/event-scheduler.js';
 import { GameConfigService } from './services/game-config.js';
@@ -10,7 +11,11 @@ import { RoundService } from './services/round.js';
 import { ServerConfigService } from './services/server-config.js';
 
 async function main(): Promise<void> {
-  const authService = new AuthService();
+  const runtimeEnv = getValidatedServerBootEnv();
+  const authService = new AuthService({
+    jwtRefreshSecret: runtimeEnv.jwtRefreshSecret,
+    jwtSecret: runtimeEnv.jwtSecret,
+  });
   const playerService = new PlayerService();
   const serverConfigService = new ServerConfigService();
   const gameEventService = new GameEventService({
@@ -25,6 +30,9 @@ async function main(): Promise<void> {
   });
   const realtimeServer = await createRealtimeServer({
     authService,
+    logger: app.log.child({
+      scope: 'realtime',
+    }),
     playerService,
     serverConfigService,
   });
@@ -35,6 +43,11 @@ async function main(): Promise<void> {
     syncHandlers: [async (now) => roundService.syncLifecycle(now), async (now) => gameEventService.syncScheduledEvents(now)],
   });
   let shuttingDown = false;
+  const unregisterProcessErrorHandlers = registerProcessErrorHandlers(
+    app.log.child({
+      scope: 'process',
+    }),
+  );
 
   const shutdown = async (signal: NodeJS.Signals | 'bootstrap_error') => {
     if (shuttingDown) {
@@ -43,6 +56,7 @@ async function main(): Promise<void> {
 
     shuttingDown = true;
     app.log.info({ signal }, 'Encerrando CS Rio server.');
+    unregisterProcessErrorHandlers();
     await eventScheduler.stop();
     await Promise.allSettled([
       app.close(),
@@ -57,9 +71,9 @@ async function main(): Promise<void> {
     await Promise.all([
       app.listen({
         host: '0.0.0.0',
-        port: env.port,
+        port: runtimeEnv.port,
       }),
-      realtimeServer.listen(env.colyseusPort),
+      realtimeServer.listen(runtimeEnv.colyseusPort),
     ]);
     await eventScheduler.runTick();
     eventScheduler.start();
@@ -73,14 +87,23 @@ async function main(): Promise<void> {
 
     app.log.info(
       {
-        apiPort: env.port,
-        colyseusPort: env.colyseusPort,
+        apiPort: runtimeEnv.port,
+        colyseusPort: runtimeEnv.colyseusPort,
       },
       'CS Rio server bootstrap concluido',
     );
   } catch (error) {
     await shutdown('bootstrap_error');
-    app.log.error(error);
+    if (error instanceof InvalidEnvironmentError) {
+      app.log.error(
+        {
+          issues: error.issues,
+        },
+        error.message,
+      );
+    } else {
+      app.log.error(error);
+    }
     process.exit(1);
   }
 }

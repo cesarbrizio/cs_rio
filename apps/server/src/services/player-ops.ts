@@ -18,7 +18,8 @@ import {
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { PrisonSystem } from '../systems/PrisonSystem.js';
-import { buildPlayerProfileCacheKey, DatabasePlayerRepository } from './player.js';
+import { DatabasePlayerRepository } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { ServerConfigService } from './server-config.js';
 
 type SupportedInventoryItemType = Extract<InventoryItemType, 'component' | 'drug' | 'vest' | 'weapon'>;
@@ -1006,7 +1007,7 @@ export class PlayerOpsService {
   }
 
   private async invalidatePlayerCache(playerId: string): Promise<void> {
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
   }
 
   private async updatePlayer(

@@ -29,23 +29,45 @@ cs_rio/
 │   ├── shared/          # Tipos e constantes compartilhados
 │   └── game-engine/     # Engine isométrica (Skia)
 ├── JOGO.md              # Game Design Document completo
-├── TODO.md              # Roadmap técnico com 189 tarefas
+├── TODO.md              # Roadmap técnico histórico + prioridades abertas
+├── MAPA.md              # Estado final aprovado do mapa
+├── CHEATS.md            # Operações internas / cheats de desenvolvimento
 └── README.md
 ```
 
 ## Status Atual
 
-- Roadmap: `108/189` tarefas concluidas (`57%`)
-- Fases concluidas: `0` a `10`
-- Slice jogavel atual:
-  - auth + criacao de personagem
-  - mapa isometrico com HUD e tap-to-move
+- Build atual: **Pré-Alpha funcional**
+- Estado operacional: **fase de testes e ajuste fino**
+- Esteira técnica: `typecheck`, `lint`, `test` e `build` verdes no monorepo
+- Sistemas já jogáveis:
+  - auth + criação de personagem
+  - home/mapa local e macro mapa do Rio
   - crimes
-  - inventario, mercado negro e leiloes
-  - drogas, overdose, fabricas e venda por canais
-  - propriedades, negocios e patrimonio
-  - faccoes com banco, upgrades, politica e chat realtime
-  - territorio: conquista, servicos, satisfacao, X9, propina, baile e guerra
+  - inventário, mercado negro e leilões
+  - drogas, overdose, fábricas e venda por canais
+  - propriedades, negócios e patrimônio
+  - facções com banco, upgrades, política e realtime
+  - território: conquista, serviços, satisfação, X9, propina, baile e guerra
+  - tribunal do tráfico
+  - prisão e hospital
+- Sistemas operacionais internos:
+  - `ops:list`
+  - `ops:player`
+  - `ops:world`
+  - `ops:scenario`
+  - `ops:round`
+  - `ops:audit`
+
+## Prioridade Atual
+
+O foco imediato não é mais abrir grandes features, e sim:
+
+- estabilização
+- hardening técnico
+- testes em device
+- balanceamento fino
+- UX e performance percebida
 
 ## Premissas Estrategicas
 
@@ -59,7 +81,11 @@ cs_rio/
 ## Documentos
 
 - **[JOGO.md](./JOGO.md)** — Game Design Document com todas as mecânicas
-- **[TODO.md](./TODO.md)** — Roadmap técnico detalhado (22 fases, 189 tarefas)
+- **[TODO.md](./TODO.md)** — Roadmap técnico histórico e backlog ainda aberto
+- **[MAPA.md](./MAPA.md)** — Estado final aprovado do mapa para o escopo atual
+- **[CHEATS.md](./CHEATS.md)** — Catálogo e arquitetura dos comandos internos de operação
+- **[HARDENING.md](./HARDENING.md)** — Plano técnico de hardening e estabilização estrutural
+- **[ROLL_OUT.md](./ROLL_OUT.md)** — Checklist operacional vivo de pre-deploy, smoke, observabilidade e rollback
 - **[CONTEXT.md](./CONTEXT.md)** — Histórico consolidado das decisões de produto e arquitetura
 
 ## Setup Local
@@ -84,8 +110,9 @@ REDIS_URL=redis://localhost:6380
 
 PORT=9000
 COLYSEUS_PORT=2567
-JWT_SECRET=change-me
-JWT_REFRESH_SECRET=change-me-too
+JWT_SECRET=<gere_um_hex_com_ao_menos_32_chars>
+JWT_REFRESH_SECRET=<gere_outro_hex_com_ao_menos_32_chars>
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://192.168.1.20:8081
 
 EXPO_PUBLIC_API_URL=http://192.168.1.20:9000
 EXPO_PUBLIC_WS_URL=ws://192.168.1.20:2567
@@ -93,10 +120,28 @@ EXPO_PUBLIC_WS_URL=ws://192.168.1.20:2567
 
 Notas:
 
+- Gere os secrets JWT com algo como:
+  `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`
+- O server nao sobe se `JWT_SECRET` ou `JWT_REFRESH_SECRET` estiverem ausentes, com menos de `32` caracteres, repetidos ou usando os placeholders legados.
+- Em `development`, o server tambem aceita automaticamente origens locais comuns (`localhost`, `127.0.0.1`, `10.0.2.2` e IPs de LAN privada). Ainda assim, `CORS_ALLOWED_ORIGINS` pode ser definido para explicitar o allowlist.
+- Em `staging` e `production`, `CORS_ALLOWED_ORIGINS` e obrigatorio e deve listar apenas as origens HTTP/HTTPS autorizadas, separadas por virgula.
 - Para **celular fisico na mesma rede**, `EXPO_PUBLIC_API_URL` e `EXPO_PUBLIC_WS_URL` devem usar o **IP local da maquina**, nao `localhost`.
 - Para **Android Emulator**, use `10.0.2.2` no lugar do IP da maquina.
 - O `PORT` controla a API Fastify; `COLYSEUS_PORT` controla o realtime.
 - O workspace mobile agora le o arquivo `.env` da **raiz do monorepo** automaticamente ao rodar `npm run dev --workspace @cs-rio/mobile` ou `npm run android --workspace @cs-rio/mobile`.
+
+Exemplos de `CORS_ALLOWED_ORIGINS`:
+
+```env
+# development
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://192.168.1.20:8081
+
+# staging
+CORS_ALLOWED_ORIGINS=https://staging.csrio.example
+
+# production
+CORS_ALLOWED_ORIGINS=https://app.csrio.example,https://admin.csrio.example
+```
 
 ### Infraestrutura e banco
 

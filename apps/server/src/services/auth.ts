@@ -1,14 +1,27 @@
 import { randomUUID } from 'node:crypto';
 
-import { LEVELS, LevelTitle, RegionId, VocationType, type PlayerSummary } from '@cs-rio/shared';
+import {
+  hasValidPasswordLength,
+  isValidAuthNickname,
+  isValidEmail,
+  LEVELS,
+  LevelTitle,
+  normalizeAuthNickname,
+  normalizeEmail,
+  normalizePasswordInput,
+  RegionId,
+  VocationType,
+  type PlayerSummary,
+} from '@cs-rio/shared';
 import bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { createClient } from 'redis';
 
-import { env } from '../config/env.js';
+import { ensureValidJwtSecrets, env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { players } from '../db/schema.js';
+import { createInfrastructureLogger, type InfrastructureLogger } from '../observability/logger.js';
 import { ServerConfigService } from './server-config.js';
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -58,6 +71,12 @@ export interface AuthServiceOptions {
   jwtSecret?: string;
   keyValueStore?: KeyValueStore;
   repository?: AuthRepository;
+}
+
+export interface RedisKeyValueStoreOptions {
+  clientFactory?: (redisUrl: string) => RedisKeyValueStoreClient;
+  logger?: InfrastructureLogger;
+  redisUrl: string;
 }
 
 export interface AccessIdentity {
@@ -138,10 +157,40 @@ export class DatabaseAuthRepository implements AuthRepository {
   }
 }
 
-export class RedisKeyValueStore implements KeyValueStore {
-  private client: ReturnType<typeof createClient> | null = null;
+interface RedisKeyValueStoreClient {
+  connect(): Promise<unknown>;
+  del(key: string): Promise<number>;
+  expire(key: string, ttlSeconds: number): Promise<number>;
+  get(key: string): Promise<string | null>;
+  incr(key: string): Promise<number>;
+  isOpen: boolean;
+  on(event: 'end' | 'ready' | 'reconnecting', listener: () => void): this;
+  on(event: 'error', listener: (error: Error) => void): this;
+  quit(): Promise<unknown>;
+  set(key: string, value: string, options?: { EX: number }): Promise<unknown>;
+}
 
-  constructor(private readonly redisUrl: string) {}
+export class RedisKeyValueStore implements KeyValueStore {
+  private client: RedisKeyValueStoreClient | null = null;
+
+  private readonly clientFactory: (redisUrl: string) => RedisKeyValueStoreClient;
+
+  private readonly logger: InfrastructureLogger;
+
+  private readonly redisUrl: string;
+
+  constructor(redisUrlOrOptions: string | RedisKeyValueStoreOptions) {
+    const options =
+      typeof redisUrlOrOptions === 'string'
+        ? { redisUrl: redisUrlOrOptions }
+        : redisUrlOrOptions;
+
+    this.redisUrl = options.redisUrl;
+    this.clientFactory = options.clientFactory ?? ((redisUrl) => createClient({ url: redisUrl }));
+    this.logger = (options.logger ?? createInfrastructureLogger({ scope: 'redis' })).child({
+      redisTarget: describeRedisTarget(this.redisUrl),
+    });
+  }
 
   async close(): Promise<void> {
     if (this.client?.isOpen) {
@@ -185,16 +234,14 @@ export class RedisKeyValueStore implements KeyValueStore {
     await client.set(key, value);
   }
 
-  private async getClient(): Promise<ReturnType<typeof createClient>> {
+  private async getClient(): Promise<RedisKeyValueStoreClient> {
     if (this.client?.isOpen) {
       return this.client;
     }
 
     if (!this.client) {
-      this.client = createClient({
-        url: this.redisUrl,
-      });
-      this.client.on('error', () => undefined);
+      this.client = this.clientFactory(this.redisUrl);
+      this.registerClientListeners(this.client);
     }
 
     if (!this.client.isOpen) {
@@ -202,6 +249,37 @@ export class RedisKeyValueStore implements KeyValueStore {
     }
 
     return this.client;
+  }
+
+  private registerClientListeners(client: RedisKeyValueStoreClient): void {
+    client.on('ready', () => {
+      this.logger.info({}, 'Redis client ready.');
+    });
+    client.on('reconnecting', () => {
+      this.logger.warn({}, 'Redis client reconnecting.');
+    });
+    client.on('end', () => {
+      this.logger.warn({}, 'Redis client connection ended.');
+    });
+    client.on('error', (error) => {
+      this.logger.error(
+        {
+          err: error,
+        },
+        'Redis client error.',
+      );
+    });
+  }
+}
+
+function describeRedisTarget(redisUrl: string): string {
+  try {
+    const parsed = new URL(redisUrl);
+    const port = parsed.port || '6379';
+    const dbIndex = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname.slice(1) : '0';
+    return `${parsed.hostname}:${port}/${dbIndex}`;
+  } catch {
+    return 'invalid-redis-url';
   }
 }
 
@@ -215,8 +293,15 @@ export class AuthService {
   private readonly repository: AuthRepository;
 
   constructor(options: AuthServiceOptions = {}) {
-    this.jwtRefreshSecret = options.jwtRefreshSecret ?? env.jwtRefreshSecret;
-    this.jwtSecret = options.jwtSecret ?? env.jwtSecret;
+    const secrets = ensureValidJwtSecrets(
+      {
+        jwtRefreshSecret: options.jwtRefreshSecret ?? env.jwtRefreshSecret,
+        jwtSecret: options.jwtSecret ?? env.jwtSecret,
+      },
+      'AuthService',
+    );
+    this.jwtRefreshSecret = secrets.jwtRefreshSecret;
+    this.jwtSecret = secrets.jwtSecret;
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
     this.repository = options.repository ?? new DatabaseAuthRepository();
   }
@@ -238,7 +323,7 @@ export class AuthService {
   async login(input: { email: string; ipAddress: string; password: string }): Promise<AuthTokens> {
     const email = normalizeEmail(input.email);
     const loginRateLimitKey = buildLoginRateLimitKey(input.ipAddress);
-    const password = input.password.trim();
+    const password = normalizePasswordInput(input.password);
     this.validateEmail(email);
     this.validatePassword(password);
 
@@ -294,8 +379,8 @@ export class AuthService {
 
   async register(input: { email: string; nickname: string; password: string }): Promise<AuthTokens> {
     const email = normalizeEmail(input.email);
-    const nickname = input.nickname.trim();
-    const password = input.password.trim();
+    const nickname = normalizeAuthNickname(input.nickname);
+    const password = normalizePasswordInput(input.password);
 
     this.validateEmail(email);
     this.validateNickname(nickname);
@@ -406,13 +491,13 @@ export class AuthService {
   }
 
   private validateEmail(email: string): void {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)) {
+    if (!isValidEmail(email)) {
       throw new AuthError('validation', 'Email invalido.');
     }
   }
 
   private validateNickname(nickname: string): void {
-    if (!/^[A-Za-z0-9_]{3,16}$/u.test(nickname)) {
+    if (!isValidAuthNickname(nickname)) {
       throw new AuthError(
         'validation',
         'Nickname deve ter entre 3 e 16 caracteres usando apenas letras, numeros e underscore.',
@@ -421,7 +506,7 @@ export class AuthService {
   }
 
   private validatePassword(password: string): void {
-    if (password.length < 8) {
+    if (!hasValidPasswordLength(password)) {
       throw new AuthError('validation', 'Senha deve ter no minimo 8 caracteres.');
     }
   }
@@ -433,10 +518,6 @@ function buildLoginRateLimitKey(ipAddress: string): string {
 
 function buildRefreshBlacklistKey(tokenId: string): string {
   return `auth:refresh:blacklist:${tokenId}`;
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
 }
 
 export function resolveLevelTitle(level: number): LevelTitle {

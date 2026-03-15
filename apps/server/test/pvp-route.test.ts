@@ -19,6 +19,7 @@ import {
   type KeyValueStore,
 } from '../src/services/auth.js';
 import { PvpService, type PvpRepository } from '../src/services/pvp.js';
+import type { HospitalizationSystemContract } from '../src/services/action-readiness.js';
 import { type CombatPlayerContext, CombatSystem } from '../src/systems/CombatSystem.js';
 import { CooldownSystem } from '../src/systems/CooldownSystem.js';
 import { OverdoseSystem } from '../src/systems/OverdoseSystem.js';
@@ -489,6 +490,28 @@ class InMemoryKeyValueStore implements KeyValueStore {
   }
 }
 
+class SequencedHospitalizationReader implements HospitalizationSystemContract {
+  constructor(private readonly statusesByPlayerId: Map<string, boolean[]>) {}
+
+  async getHospitalizationStatus(playerId: string) {
+    const queue = this.statusesByPlayerId.get(playerId) ?? [];
+    const isHospitalized = queue.shift() ?? false;
+
+    return {
+      endsAt: isHospitalized ? new Date('2026-03-20T12:30:00.000Z').toISOString() : null,
+      isHospitalized,
+      reason: isHospitalized ? 'combat' : null,
+      remainingSeconds: isHospitalized ? 1800 : 0,
+      startedAt: isHospitalized ? new Date('2026-03-20T12:00:00.000Z').toISOString() : null,
+      trigger: null,
+    };
+  }
+
+  async hospitalize(playerId: string) {
+    return this.getHospitalizationStatus(playerId);
+  }
+}
+
 function createRandomSequence(values: number[]) {
   let index = 0;
 
@@ -499,7 +522,13 @@ function createRandomSequence(values: number[]) {
   };
 }
 
-async function buildTestApp(state: TestState, options: { now?: () => Date } = {}) {
+async function buildTestApp(
+  state: TestState,
+  options: {
+    hospitalizationSystem?: HospitalizationSystemContract;
+    now?: () => Date;
+  } = {},
+) {
   const keyValueStore = new InMemoryKeyValueStore();
   const authRepository = new InMemoryAuthPvpRepository(state);
   const authService = new AuthService({
@@ -509,9 +538,11 @@ async function buildTestApp(state: TestState, options: { now?: () => Date } = {}
   const policeHeatSystem = new PoliceHeatSystem({
     keyValueStore,
   });
-  const hospitalizationSystem = new OverdoseSystem({
-    keyValueStore,
-  });
+  const hospitalizationSystem =
+    options.hospitalizationSystem ??
+    new OverdoseSystem({
+      keyValueStore,
+    });
   const combatSystem = new CombatSystem({
     policeHeatSystem,
     random: createRandomSequence([0.4, 0.3, 0.5]),
@@ -635,6 +666,63 @@ describe('pvp routes', () => {
       await testApp.hospitalizationSystem.getHospitalizationStatus(defender.id);
     expect(defenderHospitalization.isHospitalized).toBe(true);
     expect(defenderHospitalization.reason).toBe('combat');
+  });
+
+  it('revalidates hospitalization immediately before persisting the assault', async () => {
+    await testApp.app.close();
+    await testApp.pvpService.close?.();
+
+    const attackerAuth = await testApp.authService.register({
+      email: 'attacker-race@csr.io',
+      nickname: 'atacante_race',
+      password: 'senha-forte-1',
+    });
+    const defenderAuth = await testApp.authService.register({
+      email: 'defender-race@csr.io',
+      nickname: 'alvo_race',
+      password: 'senha-forte-2',
+    });
+    const attacker = state.players.get(attackerAuth.player.id);
+    const defender = state.players.get(defenderAuth.player.id);
+
+    if (!attacker || !defender) {
+      throw new Error('Falha ao montar jogadores do teste.');
+    }
+
+    attacker.characterCreatedAt = new Date('2026-03-11T12:00:00.000Z');
+    attacker.level = 6;
+    attacker.forca = 38;
+    attacker.resistencia = 30;
+    attacker.vocation = VocationType.Soldado;
+    attacker.regionId = RegionId.ZonaNorte;
+    defender.characterCreatedAt = new Date('2026-03-11T12:00:00.000Z');
+    defender.level = 5;
+    defender.forca = 15;
+    defender.resistencia = 12;
+    defender.regionId = RegionId.ZonaNorte;
+
+    testApp = await buildTestApp(state, {
+      hospitalizationSystem: new SequencedHospitalizationReader(
+        new Map([
+          [attacker.id, [false, false]],
+          [defender.id, [false, true]],
+        ]),
+      ),
+      now: () => new Date('2026-03-20T12:00:00.000Z'),
+    });
+
+    const response = await testApp.app.inject({
+      headers: {
+        authorization: `Bearer ${attackerAuth.accessToken}`,
+      },
+      method: 'POST',
+      url: `/pvp/assault/${defender.id}`,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('hospitalizado');
+    expect(state.players.get(defender.id)?.hp).toBe(100);
+    expect(state.players.get(attacker.id)?.stamina).toBe(100);
   });
 
   it('blocks a repeated assault against the same target while cooldown is active', async () => {

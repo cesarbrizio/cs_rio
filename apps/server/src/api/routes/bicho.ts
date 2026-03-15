@@ -1,7 +1,9 @@
 import { type BichoPlaceBetInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { BichoError, type BichoServiceContract } from '../../services/bicho.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import { bichoPlaceBetBodySchema, buildStandardResponseSchema } from '../schemas.js';
+import { type BichoServiceContract } from '../../services/bicho.js';
 
 interface BichoRouteDependencies {
   bichoService: BichoServiceContract;
@@ -11,7 +13,14 @@ export function createBichoRoutes({
   bichoService,
 }: BichoRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/jogo-do-bicho', async (request, reply) => {
+    fastify.get(
+      '/jogo-do-bicho',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -24,9 +33,18 @@ export function createBichoRoutes({
       } catch (error) {
         return sendBichoError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: BichoPlaceBetInput }>('/jogo-do-bicho/bets', async (request, reply) => {
+    fastify.post<{ Body: BichoPlaceBetInput }>(
+      '/jogo-do-bicho/bets',
+      {
+        schema: {
+          body: bichoPlaceBetBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -39,29 +57,11 @@ export function createBichoRoutes({
       } catch (error) {
         return sendBichoError(reply, error);
       }
-    });
+      },
+    );
   };
 }
 
-function sendBichoError(reply: FastifyReply, error: unknown) {
-  if (error instanceof BichoError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'not_found'
-            ? 404
-            : error.code === 'insufficient_funds' || error.code === 'character_not_ready'
-              ? 409
-              : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada no jogo do bicho.',
-  });
+function sendBichoError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada no jogo do bicho.');
 }

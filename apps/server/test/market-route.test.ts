@@ -154,6 +154,28 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
     type: string;
   }> = [];
 
+  seedSystemOffer(offer: Partial<SystemOfferRecord> & Pick<SystemOfferRecord, 'id'>): void {
+    this.systemOffers.set(offer.id, {
+      code: offer.code ?? offer.id,
+      createdAt: offer.createdAt ?? new Date('2026-03-10T16:00:00.000Z'),
+      id: offer.id,
+      isActive: offer.isActive ?? true,
+      itemId: offer.itemId ?? 'drug-1',
+      itemName: offer.itemName ?? 'Maconha',
+      itemType: offer.itemType ?? 'drug',
+      label: offer.label ?? 'Fornecedor da rodada · Maconha',
+      lastRestockedGameDay: offer.lastRestockedGameDay ?? 1,
+      lastRestockedRoundId: offer.lastRestockedRoundId ?? null,
+      pricePerUnit: offer.pricePerUnit ?? 65,
+      restockAmount: offer.restockAmount ?? 20,
+      restockIntervalGameDays: offer.restockIntervalGameDays ?? 1,
+      sortOrder: offer.sortOrder ?? 30,
+      stockAvailable: offer.stockAvailable ?? 40,
+      stockMax: offer.stockMax ?? 40,
+      updatedAt: offer.updatedAt ?? new Date('2026-03-10T16:00:00.000Z'),
+    });
+  }
+
   async applyDrugOverdosePenalties(
     playerId: string,
     input: PlayerOverdosePenaltyInput,
@@ -882,9 +904,10 @@ class InMemoryKeyValueStore implements KeyValueStore {
 describe('market routes', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
   let currentNow = Date.parse('2026-03-10T16:00:00.000Z');
+  let repository: InMemoryGameRepository;
 
   beforeEach(async () => {
-    const repository = new InMemoryGameRepository();
+    repository = new InMemoryGameRepository();
     const keyValueStore = new InMemoryKeyValueStore();
     currentNow = Date.parse('2026-03-10T16:00:00.000Z');
 
@@ -1084,6 +1107,62 @@ describe('market routes', () => {
       resources: {
         money: 9000,
       },
+    });
+  });
+
+  it('inflates system offers from the Mercado Negro and exposes the inflation summary', async () => {
+    await app.close();
+
+    repository = new InMemoryGameRepository();
+    repository.seedSystemOffer({
+      code: 'system_drug_maconha',
+      id: 'system-offer-1',
+      itemId: 'drug-1',
+      itemName: 'Maconha',
+      itemType: 'drug',
+      pricePerUnit: 65,
+    });
+
+    const keyValueStore = new InMemoryKeyValueStore();
+    currentNow = Date.parse('2026-03-10T16:00:00.000Z');
+    app = await createApp({
+      authRepository: repository,
+      keyValueStore,
+      marketService: new MarketService({
+        inflationReader: {
+          getProfile: async () => ({
+            currentRoundDay: 80,
+            moneyMultiplier: 1.25,
+            roundId: 'round-1',
+          }),
+        },
+        keyValueStore,
+        now: () => new Date(currentNow),
+        repository,
+      }),
+      playerRepository: repository,
+    });
+    await app.ready();
+
+    const playerSession = await registerAndCreateCharacter(app, {
+      email: 'inflation@market.test',
+      nickname: 'inflation_market',
+      vocation: VocationType.Cria,
+    });
+
+    const response = await app.inject({
+      headers: { authorization: `Bearer ${playerSession.accessToken}` },
+      method: 'GET',
+      url: '/api/market/orders?itemId=drug-1&itemType=drug',
+    });
+    const payload = response.json() as MarketOrderBookResponse;
+
+    expect(response.statusCode).toBe(200);
+    expect(payload.npcInflation.currentMultiplier).toBe(1.25);
+    expect(payload.sellOrders[0]).toMatchObject({
+      itemId: 'drug-1',
+      pricePerUnit: 81.25,
+      sourceType: 'system',
     });
   });
 

@@ -998,6 +998,7 @@ export const FACTION_EMPTY_UPGRADE_EFFECTS: FactionUpgradeEffectsProfile = {
 };
 export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
   {
+    bankMoneyCost: 5000,
     effectSummary: 'Entrega 1.000 unidades de droga a cada 10 dias de jogo.',
     label: 'Mula de Drogas Nível 1',
     pointsCost: 5000,
@@ -1005,6 +1006,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'mula_nivel_1',
   },
   {
+    bankMoneyCost: 20000,
     effectSummary: 'Entrega 10.000 unidades de droga a cada 10 dias de jogo.',
     label: 'Mula de Drogas Nível 2',
     pointsCost: 20000,
@@ -1012,6 +1014,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'mula_nivel_2',
   },
   {
+    bankMoneyCost: 100000,
     effectSummary: 'Entrega 100.000 unidades de droga a cada 10 dias de jogo.',
     label: 'Mula de Drogas Nível 3',
     pointsCost: 100000,
@@ -1019,6 +1022,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'mula_nivel_3',
   },
   {
+    bankMoneyCost: 500000,
     effectSummary: 'Entrega 250.000.000 unidades de droga a cada 10 dias de jogo.',
     label: 'Mula de Drogas Nível MAX',
     pointsCost: 500000,
@@ -1026,6 +1030,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'mula_max',
   },
   {
+    bankMoneyCost: 10000,
     effectSummary: '+5% em todos os atributos dos membros da facção.',
     label: 'Bônus de Atributos +5%',
     pointsCost: 10000,
@@ -1033,6 +1038,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'bonus_atributos_5',
   },
   {
+    bankMoneyCost: 50000,
     effectSummary: '+10% em todos os atributos dos membros da facção.',
     label: 'Bônus de Atributos +10%',
     pointsCost: 50000,
@@ -1040,6 +1046,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'bonus_atributos_10',
   },
   {
+    bankMoneyCost: 30000,
     effectSummary: 'Libera acesso ao arsenal exclusivo da facção.',
     label: 'Arsenal Exclusivo',
     pointsCost: 30000,
@@ -1047,6 +1054,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'arsenal_exclusivo',
   },
   {
+    bankMoneyCost: 25000,
     effectSummary: '+50% de capacidade de soldados nas propriedades e territórios.',
     label: 'Exército Expandido',
     pointsCost: 25000,
@@ -1054,6 +1062,7 @@ export const FACTION_UPGRADE_DEFINITIONS: FactionUpgradeDefinitionSummary[] = [
     type: 'exercito_expandido',
   },
   {
+    bankMoneyCost: 40000,
     effectSummary: 'Sede da facção com defesa extra.',
     label: 'QG Fortificado',
     pointsCost: 40000,

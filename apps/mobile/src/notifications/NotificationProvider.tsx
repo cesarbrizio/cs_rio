@@ -1,4 +1,9 @@
-import { type AssassinationContractNotification, type PlayerProfile } from '@cs-rio/shared';
+import {
+  type AssassinationContractNotification,
+  type PlayerProfile,
+  type TrainingSessionSummary,
+  type UniversityCourseSummary,
+} from '@cs-rio/shared';
 import {
   createContext,
   type MutableRefObject,
@@ -13,11 +18,17 @@ import { Platform } from 'react-native';
 
 import {
   buildAttackNotificationDraft,
+  buildAsyncActivityNotificationDraft,
   buildEventNotificationDraft,
+  buildFactionPromotionNotificationDraft,
   buildTimerNotificationDrafts,
+  buildWarResultNotificationDraft,
   type NotificationPermissionState,
 } from '../features/notifications';
+import { type AsyncActivityCue } from '../features/activity-results';
 import { type EventNotificationItem } from '../features/events';
+import { type FactionPromotionCue } from '../features/faction-promotion';
+import { type WarResultCue } from '../features/war-results';
 import { useAppStore } from '../stores/appStore';
 
 const ANDROID_CHANNEL_ID = 'cs-rio-pre-alpha';
@@ -80,9 +91,20 @@ interface NotificationsModule {
 
 interface NotificationContextValue {
   notifyAttack: (notification: AssassinationContractNotification) => Promise<void>;
+  notifyAsyncActivity: (cue: AsyncActivityCue) => Promise<void>;
   notifyEvent: (notification: EventNotificationItem) => Promise<void>;
+  notifyFactionPromotion: (cue: FactionPromotionCue) => Promise<void>;
+  notifyWarResult: (cue: WarResultCue) => Promise<void>;
   requestNotificationPermissions: () => Promise<NotificationPermissionState>;
-  syncTimerNotifications: (player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined) => Promise<void>;
+  syncTimerNotifications: (
+    player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined,
+  ) => Promise<void>;
+  syncTrainingNotifications: (
+    session: Pick<TrainingSessionSummary, 'endsAt' | 'id' | 'readyToClaim' | 'type'> | null | undefined,
+  ) => Promise<void>;
+  syncUniversityNotifications: (
+    course: Pick<UniversityCourseSummary, 'code' | 'endsAt' | 'isInProgress' | 'label'> | null | undefined,
+  ) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -196,6 +218,36 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
     });
   }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
+  const notifyAsyncActivity = useCallback(async (cue: AsyncActivityCue) => {
+    const draft = buildAsyncActivityNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifyWarResult = useCallback(async (cue: WarResultCue) => {
+    const draft = buildWarResultNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifyFactionPromotion = useCallback(async (cue: FactionPromotionCue) => {
+    const draft = buildFactionPromotionNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
   const syncTimerNotifications = useCallback(async (
     player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined,
   ) => {
@@ -214,56 +266,91 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
       return;
     }
 
-    const drafts = buildTimerNotificationDrafts(player);
-    const nextKeys = new Set(drafts.map((draft) => draft.key));
+    await syncDraftsForPrefixes({
+      Notifications,
+      drafts: buildTimerNotificationDrafts({ player }),
+      prefixes: ['timer:prison:', 'timer:hospital:'],
+      scheduledIdsRef,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
-    for (const [key, notificationId] of scheduledIdsRef.current.entries()) {
-      if (nextKeys.has(key)) {
-        continue;
-      }
+  const syncTrainingNotifications = useCallback(async (
+    session: Pick<TrainingSessionSummary, 'endsAt' | 'id' | 'readyToClaim' | 'type'> | null | undefined,
+  ) => {
+    const Notifications = getNotificationsModule();
 
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
-      scheduledIdsRef.current.delete(key);
+    if (!Notifications) {
+      return;
     }
 
-    for (const draft of drafts) {
-      const existingId = scheduledIdsRef.current.get(draft.key);
-
-      if (existingId) {
-        await Notifications.cancelScheduledNotificationAsync(existingId);
-      }
-
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          body: draft.body,
-          data: {
-            kind: 'timer',
-            key: draft.key,
-          },
-          sound: true,
-          title: draft.title,
-        },
-        identifier: draft.key,
-        trigger: {
-          channelId: ANDROID_CHANNEL_ID,
-          repeats: false,
-          seconds: Math.max(1, draft.secondsUntilTrigger ?? 1),
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        },
+    if (!notificationSettings.enabled || notificationSettings.permissionStatus !== 'granted') {
+      await syncDraftsForPrefixes({
+        Notifications,
+        drafts: [],
+        prefixes: ['timer:training:'],
+        scheduledIdsRef,
       });
-
-      scheduledIdsRef.current.set(draft.key, identifier);
+      return;
     }
+
+    await syncDraftsForPrefixes({
+      Notifications,
+      drafts: buildTimerNotificationDrafts({ player: null, trainingSession: session ?? null }),
+      prefixes: ['timer:training:'],
+      scheduledIdsRef,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const syncUniversityNotifications = useCallback(async (
+    course: Pick<UniversityCourseSummary, 'code' | 'endsAt' | 'isInProgress' | 'label'> | null | undefined,
+  ) => {
+    const Notifications = getNotificationsModule();
+
+    if (!Notifications) {
+      return;
+    }
+
+    if (!notificationSettings.enabled || notificationSettings.permissionStatus !== 'granted') {
+      await syncDraftsForPrefixes({
+        Notifications,
+        drafts: [],
+        prefixes: ['timer:university:'],
+        scheduledIdsRef,
+      });
+      return;
+    }
+
+    await syncDraftsForPrefixes({
+      Notifications,
+      drafts: buildTimerNotificationDrafts({ player: null, universityCourse: course ?? null }),
+      prefixes: ['timer:university:'],
+      scheduledIdsRef,
+    });
   }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
   const value = useMemo<NotificationContextValue>(
     () => ({
       notifyAttack,
+      notifyAsyncActivity,
       notifyEvent,
+      notifyFactionPromotion,
+      notifyWarResult,
       requestNotificationPermissions,
       syncTimerNotifications,
+      syncTrainingNotifications,
+      syncUniversityNotifications,
     }),
-    [notifyAttack, notifyEvent, requestNotificationPermissions, syncTimerNotifications],
+    [
+      notifyAttack,
+      notifyAsyncActivity,
+      notifyEvent,
+      notifyFactionPromotion,
+      notifyWarResult,
+      requestNotificationPermissions,
+      syncTimerNotifications,
+      syncTrainingNotifications,
+      syncUniversityNotifications,
+    ],
   );
 
   return (
@@ -271,6 +358,62 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
       {children}
     </NotificationContext.Provider>
   );
+}
+
+async function syncDraftsForPrefixes(input: {
+  Notifications: NotificationsModule;
+  drafts: Array<{
+    body: string;
+    key: string;
+    secondsUntilTrigger?: number;
+    title: string;
+  }>;
+  prefixes: string[];
+  scheduledIdsRef: MutableRefObject<Map<string, string>>;
+}): Promise<void> {
+  const nextKeys = new Set(input.drafts.map((draft) => draft.key));
+
+  for (const [key, notificationId] of input.scheduledIdsRef.current.entries()) {
+    if (!input.prefixes.some((prefix) => key.startsWith(prefix))) {
+      continue;
+    }
+
+    if (nextKeys.has(key)) {
+      continue;
+    }
+
+    await input.Notifications.cancelScheduledNotificationAsync(notificationId);
+    input.scheduledIdsRef.current.delete(key);
+  }
+
+  for (const draft of input.drafts) {
+    const existingId = input.scheduledIdsRef.current.get(draft.key);
+
+    if (existingId) {
+      await input.Notifications.cancelScheduledNotificationAsync(existingId);
+    }
+
+    const identifier = await input.Notifications.scheduleNotificationAsync({
+      content: {
+        body: draft.body,
+        data: {
+          kind: 'timer',
+          key: draft.key,
+        },
+        sound: true,
+        title: draft.title,
+      },
+      identifier: draft.key,
+      trigger: {
+        channelId: ANDROID_CHANNEL_ID,
+        repeats: false,
+        seconds: Math.max(1, draft.secondsUntilTrigger ?? 1),
+        type: input.Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      },
+    });
+
+    input.scheduledIdsRef.current.set(draft.key, identifier);
+  }
 }
 
 export function useNotifications(): NotificationContextValue {

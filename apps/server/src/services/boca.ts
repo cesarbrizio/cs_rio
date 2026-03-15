@@ -38,7 +38,7 @@ import {
 } from './economy-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   resolvePropertyDailyUpkeep,
   roundCurrency,
@@ -798,7 +798,7 @@ export class BocaService implements BocaServiceContract {
       throw new BocaError('not_found', 'Boca nao encontrada para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const boca = await this.listSingleBoca(playerId, propertyId);
 
     return {
@@ -864,7 +864,7 @@ export class BocaService implements BocaServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {
@@ -898,7 +898,7 @@ export class BocaService implements BocaServiceContract {
       );
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const boca = await this.listSingleBoca(playerId, propertyId);
 
     return {

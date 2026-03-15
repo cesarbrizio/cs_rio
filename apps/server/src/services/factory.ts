@@ -28,7 +28,7 @@ import {
   properties,
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   buildFactionRegionalDominationByRegion,
   buildInactiveRegionalDominationBonus,
@@ -713,7 +713,7 @@ export class FactoryService implements FactoryServiceContract {
       throw new FactoryError('not_found', 'Fabrica nao encontrada para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const refreshedFactory = await this.requireFactory(playerId, factoryId);
     const regionalDominationBonus =
       (await this.resolveRegionalDominationByRegion(player.factionId)).get(refreshedFactory.regionId) ??
@@ -774,7 +774,7 @@ export class FactoryService implements FactoryServiceContract {
       throw new FactoryError('conflict', 'Nao foi possivel provisionar a fabrica.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const regionalDominationBonus =
       (await this.resolveRegionalDominationByRegion(player.factionId)).get(createdFactory.regionId) ??
       buildInactiveRegionalDominationBonus(createdFactory.regionId);
@@ -841,7 +841,7 @@ export class FactoryService implements FactoryServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {
@@ -876,7 +876,7 @@ export class FactoryService implements FactoryServiceContract {
       );
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const refreshedFactory = await this.requireFactory(playerId, factoryId);
     const regionalDominationBonus =
       (await this.resolveRegionalDominationByRegion(player.factionId)).get(refreshedFactory.regionId) ??

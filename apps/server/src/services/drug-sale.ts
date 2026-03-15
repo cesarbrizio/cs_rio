@@ -23,7 +23,7 @@ import {
   transactions,
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 
 type PropertyChannelType = 'boca' | 'rave';
 type DrugSaleErrorCode = 'conflict' | 'not_found' | 'validation';
@@ -575,7 +575,7 @@ export class DrugSaleService implements DrugSaleServiceContract {
       );
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
     return {
       ...quote,

@@ -7,6 +7,12 @@ import {
   MARKET_ORDER_FEE_RATE,
 } from '@cs-rio/shared/dist/constants.js';
 import {
+  normalizeOptionalToken,
+  normalizePositiveInteger,
+  normalizePositiveMoney,
+  normalizeRoundedMoney,
+} from '@cs-rio/shared';
+import {
   type InventoryItemType,
   type MarketAuctionBidInput,
   type MarketAuctionBookResponse,
@@ -29,6 +35,7 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
+import { MARKET_SYSTEM_OFFER_SEED } from '../db/seed.js';
 import {
   components,
   drugs,
@@ -47,7 +54,14 @@ import {
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { GameConfigService } from './game-config.js';
 import { resolveRoundLifecycleConfig } from './gameplay-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import {
+  buildNpcInflationSummary,
+  DatabaseNpcInflationReader,
+  inflateNpcMoney,
+  type NpcInflationProfile,
+  type NpcInflationReaderContract,
+} from './npc-inflation.js';
+import { invalidatePlayerProfileCaches } from './player-cache.js';
 import {
   NoopUniversityEffectReader,
   type UniversityEffectReaderContract,
@@ -65,6 +79,7 @@ type MarketSystemOfferRow = typeof marketSystemOffers.$inferSelect;
 
 export interface MarketServiceOptions {
   gameConfigService?: GameConfigService;
+  inflationReader?: NpcInflationReaderContract;
   keyValueStore?: KeyValueStore;
   now?: () => Date;
   repository?: MarketRepository;
@@ -978,6 +993,8 @@ class DatabaseMarketTransactionRepository implements MarketTransactionRepository
 export class MarketService implements MarketServiceContract {
   private readonly gameConfigService: GameConfigService;
 
+  private readonly inflationReader: NpcInflationReaderContract;
+
   private readonly keyValueStore: KeyValueStore;
 
   private readonly now: () => Date;
@@ -991,6 +1008,7 @@ export class MarketService implements MarketServiceContract {
   constructor(options: MarketServiceOptions = {}) {
     this.ownsKeyValueStore = !options.keyValueStore;
     this.gameConfigService = options.gameConfigService ?? new GameConfigService();
+    this.inflationReader = options.inflationReader ?? new DatabaseNpcInflationReader(options.now ?? (() => new Date()));
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
     this.now = options.now ?? (() => new Date());
     this.repository = options.repository ?? new DatabaseMarketRepository();
@@ -1525,6 +1543,7 @@ export class MarketService implements MarketServiceContract {
         buyOrders: buyOrders.map(serializeMarketOrder),
         marketFeeRate: viewerProfile.market.feeRate,
         myOrders: myOrders.map(serializeMarketOrder),
+        npcInflation: buildNpcInflationSummary(systemOfferContext.inflationProfile),
         sellOrders: mergedSellOrders,
       };
     });
@@ -1532,11 +1551,13 @@ export class MarketService implements MarketServiceContract {
 
   private async resolveSystemOfferContext(): Promise<{
     currentGameDay: number;
+    inflationProfile: NpcInflationProfile;
     roundId: string | null;
   }> {
     const now = this.now();
     const catalog = await this.gameConfigService.getResolvedCatalog();
     const lifecycle = resolveRoundLifecycleConfig(catalog);
+    const inflationProfile = await this.inflationReader.getProfile();
     const [activeRound] = await db
       .select({
         id: round.id,
@@ -1550,6 +1571,7 @@ export class MarketService implements MarketServiceContract {
     if (!activeRound) {
       return {
         currentGameDay: 1,
+        inflationProfile,
         roundId: null,
       };
     }
@@ -1562,6 +1584,7 @@ export class MarketService implements MarketServiceContract {
 
     return {
       currentGameDay,
+      inflationProfile,
       roundId: activeRound.id,
     };
   }
@@ -1570,6 +1593,7 @@ export class MarketService implements MarketServiceContract {
     repository: MarketTransactionRepository,
     context: {
       currentGameDay: number;
+      inflationProfile: NpcInflationProfile;
       roundId: string | null;
     },
   ): Promise<void> {
@@ -1601,6 +1625,14 @@ export class MarketService implements MarketServiceContract {
         }
       }
 
+      const inflatedOfferPrice = resolveInflatedSystemOfferPrice(offer, context.inflationProfile);
+
+      if (roundCurrency(offer.pricePerUnit) !== roundCurrency(inflatedOfferPrice)) {
+        offer.pricePerUnit = inflatedOfferPrice;
+        offer.updatedAt = this.now();
+        changed = true;
+      }
+
       if (changed) {
         await repository.saveSystemOffer(offer);
       }
@@ -1608,17 +1640,7 @@ export class MarketService implements MarketServiceContract {
   }
 
   private async invalidatePlayerCaches(playerIds: Iterable<string>): Promise<void> {
-    const uniquePlayerIds = [...new Set(playerIds)];
-
-    if (uniquePlayerIds.length === 0) {
-      return;
-    }
-
-    await Promise.all(
-      uniquePlayerIds.map((playerId) =>
-        this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId)),
-      ),
-    );
+    await invalidatePlayerProfileCaches(this.keyValueStore, playerIds);
   }
 
   private async matchOrder(
@@ -1847,7 +1869,7 @@ function parseMoney(value: string): number {
 }
 
 function roundCurrency(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return normalizeRoundedMoney(value + Number.EPSILON);
 }
 
 function resolveAuctionMinIncrement(referenceBid: number): number {
@@ -1873,6 +1895,19 @@ function resolveMarketFeeRate(
   return passiveProfile.market.feeRate || MARKET_ORDER_FEE_RATE;
 }
 
+function resolveInflatedSystemOfferPrice(
+  offer: MarketSystemOfferRecord,
+  inflationProfile: NpcInflationProfile,
+): number {
+  const seededOffer = MARKET_SYSTEM_OFFER_SEED.find((entry) => entry.code === offer.code);
+
+  if (!seededOffer) {
+    return offer.pricePerUnit;
+  }
+
+  return inflateNpcMoney(Number.parseFloat(seededOffer.pricePerUnit), inflationProfile);
+}
+
 function sanitizeMarketAuctionBidInput(input: MarketAuctionBidInput): MarketAuctionBidInput {
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
     throw new MarketError('invalid_order', 'O lance precisa ser maior que zero.');
@@ -1889,7 +1924,7 @@ function sanitizeMarketAuctionBookFilters(filters: MarketAuctionBookFilters): Ma
   }
 
   return {
-    itemId: typeof filters.itemId === 'string' && filters.itemId.trim().length > 0 ? filters.itemId.trim() : undefined,
+    itemId: normalizeOptionalToken(filters.itemId),
     itemType: filters.itemType,
   };
 }
@@ -1899,40 +1934,38 @@ function sanitizeMarketAuctionCreateInput(input: MarketAuctionCreateInput): Mark
     throw new MarketError('item_not_supported', 'Leiloes aceitam apenas armas e coletes.');
   }
 
-  if (!Number.isInteger(input.durationMinutes)) {
+  const durationMinutes = normalizePositiveInteger(
+    input.durationMinutes,
+    MARKET_AUCTION_MIN_DURATION_MINUTES,
+    MARKET_AUCTION_MAX_DURATION_MINUTES,
+  );
+
+  if (durationMinutes === null) {
     throw new MarketError('invalid_order', 'A duracao do leilao precisa ser um numero inteiro em minutos.');
   }
 
-  if (
-    input.durationMinutes < MARKET_AUCTION_MIN_DURATION_MINUTES ||
-    input.durationMinutes > MARKET_AUCTION_MAX_DURATION_MINUTES
-  ) {
-    throw new MarketError(
-      'invalid_order',
-      `A duracao do leilao deve ficar entre ${MARKET_AUCTION_MIN_DURATION_MINUTES} e ${MARKET_AUCTION_MAX_DURATION_MINUTES} minutos.`,
-    );
-  }
+  const startingBid = normalizePositiveMoney(input.startingBid);
 
-  if (!Number.isFinite(input.startingBid) || input.startingBid <= 0) {
+  if (startingBid === null) {
     throw new MarketError('invalid_order', 'O lance inicial precisa ser maior que zero.');
   }
 
+  let buyoutPrice: number | null = null;
   if (input.buyoutPrice !== undefined && input.buyoutPrice !== null) {
-    if (!Number.isFinite(input.buyoutPrice) || input.buyoutPrice <= input.startingBid) {
+    buyoutPrice = normalizePositiveMoney(input.buyoutPrice);
+
+    if (buyoutPrice === null || buyoutPrice <= startingBid) {
       throw new MarketError('invalid_order', 'O valor de compra imediata deve ser maior que o lance inicial.');
     }
   }
 
   return {
     ...input,
-    buyoutPrice:
-      input.buyoutPrice === undefined || input.buyoutPrice === null
-        ? null
-        : roundCurrency(input.buyoutPrice),
-    durationMinutes: input.durationMinutes,
+    buyoutPrice,
+    durationMinutes,
     inventoryItemId: input.inventoryItemId.trim(),
     itemId: input.itemId.trim(),
-    startingBid: roundCurrency(input.startingBid),
+    startingBid,
   };
 }
 
@@ -1942,7 +1975,7 @@ function sanitizeMarketOrderBookFilters(filters: MarketOrderBookFilters): Market
   }
 
   return {
-    itemId: typeof filters.itemId === 'string' && filters.itemId.trim().length > 0 ? filters.itemId.trim() : undefined,
+    itemId: normalizeOptionalToken(filters.itemId),
     itemType: filters.itemType,
   };
 }
@@ -1952,11 +1985,15 @@ function sanitizeMarketOrderInput(input: MarketOrderCreateInput): MarketOrderCre
     throw new MarketError('item_not_supported', 'O mercado negro aceita apenas armas, coletes e drogas.');
   }
 
-  if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+  const quantity = normalizePositiveInteger(input.quantity);
+
+  if (quantity === null) {
     throw new MarketError('invalid_order', 'Quantidade da ordem deve ser um inteiro maior ou igual a 1.');
   }
 
-  if (!Number.isFinite(input.pricePerUnit) || input.pricePerUnit <= 0) {
+  const pricePerUnit = normalizePositiveMoney(input.pricePerUnit);
+
+  if (pricePerUnit === null) {
     throw new MarketError('invalid_order', 'Preco por unidade deve ser maior que zero.');
   }
 
@@ -1964,8 +2001,9 @@ function sanitizeMarketOrderInput(input: MarketOrderCreateInput): MarketOrderCre
     ...input,
     inventoryItemId: input.inventoryItemId ?? null,
     itemId: input.itemId.trim(),
-    pricePerUnit: roundCurrency(input.pricePerUnit),
-    systemOfferId: input.systemOfferId?.trim() ? input.systemOfferId.trim() : null,
+    pricePerUnit,
+    quantity,
+    systemOfferId: normalizeOptionalToken(input.systemOfferId) ?? null,
   };
 }
 

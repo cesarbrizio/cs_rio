@@ -13,6 +13,7 @@ import {
 
 import { CharacterPreviewCard } from '../components/CharacterPreviewCard';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import { NpcInflationPanel } from '../components/NpcInflationPanel';
 import {
   buildHospitalServiceCopy,
   buildHospitalStatItemCopy,
@@ -192,6 +193,8 @@ export function HospitalScreen(): JSX.Element {
         <SummaryCard label="Restante" tone={colors.info} value={formatHospitalRemaining(hospitalization.remainingSeconds)} />
         <SummaryCard label="Créditos" tone={colors.accent} value={`${center?.player.credits ?? '--'}`} />
       </View>
+
+      <NpcInflationPanel summary={center?.npcInflation ?? null} />
 
       {isLoading && !center ? (
         <View style={styles.loadingCard}>

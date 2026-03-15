@@ -32,8 +32,12 @@ import { LevelSystem } from '../systems/LevelSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import {
+  assertPlayerActionUnlocked,
+  type HospitalizationSystemContract,
+} from './action-readiness.js';
 import { type FactionUpgradeEffectReaderContract } from './faction.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache, invalidatePlayerProfileCaches } from './player-cache.js';
 import { type UniversityEffectReaderContract } from './university.js';
 
 const AMBUSH_COOLDOWN_SECONDS = 12 * 60 * 60;
@@ -81,7 +85,7 @@ interface PvpServiceOptions {
   combatSystem?: CombatSystem;
   cooldownSystem?: CooldownSystem;
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
-  hospitalizationSystem?: OverdoseSystem;
+  hospitalizationSystem?: HospitalizationSystemContract;
   keyValueStore?: KeyValueStore;
   levelSystem?: LevelSystem;
   now?: () => Date;
@@ -664,7 +668,7 @@ export class PvpService implements PvpServiceContract {
 
   private readonly cooldownSystem: CooldownSystem;
 
-  private readonly hospitalizationSystem: OverdoseSystem;
+  private readonly hospitalizationSystem: HospitalizationSystemContract;
 
   private readonly keyValueStore: KeyValueStore;
 
@@ -795,6 +799,11 @@ export class PvpService implements PvpServiceContract {
       );
     }
 
+    await this.assertPvpActorUnlocked({
+      hospitalizedMessage: 'Mandante hospitalizado nao pode criar contrato.',
+      imprisonedMessage: 'Mandante preso nao pode criar contrato.',
+      playerId: requesterId,
+    });
     const contract = await this.repository.createAssassinationContract({
       createdAt: currentTime,
       requesterId,
@@ -803,7 +812,7 @@ export class PvpService implements PvpServiceContract {
       targetId: targetPlayerId,
     });
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(requesterId));
+    await invalidatePlayerProfileCache(this.keyValueStore, requesterId);
 
     return {
       contract: serializeAssassinationContract(
@@ -893,6 +902,11 @@ export class PvpService implements PvpServiceContract {
       throw new PvpError('conflict', 'Esse contrato ja esta aceito por voce.');
     }
 
+    await this.assertPvpActorUnlocked({
+      hospitalizedMessage: 'Assassino hospitalizado nao pode aceitar contrato.',
+      imprisonedMessage: 'Assassino preso nao pode aceitar contrato.',
+      playerId,
+    });
     const acceptedContract = await this.repository.acceptAssassinationContract(
       contractId,
       playerId,
@@ -996,10 +1010,6 @@ export class PvpService implements PvpServiceContract {
       mode: 'contract',
     });
     const assassinHeatBefore = assassin.player.resources.heat;
-    const assassinHeatAfter = await this.policeHeatSystem.addHeat(
-      assassinId,
-      resolution.attacker.heatDelta,
-    );
     const lootAmount = resolution.loot?.amount ?? 0;
     const contractSucceeded = resolution.fatality.defenderDied;
     const rewardPayout = contractSucceeded ? contract.reward : 0;
@@ -1029,6 +1039,23 @@ export class PvpService implements PvpServiceContract {
     const contractStatus: AssassinationContractStatus = contractSucceeded ? 'completed' : 'failed';
     const targetNotified = !contractSucceeded;
 
+    await this.assertPvpActorsUnlocked([
+      {
+        hospitalizedMessage: 'Assassino hospitalizado nao pode executar contrato.',
+        imprisonedMessage: 'Assassino preso nao pode executar contrato.',
+        playerId: assassinId,
+      },
+      {
+        hospitalizedMessage: 'O alvo esta hospitalizado.',
+        imprisonedMessage: 'O alvo esta preso.',
+        playerId: target.player.id,
+      },
+    ]);
+
+    const assassinHeatAfter = await this.policeHeatSystem.addHeat(
+      assassinId,
+      resolution.attacker.heatDelta,
+    );
     await this.repository.persistAssassinationExecution({
       assassin: {
         conceitoAfter: assassinConceitoAfter,
@@ -1096,8 +1123,7 @@ export class PvpService implements PvpServiceContract {
 
     await Promise.all([
       ...hospitalizationTasks,
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(assassinId)),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(target.player.id)),
+      invalidatePlayerProfileCaches(this.keyValueStore, [assassinId, target.player.id]),
     ]);
 
     const serializedContract = serializeAssassinationContract(
@@ -1249,7 +1275,6 @@ export class PvpService implements PvpServiceContract {
       0,
       attacker.player.resources.conceito + resolution.attacker.conceitoDelta,
     );
-    const attackerHeatAfter = await this.policeHeatSystem.addHeat(attackerId, resolution.attacker.heatDelta);
     const attackerLevelAfter = this.levelSystem.resolve(
       attackerConceitoAfter,
       attacker.player.level,
@@ -1281,6 +1306,20 @@ export class PvpService implements PvpServiceContract {
       attacker.player.resources.stamina - ASSAULT_STAMINA_COST,
     );
 
+    await this.assertPvpActorsUnlocked([
+      {
+        hospitalizedMessage: 'Atacante hospitalizado nao pode iniciar combate.',
+        imprisonedMessage: 'Atacante preso nao pode iniciar combate.',
+        playerId: attackerId,
+      },
+      {
+        hospitalizedMessage: 'O alvo esta hospitalizado.',
+        imprisonedMessage: 'O alvo esta preso.',
+        playerId: targetPlayerId,
+      },
+    ]);
+
+    const attackerHeatAfter = await this.policeHeatSystem.addHeat(attackerId, resolution.attacker.heatDelta);
     await this.repository.persistAssault({
       attacker: {
         attributes: attackerAttributes,
@@ -1308,8 +1347,7 @@ export class PvpService implements PvpServiceContract {
 
     await Promise.all([
       this.cooldownSystem.activateCrimeCooldown(attackerId, cooldownKey, ASSAULT_COOLDOWN_SECONDS),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(attackerId)),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(targetPlayerId)),
+      invalidatePlayerProfileCaches(this.keyValueStore, [attackerId, targetPlayerId]),
     ]);
 
     return {
@@ -1581,11 +1619,6 @@ export class PvpService implements PvpServiceContract {
       Math.max(0, resolution.attacker.conceitoDelta),
       preparedAttackers.length,
     );
-    const attackerHeatUpdates = await Promise.all(
-      preparedAttackers.map((attacker) =>
-        this.policeHeatSystem.addHeat(attacker.context.player.id, resolution.attacker.heatDelta),
-      ),
-    );
     const casualtyIds =
       resolution.tier === 'hard_fail' && resolution.powerRatio < 0.85
         ? selectAmbushCasualties(
@@ -1594,6 +1627,25 @@ export class PvpService implements PvpServiceContract {
             this.random,
           )
         : new Set<string>();
+
+    await this.assertPvpActorsUnlocked([
+      {
+        hospitalizedMessage: 'O alvo esta hospitalizado.',
+        imprisonedMessage: 'O alvo esta preso.',
+        playerId: targetPlayerId,
+      },
+      ...preparedAttackers.map((attacker) => ({
+        hospitalizedMessage: `${attacker.context.player.nickname} esta hospitalizado e nao pode participar da emboscada.`,
+        imprisonedMessage: `${attacker.context.player.nickname} esta preso e nao pode participar da emboscada.`,
+        playerId: attacker.context.player.id,
+      })),
+    ]);
+
+    const attackerHeatUpdates = await Promise.all(
+      preparedAttackers.map((attacker) =>
+        this.policeHeatSystem.addHeat(attacker.context.player.id, resolution.attacker.heatDelta),
+      ),
+    );
 
     const persistedAttackers = preparedAttackers.map((attacker, index) => {
       const lootShare = lootShares[index] ?? 0;
@@ -1657,7 +1709,6 @@ export class PvpService implements PvpServiceContract {
     const defenderMoneyAfter = roundMoney(
       Math.max(0, defender.player.resources.money - lootAmount),
     );
-
     await this.repository.persistAmbush({
       attackers: persistedAttackers.map((attacker) => ({
         conceitoAfter: attacker.conceitoAfter,
@@ -1691,10 +1742,10 @@ export class PvpService implements PvpServiceContract {
           }),
         ),
       this.cooldownSystem.activateCrimeCooldown(targetPlayerId, cooldownKey, AMBUSH_COOLDOWN_SECONDS),
-      this.keyValueStore.delete?.(buildPlayerProfileCacheKey(targetPlayerId)),
-      ...persistedAttackers.map((attacker) =>
-        this.keyValueStore.delete?.(buildPlayerProfileCacheKey(attacker.id)),
-      ),
+      invalidatePlayerProfileCaches(this.keyValueStore, [
+        targetPlayerId,
+        ...persistedAttackers.map((attacker) => attacker.id),
+      ]),
     ]);
 
     return {
@@ -1745,6 +1796,47 @@ export class PvpService implements PvpServiceContract {
       targetCooldownSeconds: AMBUSH_COOLDOWN_SECONDS,
       tier: resolution.tier,
     };
+  }
+
+  private async assertPvpActorUnlocked(input: {
+    hospitalizedMessage: string;
+    imprisonedMessage: string;
+    playerId: string;
+  }): Promise<void> {
+    const currentTime = this.now();
+    await assertPlayerActionUnlocked({
+      getHospitalizationStatus: () => this.hospitalizationSystem.getHospitalizationStatus(input.playerId),
+      getPrisonStatus: async () => {
+        const releaseAt = await this.repository.getActivePrisonReleaseAt(input.playerId, currentTime);
+
+        return {
+          endsAt: releaseAt?.toISOString() ?? null,
+          heatScore: 0,
+          heatTier: 'frio' as const,
+          isImprisoned: releaseAt !== null,
+          reason: releaseAt ? 'Prisão ativa' : null,
+          remainingSeconds:
+            releaseAt !== null
+              ? Math.max(0, Math.ceil((releaseAt.getTime() - currentTime.getTime()) / 1000))
+              : 0,
+          sentencedAt: null,
+        };
+      },
+      hospitalizedError: () => new PvpError('conflict', input.hospitalizedMessage),
+      imprisonedError: () => new PvpError('conflict', input.imprisonedMessage),
+    });
+  }
+
+  private async assertPvpActorsUnlocked(
+    actors: Array<{
+      hospitalizedMessage: string;
+      imprisonedMessage: string;
+      playerId: string;
+    }>,
+  ): Promise<void> {
+    for (const actor of actors) {
+      await this.assertPvpActorUnlocked(actor);
+    }
   }
 
   private async syncExpiredAssassinationContracts(currentTime: Date): Promise<void> {

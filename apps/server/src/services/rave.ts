@@ -43,7 +43,7 @@ import {
 } from './economy-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   resolvePropertyDailyUpkeep,
   roundCurrency,
@@ -858,7 +858,7 @@ export class RaveService implements RaveServiceContract {
       throw new RaveError('not_found', 'Rave nao encontrada para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const rave = await this.listSingleRave(playerId, propertyId);
 
     return {
@@ -902,7 +902,7 @@ export class RaveService implements RaveServiceContract {
       throw new RaveError('invalid_lineup', 'Droga nao encontrada no lineup desta rave.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const rave = await this.listSingleRave(playerId, propertyId);
 
     return {
@@ -968,7 +968,7 @@ export class RaveService implements RaveServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {
@@ -1002,7 +1002,7 @@ export class RaveService implements RaveServiceContract {
       );
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const rave = await this.listSingleRave(playerId, propertyId);
 
     return {

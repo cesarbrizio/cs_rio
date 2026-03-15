@@ -78,6 +78,11 @@ import {
   type RoundLifecycleConfig,
 } from './gameplay-config.js';
 import {
+  buildNpcInflationSummary,
+  DatabaseNpcInflationReader,
+  type NpcInflationReaderContract,
+} from './npc-inflation.js';
+import {
   resolveFavelaBanditTarget,
 } from './favela-force.js';
 import { applyFixedFactionStarterTerritories } from './fixed-faction-territories.js';
@@ -598,17 +603,20 @@ export interface RoundServiceContract {
 
 export interface RoundServiceOptions {
   gameConfigService?: Pick<GameConfigService, 'getResolvedCatalog'>;
+  inflationReader?: NpcInflationReaderContract;
   now?: () => Date;
   repository?: RoundRepository;
 }
 
 export class RoundService implements RoundServiceContract {
   private readonly gameConfigService: Pick<GameConfigService, 'getResolvedCatalog'>;
+  private readonly inflationReader: NpcInflationReaderContract;
   private readonly now: () => Date;
   private readonly repository: RoundRepository;
 
   constructor(options: RoundServiceOptions = {}) {
     this.gameConfigService = options.gameConfigService ?? new GameConfigService();
+    this.inflationReader = options.inflationReader ?? new DatabaseNpcInflationReader(options.now ?? (() => new Date()));
     this.now = options.now ?? (() => new Date());
     this.repository = options.repository ?? new DatabaseRoundRepository();
   }
@@ -623,13 +631,17 @@ export class RoundService implements RoundServiceContract {
       throw new Error('Nao foi possivel resolver a rodada ativa.');
     }
 
-    const standings = await this.repository.listStandings();
+    const [standings, inflationProfile] = await Promise.all([
+      this.repository.listStandings(),
+      this.inflationReader.getProfile(),
+    ]);
     const lifecycleConfig = resolveRoundLifecycleConfig(
       await this.gameConfigService.getResolvedCatalog({ now, roundId: activeRound.id }),
     );
 
     return {
       leaderboard: standings.slice(0, 10).map((entry, index) => buildRoundLeaderboardEntry(entry, index + 1)),
+      npcInflation: buildNpcInflationSummary(inflationProfile),
       round: buildRoundSummary(activeRound, now, lifecycleConfig),
       topTenCreditReward: lifecycleConfig.topTenCreditReward,
     };

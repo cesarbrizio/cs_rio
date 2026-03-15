@@ -21,7 +21,7 @@ import {
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { type FactionUpgradeEffectReaderContract } from './faction.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache, invalidatePlayerProfileCaches } from './player-cache.js';
 import { type UniversityEffectReaderContract } from './university.js';
 
 export interface CrimeServiceOptions {
@@ -105,7 +105,7 @@ export class CrimeService implements CrimeServiceContract {
 
   async attemptCrime(playerId: string, crimeId: string): Promise<CrimeAttemptResponse> {
     const result = await this.crimeSystem.attemptCrime(playerId, crimeId);
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     return result;
   }
 
@@ -116,10 +116,9 @@ export class CrimeService implements CrimeServiceContract {
     input: FactionCrimeAttemptInput,
   ): Promise<FactionCrimeAttemptResponse> {
     const result = await this.factionCrimeSystem.attemptCrime(playerId, factionId, crimeId, input);
-    await Promise.all(
-      result.participants.map((participant) =>
-        this.keyValueStore.delete?.(buildPlayerProfileCacheKey(participant.id)),
-      ),
+    await invalidatePlayerProfileCaches(
+      this.keyValueStore,
+      result.participants.map((participant) => participant.id),
     );
     return result;
   }

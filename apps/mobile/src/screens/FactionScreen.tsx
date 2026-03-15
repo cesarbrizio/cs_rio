@@ -27,6 +27,10 @@ import {
   FACTION_SCREEN_TABS,
   type FactionScreenTab,
   formatFactionCurrency,
+  resolveFactionLedgerDisplayedAmount,
+  resolveFactionNpcProgressionCopy,
+  resolveFactionNpcProgressionHeadline,
+  resolveFactionNpcProgressionMetrics,
   resolveFactionCoordinationLabel,
   resolveFactionElectionStatusLabel,
   resolveFactionLedgerEntryLabel,
@@ -34,6 +38,7 @@ import {
   resolveFactionScreenTabLabel,
   sortFactionMembersForDisplay,
   sortFactionsForDisplay,
+  summarizeFactionLedger,
 } from '../features/faction';
 import {
   factionApi,
@@ -107,6 +112,10 @@ export function FactionScreen(): JSX.Element {
     () => realtimeSnapshot.members.map((entry) => entry.playerId),
     [realtimeSnapshot.members],
   );
+  const bankLedgerSummary = useMemo(
+    () => summarizeFactionLedger(bankBook?.ledger ?? []),
+    [bankBook?.ledger],
+  );
   const sortedMembers = useMemo(
     () => sortFactionMembersForDisplay(membersBook?.members ?? [], onlinePlayerIds),
     [membersBook?.members, onlinePlayerIds],
@@ -160,6 +169,12 @@ export function FactionScreen(): JSX.Element {
     try {
       const list = await factionApi.list();
       setFactionList(list);
+      const listCurrentFaction =
+        list.factions.find((entry) => entry.id === list.playerFactionId) ?? null;
+
+      if (listCurrentFaction?.autoPromotionResult) {
+        await refreshPlayerProfile();
+      }
 
       if (!list.playerFactionId) {
         setMembersBook(null);
@@ -194,7 +209,7 @@ export function FactionScreen(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshPlayerProfile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -715,6 +730,40 @@ export function FactionScreen(): JSX.Element {
             <Tag label={currentFaction.isNpcControlled ? 'Líder NPC' : 'Líder humano'} tone="info" />
             <Tag label={currentFaction.isPlayerMember ? 'Seu bonde' : 'Observando'} tone="success" />
           </View>
+          {currentFaction.npcProgression ? (
+            <View style={styles.listCard}>
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.flexCopy}>
+                  <Text style={styles.cardTitle}>
+                    {resolveFactionNpcProgressionHeadline(currentFaction.npcProgression)}
+                  </Text>
+                  <Text style={styles.cardCopy}>
+                    {resolveFactionNpcProgressionCopy(currentFaction.npcProgression)}
+                  </Text>
+                </View>
+                <Tag
+                  label={currentFaction.npcProgression.eligibleNow ? 'Pronta' : 'Em progresso'}
+                  tone={currentFaction.npcProgression.eligibleNow ? 'success' : 'warning'}
+                />
+              </View>
+              {currentFaction.autoPromotionResult ? (
+                <Banner
+                  copy={`Ascensão confirmada: ${resolveFactionRankLabel(currentFaction.autoPromotionResult.previousRank)} -> ${resolveFactionRankLabel(currentFaction.autoPromotionResult.newRank)}.`}
+                  tone="info"
+                />
+              ) : null}
+              <View style={styles.summaryGrid}>
+                {resolveFactionNpcProgressionMetrics(currentFaction.npcProgression).map((metric) => (
+                  <SummaryCard
+                    key={metric.label}
+                    label={metric.label}
+                    tone={colors.info}
+                    value={metric.value}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
           <View style={styles.inlineRow}>
             <ActionButton
               disabled={isMutating}
@@ -933,64 +982,70 @@ export function FactionScreen(): JSX.Element {
   const renderBank = () => (
     <>
       <SectionCard
-        subtitle="Depósitos, saques por cargo e ledger das comissões automáticas que entram dos negócios da facção."
+        subtitle="Depósitos, saques por cargo e entradas automáticas dos negócios. O caixa coletivo agora mostra claramente como entra e sai dinheiro da facção."
         title="Banco da facção"
       >
         {!bankBook ? (
           <EmptyState copy="Seu cargo não pode acessar o banco da facção." />
         ) : (
           <>
-        <View style={styles.summaryGrid}>
-          <SummaryCard label="Saldo" tone={colors.warning} value={formatFactionCurrency(bankBook?.faction.bankMoney ?? 0)} />
-          <SummaryCard label="Depositar" tone={colors.info} value={bankBook?.permissions.canDeposit ? 'Sim' : 'Não'} />
-          <SummaryCard label="Sacar" tone={colors.danger} value={bankBook?.permissions.canWithdraw ? 'Sim' : 'Não'} />
-          <SummaryCard label="Entradas" tone={colors.accent} value={`${bankBook?.ledger.length ?? 0}`} />
-        </View>
-        <View style={styles.formGrid}>
-          <Field label="Depósito">
-            <TextInput
-              keyboardType="numeric"
-              onChangeText={setDepositAmount}
-              placeholder="5000"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={depositAmount}
+            <View style={styles.summaryGrid}>
+              <SummaryCard label="Saldo" tone={colors.warning} value={formatFactionCurrency(bankBook.faction.bankMoney)} />
+              <SummaryCard label="Auto." tone={colors.success} value={formatFactionCurrency(bankLedgerSummary.automaticIncome)} />
+              <SummaryCard label="Depósitos" tone={colors.info} value={formatFactionCurrency(bankLedgerSummary.manualDeposits)} />
+              <SummaryCard label="Saídas" tone={colors.danger} value={formatFactionCurrency(bankLedgerSummary.manualWithdrawals)} />
+              <SummaryCard label="Upgrades" tone={colors.accent} value={formatFactionCurrency(bankLedgerSummary.upgradeSpend)} />
+              <SummaryCard label="Ledger" tone={colors.info} value={`${bankBook.ledger.length}`} />
+            </View>
+            <Banner
+              copy={`Permissões atuais · Depositar: ${bankBook.permissions.canDeposit ? 'sim' : 'não'} · Sacar: ${bankBook.permissions.canWithdraw ? 'sim' : 'não'}.`}
+              tone="info"
             />
-          </Field>
-          <ActionButton
-            disabled={isMutating || !bankBook?.permissions.canDeposit}
-            label="Depositar"
-            onPress={() => {
-              void handleDeposit();
-            }}
-          />
-        </View>
-        <View style={styles.formGrid}>
-          <Field label="Saque">
-            <TextInput
-              keyboardType="numeric"
-              onChangeText={setWithdrawAmount}
-              placeholder="10000"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={withdrawAmount}
-            />
-          </Field>
-          <ActionButton
-            disabled={isMutating || !bankBook?.permissions.canWithdraw}
-            label="Sacar"
-            onPress={() => {
-              void handleWithdraw();
-            }}
-            tone="warning"
-          />
-        </View>
+            <View style={styles.formGrid}>
+              <Field label="Depósito">
+                <TextInput
+                  keyboardType="numeric"
+                  onChangeText={setDepositAmount}
+                  placeholder="5000"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={depositAmount}
+                />
+              </Field>
+              <ActionButton
+                disabled={isMutating || !bankBook?.permissions.canDeposit}
+                label="Depositar"
+                onPress={() => {
+                  void handleDeposit();
+                }}
+              />
+            </View>
+            <View style={styles.formGrid}>
+              <Field label="Saque">
+                <TextInput
+                  keyboardType="numeric"
+                  onChangeText={setWithdrawAmount}
+                  placeholder="10000"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={withdrawAmount}
+                />
+              </Field>
+              <ActionButton
+                disabled={isMutating || !bankBook?.permissions.canWithdraw}
+                label="Sacar"
+                onPress={() => {
+                  void handleWithdraw();
+                }}
+                tone="warning"
+              />
+            </View>
           </>
         )}
       </SectionCard>
 
       <SectionCard
-        subtitle="Histórico financeiro autoritativo da facção. Comissões de boca, rave, puteiro, fachada e maquininha caem aqui automaticamente."
+        subtitle="Histórico financeiro autoritativo da facção. Comissões de boca, rave, puteiro, fachada, maquininha e jogo do bicho caem aqui automaticamente, junto com gastos de upgrade."
         title="Ledger"
       >
         {!bankBook ? (
@@ -1011,7 +1066,7 @@ export function FactionScreen(): JSX.Element {
                     ]}
                   >
                     {entry.entryType === 'withdrawal' ? '-' : '+'}
-                    {formatFactionCurrency(entry.netAmount)}
+                    {formatFactionCurrency(resolveFactionLedgerDisplayedAmount(entry))}
                   </Text>
                 </View>
                 <Text style={styles.cardCopy}>
@@ -1032,11 +1087,12 @@ export function FactionScreen(): JSX.Element {
   const renderUpgrades = () => (
     <>
       <SectionCard
-        subtitle="Centro coletivo com pontos faccionais, efeitos persistentes e desbloqueios de infraestrutura."
+        subtitle="Centro coletivo com desbloqueios persistentes pagos pelo caixa da facção e registrados no ledger."
         title="Centro de upgrades"
       >
         {upgradeBook ? (
           <View style={styles.summaryGrid}>
+            <SummaryCard label="Caixa" tone={colors.warning} value={formatFactionCurrency(upgradeBook.availableBankMoney ?? 0)} />
             <SummaryCard label="Pontos" tone={colors.accent} value={`${upgradeBook.availablePoints ?? 0}`} />
             <SummaryCard label="Bônus attr." tone={colors.success} value={`${Math.round((upgradeBook.effects.attributeBonusMultiplier ?? 0) * 100)}%`} />
             <SummaryCard label="Mulas" tone={colors.info} value={`${upgradeBook.effects.muleDeliveryTier ?? 0}`} />
@@ -1048,7 +1104,7 @@ export function FactionScreen(): JSX.Element {
       </SectionCard>
 
       <SectionCard
-        subtitle="Cada desbloqueio consome pontos do banco coletivo. O backend continua validando custo e pré-requisitos."
+        subtitle="Cada desbloqueio consome dinheiro do caixa coletivo. Pontos continuam existindo como métrica da facção, mas o custo agora sai da tesouraria."
         title="Catálogo coletivo"
       >
         {!upgradeBook ? (
@@ -1061,9 +1117,14 @@ export function FactionScreen(): JSX.Element {
                   <View style={styles.flexCopy}>
                     <Text style={styles.cardTitle}>{upgrade.label}</Text>
                     <Text style={styles.cardCopy}>{upgrade.effectSummary}</Text>
+                    {!upgrade.isUnlocked ? (
+                      <Text style={styles.cardCopy}>
+                        Custo coletivo: {formatFactionCurrency(upgrade.bankMoneyCost)}
+                      </Text>
+                    ) : null}
                   </View>
                   <Tag
-                    label={upgrade.isUnlocked ? 'Ativo' : `${upgrade.pointsCost} pts`}
+                    label={upgrade.isUnlocked ? 'Ativo' : formatFactionCurrency(upgrade.bankMoneyCost)}
                     tone={upgrade.isUnlocked ? 'success' : 'accent'}
                   />
                 </View>

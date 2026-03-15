@@ -41,7 +41,7 @@ import {
 } from './economy-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   resolvePropertyDailyUpkeep,
   roundCurrency,
@@ -778,7 +778,7 @@ export class PuteiroService implements PuteiroServiceContract {
       throw new PuteiroError('not_found', 'Puteiro nao encontrado para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const puteiro = await this.listSinglePuteiro(playerId, propertyId);
 
     return {
@@ -827,7 +827,7 @@ export class PuteiroService implements PuteiroServiceContract {
       throw new PuteiroError('not_found', 'Puteiro nao encontrado para contratacao.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const puteiro = await this.listSinglePuteiro(playerId, propertyId);
     const hiredIds = new Set(hired.hiredWorkers.map((worker) => worker.id));
     const hiredGps = puteiro.roster.filter((worker) => hiredIds.has(worker.id));
@@ -895,7 +895,7 @@ export class PuteiroService implements PuteiroServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {

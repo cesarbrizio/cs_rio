@@ -1,7 +1,12 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
 
+import { resolveCorsOptions } from './config/cors.js';
+import { ActionIdempotency } from './api/action-idempotency.js';
 import { env } from './config/env.js';
+import { installHttpInputHardening, HTTP_BODY_LIMIT_BYTES } from './api/http-hardening.js';
+import { installGlobalHttpErrorHandler } from './api/http-errors.js';
+import { bindRequestContext, refreshRequestContext } from './observability/request-context.js';
 import { createApiRoutes } from './api/routes/index.js';
 import {
   AuthService,
@@ -74,7 +79,9 @@ export interface CreateAppOptions {
 
 export async function createApp(options: CreateAppOptions = {}) {
   const app = Fastify({
+    bodyLimit: HTTP_BODY_LIMIT_BYTES,
     logger: true,
+    requestIdHeader: 'x-request-id',
   });
   const ownsAuthService = !options.authService;
   const ownsBankService = !options.bankService;
@@ -102,6 +109,7 @@ export async function createApp(options: CreateAppOptions = {}) {
   const ownsUniversityService = !options.universityService;
   const ownsPrisonSystem = !options.prisonSystem;
   const keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
+  const actionIdempotency = new ActionIdempotency(keyValueStore);
   const authService =
     options.authService ??
     new AuthService({
@@ -247,8 +255,27 @@ export async function createApp(options: CreateAppOptions = {}) {
     });
 
   await app.register(cors, {
-    origin: true,
+    ...resolveCorsOptions({
+      corsAllowedOrigins: env.corsAllowedOrigins,
+      nodeEnv: env.nodeEnv,
+    }),
   });
+
+  app.decorateRequest('contextLog', undefined);
+  app.decorateRequest('playerId', undefined);
+  app.decorateRequest('requestContext', undefined);
+
+  app.addHook('onRequest', async (request, reply) => {
+    bindRequestContext(request);
+    reply.header('x-request-id', request.id);
+  });
+
+  app.addHook('preHandler', async (request) => {
+    refreshRequestContext(request);
+  });
+
+  installHttpInputHardening(app);
+  installGlobalHttpErrorHandler(app);
 
   app.addHook('onClose', async () => {
     if (ownsAuthService) {
@@ -352,10 +379,11 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
   });
 
-  await app.register(
-    createApiRoutes({
-      authService,
-      bankService,
+    await app.register(
+      createApiRoutes({
+        actionIdempotency,
+        authService,
+        bankService,
       bichoService,
       bocaService,
       crimeService,

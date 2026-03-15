@@ -12,7 +12,7 @@ import { db } from '../db/client.js';
 import { factionMembers, factions, players, prisonRecords } from '../db/schema.js';
 import { insertFactionBankLedgerEntry } from './faction.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { type PrisonSystemContract, getActivePrisonRecord } from '../systems/PrisonSystem.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
 import {
@@ -576,7 +576,7 @@ export class PrisonService implements PrisonServiceContract {
   }
 
   private async invalidatePlayerProfile(playerId: string): Promise<void> {
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
   }
 }
 

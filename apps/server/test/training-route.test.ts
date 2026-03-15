@@ -13,6 +13,7 @@ import {
   type TrainingRepository,
 } from '../src/services/training.js';
 import { buildHospitalizationKey } from '../src/systems/OverdoseSystem.js';
+import type { PrisonSystemContract } from '../src/systems/PrisonSystem.js';
 
 interface InMemoryTrainingSessionRecord {
   carismaGain: number;
@@ -241,6 +242,39 @@ class InMemoryKeyValueStore implements KeyValueStore {
 
   async set(key: string, value: string): Promise<void> {
     this.values.set(key, value);
+  }
+}
+
+class SequencedHospitalizationReader {
+  constructor(private readonly statuses: boolean[]) {}
+
+  async getHospitalizationStatus() {
+    const isHospitalized = this.statuses.shift() ?? false;
+
+    return {
+      endsAt: isHospitalized ? new Date('2026-03-10T15:45:00.000Z').toISOString() : null,
+      isHospitalized,
+      reason: isHospitalized ? 'overdose' : null,
+      remainingSeconds: isHospitalized ? 1800 : 0,
+      startedAt: isHospitalized ? new Date('2026-03-10T15:15:00.000Z').toISOString() : null,
+      trigger: isHospitalized ? 'max_addiction' : null,
+    };
+  }
+}
+
+class StaticPrisonSystem implements PrisonSystemContract {
+  constructor(private readonly imprisoned: boolean) {}
+
+  async getStatus() {
+    return {
+      endsAt: this.imprisoned ? new Date('2026-03-10T15:45:00.000Z').toISOString() : null,
+      heatScore: 0,
+      heatTier: 'frio' as const,
+      isImprisoned: this.imprisoned,
+      reason: this.imprisoned ? 'Teste' : null,
+      remainingSeconds: this.imprisoned ? 1800 : 0,
+      sentencedAt: this.imprisoned ? new Date('2026-03-10T15:00:00.000Z').toISOString() : null,
+    };
   }
 }
 
@@ -477,11 +511,66 @@ describe('training routes', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().message).toContain('hospitalizado');
   });
+
+  it('revalidates hospitalization immediately before starting the training session', async () => {
+    await app.server.close();
+    app = await buildTestApp({
+      now: () => now,
+      overdoseSystem: new SequencedHospitalizationReader([false, true]),
+      state,
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        type: 'basic',
+      },
+      url: '/api/training-center/sessions',
+    });
+
+    const playerId = Array.from(state.players.keys())[0] as string;
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('hospitalizado');
+    expect(state.sessionsByPlayerId.get(playerId) ?? []).toHaveLength(0);
+  });
+
+  it('blocks training when the player is imprisoned even without the HTTP prison middleware', async () => {
+    await app.server.close();
+    app = await buildTestApp({
+      now: () => now,
+      prisonSystem: new StaticPrisonSystem(true),
+      state,
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        type: 'basic',
+      },
+      url: '/api/training-center/sessions',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toContain('preso');
+  });
 });
 
 async function buildTestApp(input: {
   inflationMultiplier?: number;
   now: () => Date;
+  overdoseSystem?: ConstructorParameters<typeof TrainingService>[0]['overdoseSystem'];
+  prisonSystem?: ConstructorParameters<typeof TrainingService>[0]['prisonSystem'];
   state: TestState;
 }) {
   const server = Fastify();
@@ -504,6 +593,8 @@ async function buildTestApp(input: {
         : undefined,
     keyValueStore,
     now: input.now,
+    overdoseSystem: input.overdoseSystem,
+    prisonSystem: input.prisonSystem,
     repository,
   });
 

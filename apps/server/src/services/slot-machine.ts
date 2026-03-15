@@ -48,7 +48,7 @@ import {
 } from './economy-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
   resolvePropertyDailyUpkeep,
   roundCurrency,
@@ -789,7 +789,7 @@ export class SlotMachineService implements SlotMachineServiceContract {
       throw new SlotMachineError('not_found', 'Maquininha nao encontrada para coleta.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const slotMachine = await this.listSingleSlotMachine(playerId, propertyId);
 
     return {
@@ -820,7 +820,7 @@ export class SlotMachineService implements SlotMachineServiceContract {
       throw new SlotMachineError('not_found', 'Maquininha nao encontrada para configuracao.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     return {
       slotMachine: await this.listSingleSlotMachine(playerId, propertyId),
     };
@@ -868,7 +868,7 @@ export class SlotMachineService implements SlotMachineServiceContract {
       throw new SlotMachineError('not_found', 'Maquininha nao encontrada para instalacao.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const slotMachine = await this.listSingleSlotMachine(playerId, propertyId);
 
     return {
@@ -936,7 +936,7 @@ export class SlotMachineService implements SlotMachineServiceContract {
     }
 
     if (changed) {
-      await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+      await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     }
 
     return {

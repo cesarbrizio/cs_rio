@@ -53,6 +53,20 @@ type BetRecord = {
 interface TestState {
   bets: Map<string, BetRecord>;
   draws: Map<string, DrawRecord>;
+  factionLedgerByFactionId: Map<string, Array<{
+    balanceAfter: number;
+    commissionAmount: number;
+    createdAt: Date;
+    description: string;
+    entryType: 'business_commission';
+    grossAmount: number;
+    id: string;
+    netAmount: number;
+    originType: 'bicho';
+    playerId: string | null;
+    propertyId: string | null;
+  }>>;
+  factions: Map<string, { bankMoney: number; id: string; points: number }>;
   players: Map<string, AuthPlayerRecord>;
 }
 
@@ -170,6 +184,7 @@ class InMemoryAuthBichoRepository implements AuthRepository, BichoRepository {
 
     return {
       characterCreatedAt: player.characterCreatedAt,
+      factionId: player.factionId,
       id: player.id,
       money: Number.parseFloat(player.money),
     };
@@ -253,10 +268,37 @@ class InMemoryAuthBichoRepository implements AuthRepository, BichoRepository {
 
     player.money = String(roundMoney(Number.parseFloat(player.money) - input.amount));
     draw.totalBetAmount = roundMoney(draw.totalBetAmount + input.amount);
+
+    if (player.factionId) {
+      const faction = this.state.factions.get(player.factionId);
+
+      if (faction) {
+        const commissionAmount = roundMoney(input.amount * 0.07);
+        faction.bankMoney = roundMoney(faction.bankMoney + commissionAmount);
+        faction.points += Math.max(1, Math.round(commissionAmount));
+        const ledgerEntries = this.state.factionLedgerByFactionId.get(faction.id) ?? [];
+        ledgerEntries.push({
+          balanceAfter: faction.bankMoney,
+          commissionAmount,
+          createdAt: input.placedAt,
+          description: 'Comissão automática recebida de aposta no jogo do bicho de membro.',
+          entryType: 'business_commission',
+          grossAmount: input.amount,
+          id: randomUUID(),
+          netAmount: roundMoney(input.amount - commissionAmount),
+          originType: 'bicho',
+          playerId,
+          propertyId: null,
+        });
+        this.state.factionLedgerByFactionId.set(faction.id, ledgerEntries);
+      }
+    }
+
     this.state.bets.set(bet.id, bet);
 
     return {
       betId: bet.id,
+      factionCommissionAmount: player.factionId ? roundMoney(input.amount * 0.07) : 0,
       playerMoneyAfterBet: Number.parseFloat(player.money),
     };
   }
@@ -492,6 +534,53 @@ describe('bicho routes', () => {
     expect(expensiveBet.statusCode).toBe(409);
     expect(expensiveBet.json().message).toContain('Dinheiro em maos insuficiente');
   });
+
+  it('repasse automático do bicho cai no caixa da facção e entra no ledger', async () => {
+    const player = await registerPlayer(app.server);
+    state.factions.set('faction-bicho', {
+      bankMoney: 0,
+      id: 'faction-bicho',
+      points: 0,
+    });
+    const playerRecord = state.players.get(player.playerId);
+
+    if (!playerRecord) {
+      throw new Error('Jogador do bicho não encontrado no estado de teste.');
+    }
+
+    playerRecord.factionId = 'faction-bicho';
+
+    const placeBet = await app.server.inject({
+      headers: { authorization: `Bearer ${player.accessToken}` },
+      method: 'POST',
+      payload: {
+        amount: 1000,
+        animalNumber: 7,
+        mode: 'cabeca',
+      } satisfies BichoPlaceBetInput,
+      url: '/api/jogo-do-bicho/bets',
+    });
+
+    expect(placeBet.statusCode).toBe(201);
+    expect(placeBet.json().factionCommission).toMatchObject({
+      active: true,
+      amount: 70,
+      ratePercent: 7,
+    });
+    expect(state.factions.get('faction-bicho')?.bankMoney).toBe(70);
+    expect(state.factions.get('faction-bicho')?.points).toBe(70);
+    expect(state.factionLedgerByFactionId.get('faction-bicho')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          commissionAmount: 70,
+          entryType: 'business_commission',
+          grossAmount: 1000,
+          originType: 'bicho',
+          playerId: player.playerId,
+        }),
+      ]),
+    );
+  });
 });
 
 async function buildTestApp(input: {
@@ -540,6 +629,8 @@ function buildState(): TestState {
   return {
     bets: new Map(),
     draws: new Map(),
+    factionLedgerByFactionId: new Map(),
+    factions: new Map(),
     players: new Map(),
   };
 }

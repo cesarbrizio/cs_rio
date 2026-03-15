@@ -13,22 +13,27 @@ import {
   type BichoPlaceBetInput,
   type BichoPlaceBetResponse,
 } from '@cs-rio/shared';
-import { and, asc, desc, eq, isNotNull, isNull, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import {
   bichoBets,
   bichoDraws,
+  factions,
   players,
   transactions,
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction/repository.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { roundCurrency } from './property.js';
+
+const BICHO_FACTION_COMMISSION_RATE = 0.07;
 
 interface BichoPlayerRecord {
   characterCreatedAt: Date | null;
+  factionId: string | null;
   id: string;
   money: number;
 }
@@ -65,6 +70,7 @@ interface BichoBetHistoryRecord extends BichoBetRecord {
 
 interface BichoPlaceBetRecord {
   betId: string;
+  factionCommissionAmount: number;
   playerMoneyAfterBet: number;
 }
 
@@ -210,6 +216,7 @@ export class DatabaseBichoRepository implements BichoRepository {
     const [player] = await db
       .select({
         characterCreatedAt: players.characterCreatedAt,
+        factionId: players.factionId,
         id: players.id,
         money: players.money,
       })
@@ -223,6 +230,7 @@ export class DatabaseBichoRepository implements BichoRepository {
 
     return {
       characterCreatedAt: player.characterCreatedAt,
+      factionId: player.factionId,
       id: player.id,
       money: roundCurrency(Number.parseFloat(String(player.money))),
     };
@@ -335,6 +343,7 @@ export class DatabaseBichoRepository implements BichoRepository {
     return db.transaction(async (tx) => {
       const [player] = await tx
         .select({
+          factionId: players.factionId,
           money: players.money,
         })
         .from(players)
@@ -354,6 +363,8 @@ export class DatabaseBichoRepository implements BichoRepository {
       }
 
       const playerMoneyAfterBet = roundCurrency(Number.parseFloat(String(player.money)) - input.amount);
+      const factionCommissionAmount =
+        player.factionId === null ? 0 : roundCurrency(input.amount * BICHO_FACTION_COMMISSION_RATE);
 
       await tx
         .update(players)
@@ -395,9 +406,48 @@ export class DatabaseBichoRepository implements BichoRepository {
         type: 'bicho_bet',
       });
 
+      if (factionCommissionAmount > 0 && player.factionId) {
+        const [faction] = await tx
+          .select({
+            bankMoney: factions.bankMoney,
+          })
+          .from(factions)
+          .where(eq(factions.id, player.factionId))
+          .limit(1);
+
+        if (faction) {
+          const nextBankMoney = roundCurrency(
+            Number.parseFloat(String(faction.bankMoney)) + factionCommissionAmount,
+          );
+          const pointsDelta = calculateFactionPointsDelta(factionCommissionAmount);
+
+          await tx
+            .update(factions)
+            .set({
+              bankMoney: nextBankMoney.toFixed(2),
+              points: sql`${factions.points} + ${pointsDelta}`,
+            })
+            .where(eq(factions.id, player.factionId));
+
+          await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
+            balanceAfter: nextBankMoney,
+            commissionAmount: factionCommissionAmount,
+            createdAt: input.placedAt,
+            description: 'Comissão automática recebida de aposta no jogo do bicho de membro.',
+            entryType: 'business_commission',
+            factionId: player.factionId,
+            grossAmount: input.amount,
+            netAmount: roundCurrency(input.amount - factionCommissionAmount),
+            originType: 'bicho',
+            playerId,
+          });
+        }
+      }
+
       return bet
         ? {
             betId: bet.id,
+            factionCommissionAmount,
             playerMoneyAfterBet,
           }
         : null;
@@ -524,7 +574,7 @@ export class BichoService implements BichoServiceContract {
   }
 
   async listState(playerId: string): Promise<BichoListResponse> {
-    await this.requireReadyPlayer(playerId);
+    const player = await this.requireReadyPlayer(playerId);
     const currentDraw = await this.ensureCurrentDraw();
     const bets = await this.repository.listPlayerBets(playerId, 12);
     const recentDraws = await this.repository.listRecentDraws(6);
@@ -536,6 +586,7 @@ export class BichoService implements BichoServiceContract {
       })),
       bets: bets.map(serializeBetSummary),
       currentDraw: serializeCurrentDraw(currentDraw),
+      factionCommission: serializeFactionCommission(player.factionId !== null, 0),
       recentDraws: recentDraws.map(serializeHistoryDraw),
     };
   }
@@ -563,7 +614,7 @@ export class BichoService implements BichoServiceContract {
       throw new BichoError('not_found', 'Sorteio atual do jogo do bicho nao encontrado.');
     }
 
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const bets = await this.repository.listPlayerBets(playerId, 1);
     const latestBet = bets[0];
 
@@ -574,6 +625,10 @@ export class BichoService implements BichoServiceContract {
     return {
       bet: serializeBetSummary(latestBet),
       currentDraw: serializeCurrentDraw(currentDraw),
+      factionCommission: serializeFactionCommission(
+        player.factionId !== null,
+        created.factionCommissionAmount,
+      ),
       playerMoneyAfterBet: created.playerMoneyAfterBet,
     };
   }
@@ -645,7 +700,7 @@ export class BichoService implements BichoServiceContract {
       }
 
       for (const playerId of result.affectedPlayerIds) {
-        await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+        await invalidatePlayerProfileCache(this.keyValueStore, playerId);
       }
     }
   }
@@ -783,6 +838,14 @@ function serializeHistoryDraw(draw: BichoDrawRecord): BichoHistoryDrawSummary {
     totalPayoutAmount: draw.totalPayoutAmount,
     winningAnimalNumber: draw.winningAnimalNumber,
     winningDozen: draw.winningDozen,
+  };
+}
+
+function serializeFactionCommission(active: boolean, amount: number) {
+  return {
+    active,
+    amount: roundCurrency(amount),
+    ratePercent: Math.round(BICHO_FACTION_COMMISSION_RATE * 100),
   };
 }
 

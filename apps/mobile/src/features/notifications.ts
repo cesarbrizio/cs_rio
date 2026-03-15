@@ -1,7 +1,15 @@
-import { type AssassinationContractNotification, type PlayerProfile } from '@cs-rio/shared';
+import {
+  type AssassinationContractNotification,
+  type PlayerProfile,
+  type TrainingSessionSummary,
+  type UniversityCourseSummary,
+} from '@cs-rio/shared';
 
 import { type EventNotificationItem } from './events';
 import { resolveContractNotificationLabel } from './contracts';
+import { type AsyncActivityCue } from './activity-results';
+import { type FactionPromotionCue } from './faction-promotion';
+import { type WarResultCue } from './war-results';
 
 export type NotificationPermissionState = 'denied' | 'granted' | 'undetermined';
 
@@ -32,17 +40,54 @@ export function buildEventNotificationDraft(
   };
 }
 
+export function buildWarResultNotificationDraft(
+  cue: Pick<WarResultCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildAsyncActivityNotificationDraft(
+  cue: Pick<AsyncActivityCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildFactionPromotionNotificationDraft(
+  cue: Pick<FactionPromotionCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
 export function buildTimerNotificationDrafts(
-  player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined,
+  input: {
+    player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined;
+    trainingSession?: Pick<
+      TrainingSessionSummary,
+      'endsAt' | 'id' | 'readyToClaim' | 'type'
+    > | null;
+    universityCourse?: Pick<
+      UniversityCourseSummary,
+      'code' | 'endsAt' | 'isInProgress' | 'label'
+    > | null;
+  },
   nowMs = Date.now(),
 ): LocalNotificationDraft[] {
-  if (!player) {
-    return [];
-  }
-
   const drafts: LocalNotificationDraft[] = [];
+  const player = input.player;
 
-  if (player.prison?.isImprisoned && player.prison.endsAt) {
+  if (player?.prison?.isImprisoned && player.prison.endsAt) {
     const remainingSeconds = Math.ceil((new Date(player.prison.endsAt).getTime() - nowMs) / 1000);
 
     if (remainingSeconds > 1) {
@@ -55,7 +100,7 @@ export function buildTimerNotificationDrafts(
     }
   }
 
-  if (player.hospitalization?.isHospitalized && player.hospitalization.endsAt) {
+  if (player?.hospitalization?.isHospitalized && player.hospitalization.endsAt) {
     const remainingSeconds = Math.ceil(
       (new Date(player.hospitalization.endsAt).getTime() - nowMs) / 1000,
     );
@@ -66,6 +111,36 @@ export function buildTimerNotificationDrafts(
         key: `timer:hospital:${player.hospitalization.endsAt}`,
         secondsUntilTrigger: remainingSeconds,
         title: 'Hospital: alta liberada',
+      });
+    }
+  }
+
+  if (input.trainingSession && !input.trainingSession.readyToClaim) {
+    const remainingSeconds = Math.ceil(
+      (new Date(input.trainingSession.endsAt).getTime() - nowMs) / 1000,
+    );
+
+    if (remainingSeconds > 1) {
+      drafts.push({
+        body: `Seu treino ${resolveTrainingTypeLabel(input.trainingSession.type)} terminou. Volte ao Centro de Treino para resgatar os ganhos.`,
+        key: `timer:training:${input.trainingSession.id}:${input.trainingSession.endsAt}`,
+        secondsUntilTrigger: remainingSeconds,
+        title: 'Treino: pronto para resgatar',
+      });
+    }
+  }
+
+  if (input.universityCourse?.isInProgress && input.universityCourse.endsAt) {
+    const remainingSeconds = Math.ceil(
+      (new Date(input.universityCourse.endsAt).getTime() - nowMs) / 1000,
+    );
+
+    if (remainingSeconds > 1) {
+      drafts.push({
+        body: `${input.universityCourse.label} terminou. Volte ao jogo para revisar o passivo liberado.`,
+        key: `timer:university:${input.universityCourse.code}:${input.universityCourse.endsAt}`,
+        secondsUntilTrigger: remainingSeconds,
+        title: 'Universidade: curso concluído',
       });
     }
   }
@@ -85,4 +160,16 @@ export function formatNotificationPermissionStatus(
     default:
       return 'Não definidas';
   }
+}
+
+function resolveTrainingTypeLabel(type: TrainingSessionSummary['type']): string {
+  if (type === 'basic') {
+    return 'básico';
+  }
+
+  if (type === 'advanced') {
+    return 'avançado';
+  }
+
+  return 'intensivo';
 }

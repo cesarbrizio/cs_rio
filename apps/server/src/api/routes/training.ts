@@ -1,8 +1,13 @@
 import { type TrainingStartInput } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { AuthError } from '../../services/auth.js';
-import { TrainingError, type TrainingServiceContract } from '../../services/training.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  trainingStartBodySchema,
+} from '../schemas.js';
+import { type TrainingServiceContract } from '../../services/training.js';
 
 interface TrainingRouteDependencies {
   trainingService: TrainingServiceContract;
@@ -12,7 +17,16 @@ export function createTrainingRoutes({
   trainingService,
 }: TrainingRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/training-center', async (request, reply) => {
+    const sessionIdParamsSchema = buildIdParamsSchema('sessionId');
+
+    fastify.get(
+      '/training-center',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -25,9 +39,18 @@ export function createTrainingRoutes({
       } catch (error) {
         return sendTrainingError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.post<{ Body: TrainingStartInput }>('/training-center/sessions', async (request, reply) => {
+    fastify.post<{ Body: TrainingStartInput }>(
+      '/training-center/sessions',
+      {
+        schema: {
+          body: trainingStartBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -40,10 +63,17 @@ export function createTrainingRoutes({
       } catch (error) {
         return sendTrainingError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Params: { sessionId: string } }>(
       '/training-center/sessions/:sessionId/claim',
+      {
+        schema: {
+          params: sessionIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -62,36 +92,6 @@ export function createTrainingRoutes({
   };
 }
 
-function sendTrainingError(reply: FastifyReply, error: unknown) {
-  if (error instanceof AuthError) {
-    return reply.code(401).send({
-      message: error.message,
-    });
-  }
-
-  if (error instanceof TrainingError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'not_found'
-          ? 404
-          : error.code === 'character_not_ready'
-            ? 409
-            : error.code === 'insufficient_resources' ||
-                error.code === 'training_in_progress' ||
-                error.code === 'training_locked' ||
-                error.code === 'training_ready_to_claim' ||
-                error.code === 'too_early_claim' ||
-                error.code === 'action_locked'
-              ? 409
-              : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada no centro de treino.',
-  });
+function sendTrainingError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada no centro de treino.');
 }

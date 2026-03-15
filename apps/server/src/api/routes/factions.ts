@@ -3,28 +3,56 @@ import {
   type FactionBankWithdrawInput,
   type FactionCreateInput,
   type FactionLeadershipVoteInput,
+  type FactionRobberyPolicyUpdateInput,
   type FactionUpgradeType,
   type FactionRecruitInput,
   type FactionUpdateInput,
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { FactionError, type FactionServiceContract } from '../../services/faction.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  factionBankMovementBodySchema,
+  factionCreateBodySchema,
+  factionLeadershipVoteBodySchema,
+  factionRecruitBodySchema,
+  factionRobberyPolicyUpdateBodySchema,
+  factionUpdateBodySchema,
+  factionUpgradeTypeSchema,
+  idSchema,
+} from '../schemas.js';
+import { type FactionServiceContract } from '../../services/faction.js';
 
 interface FactionRouteDependencies {
   factionService: FactionServiceContract;
-}
-
-interface FactionRobberyPolicyUpdateInput {
-  global?: 'allowed' | 'forbidden';
-  regions?: Partial<Record<'zona_sul' | 'zona_norte' | 'centro' | 'zona_oeste' | 'zona_sudoeste' | 'baixada', 'allowed' | 'forbidden'>>;
 }
 
 export function createFactionRoutes({
   factionService,
 }: FactionRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/factions', async (request, reply) => {
+    const factionIdParamsSchema = buildIdParamsSchema('factionId');
+    const factionMemberParamsSchema = buildIdParamsSchema('factionId', 'memberPlayerId');
+    const factionUpgradeParamsSchema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['factionId', 'upgradeType'],
+      properties: {
+        factionId: idSchema,
+        upgradeType: factionUpgradeTypeSchema,
+      },
+    };
+
+    fastify.get(
+      '/factions',
+      {
+        schema: {
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -37,9 +65,18 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.get<{ Params: { factionId: string } }>('/factions/:factionId/members', async (request, reply) => {
+    fastify.get<{ Params: { factionId: string } }>(
+      '/factions/:factionId/members',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -52,9 +89,18 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.get<{ Params: { factionId: string } }>('/factions/:factionId/bank', async (request, reply) => {
+    fastify.get<{ Params: { factionId: string } }>(
+      '/factions/:factionId/bank',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -67,9 +113,18 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
-    fastify.get<{ Params: { factionId: string } }>('/factions/:factionId/upgrades', async (request, reply) => {
+    fastify.get<{ Params: { factionId: string } }>(
+      '/factions/:factionId/upgrades',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -82,10 +137,17 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.get<{ Params: { factionId: string } }>(
       '/factions/:factionId/robbery-policy',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -104,6 +166,12 @@ export function createFactionRoutes({
 
     fastify.get<{ Params: { factionId: string } }>(
       '/factions/:factionId/leadership',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -123,7 +191,15 @@ export function createFactionRoutes({
       },
     );
 
-    fastify.post<{ Body: FactionCreateInput }>('/factions', async (request, reply) => {
+    fastify.post<{ Body: FactionCreateInput }>(
+      '/factions',
+      {
+        schema: {
+          body: factionCreateBodySchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -136,10 +212,18 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Body: FactionRecruitInput; Params: { factionId: string } }>(
       '/factions/:factionId/members',
+      {
+        schema: {
+          body: factionRecruitBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(201),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -162,6 +246,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string } }>(
       '/factions/:factionId/join',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -180,6 +270,13 @@ export function createFactionRoutes({
 
     fastify.post<{ Body: FactionBankDepositInput; Params: { factionId: string } }>(
       '/factions/:factionId/bank/deposit',
+      {
+        schema: {
+          body: factionBankMovementBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -202,6 +299,13 @@ export function createFactionRoutes({
 
     fastify.post<{ Body: FactionBankWithdrawInput; Params: { factionId: string } }>(
       '/factions/:factionId/bank/withdraw',
+      {
+        schema: {
+          body: factionBankMovementBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -224,6 +328,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string } }>(
       '/factions/:factionId/leadership/election/support',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -245,6 +355,13 @@ export function createFactionRoutes({
 
     fastify.post<{ Body: FactionLeadershipVoteInput; Params: { factionId: string } }>(
       '/factions/:factionId/leadership/election/vote',
+      {
+        schema: {
+          body: factionLeadershipVoteBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -267,6 +384,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string } }>(
       '/factions/:factionId/leadership/challenge',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -288,6 +411,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string; upgradeType: FactionUpgradeType } }>(
       '/factions/:factionId/upgrades/:upgradeType/unlock',
+      {
+        schema: {
+          params: factionUpgradeParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -310,6 +439,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string; memberPlayerId: string } }>(
       '/factions/:factionId/members/:memberPlayerId/promote',
+      {
+        schema: {
+          params: factionMemberParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -332,6 +467,12 @@ export function createFactionRoutes({
 
     fastify.post<{ Params: { factionId: string; memberPlayerId: string } }>(
       '/factions/:factionId/members/:memberPlayerId/demote',
+      {
+        schema: {
+          params: factionMemberParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -354,6 +495,13 @@ export function createFactionRoutes({
 
     fastify.patch<{ Body: FactionUpdateInput; Params: { factionId: string } }>(
       '/factions/:factionId',
+      {
+        schema: {
+          body: factionUpdateBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -376,6 +524,13 @@ export function createFactionRoutes({
 
     fastify.patch<{ Body: FactionRobberyPolicyUpdateInput; Params: { factionId: string } }>(
       '/factions/:factionId/robbery-policy',
+      {
+        schema: {
+          body: factionRobberyPolicyUpdateBodySchema,
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -396,7 +551,15 @@ export function createFactionRoutes({
       },
     );
 
-    fastify.post<{ Params: { factionId: string } }>('/factions/:factionId/leave', async (request, reply) => {
+    fastify.post<{ Params: { factionId: string } }>(
+      '/factions/:factionId/leave',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -409,10 +572,17 @@ export function createFactionRoutes({
       } catch (error) {
         return sendFactionError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.delete<{ Params: { factionId: string; memberPlayerId: string } }>(
       '/factions/:factionId/members/:memberPlayerId',
+      {
+        schema: {
+          params: factionMemberParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -435,6 +605,12 @@ export function createFactionRoutes({
 
     fastify.delete<{ Params: { factionId: string } }>(
       '/factions/:factionId',
+      {
+        schema: {
+          params: factionIdParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -453,29 +629,6 @@ export function createFactionRoutes({
   };
 }
 
-function sendFactionError(reply: FastifyReply, error: unknown) {
-  if (error instanceof FactionError) {
-    const statusCode =
-      error.code === 'validation'
-        ? 400
-        : error.code === 'unauthorized'
-          ? 401
-          : error.code === 'forbidden'
-            ? 403
-            : error.code === 'not_found'
-              ? 404
-              : error.code === 'character_not_ready' ||
-                  error.code === 'conflict' ||
-                  error.code === 'insufficient_funds'
-                ? 409
-                : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada na gestao de faccoes.',
-  });
+function sendFactionError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada na gestao de faccoes.');
 }

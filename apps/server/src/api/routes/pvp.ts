@@ -1,6 +1,13 @@
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
-import { PvpError, type PvpServiceContract } from '../../services/pvp.js';
+import { throwRouteHttpError } from '../http-errors.js';
+import {
+  buildIdParamsSchema,
+  buildStandardResponseSchema,
+  pvpAmbushBodySchema,
+  pvpContractCreateBodySchema,
+} from '../schemas.js';
+import { type PvpServiceContract } from '../../services/pvp.js';
 
 interface PvpRouteDependencies {
   pvpService: PvpServiceContract;
@@ -8,7 +15,17 @@ interface PvpRouteDependencies {
 
 export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.get('/pvp/contracts', async (request, reply) => {
+    const contractIdParamsSchema = buildIdParamsSchema('contractId');
+    const targetPlayerIdParamsSchema = buildIdParamsSchema('targetPlayerId');
+
+    fastify.get(
+      '/pvp/contracts',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -21,14 +38,23 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
       } catch (error) {
         return sendPvpError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{
       Body: {
         reward: number;
         targetPlayerId: string;
       };
-    }>('/pvp/contracts', async (request, reply) => {
+    }>(
+      '/pvp/contracts',
+      {
+        schema: {
+          body: pvpContractCreateBodySchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
       if (!request.playerId) {
         return reply.code(401).send({
           message: 'Token ausente.',
@@ -45,10 +71,17 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
       } catch (error) {
         return sendPvpError(reply, error);
       }
-    });
+      },
+    );
 
     fastify.post<{ Params: { contractId: string } }>(
       '/pvp/contracts/:contractId/accept',
+      {
+        schema: {
+          params: contractIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -70,6 +103,12 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
 
     fastify.post<{ Params: { contractId: string } }>(
       '/pvp/contracts/:contractId/execute',
+      {
+        schema: {
+          params: contractIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -91,6 +130,12 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
 
     fastify.post<{ Params: { targetPlayerId: string } }>(
       '/pvp/assault/:targetPlayerId',
+      {
+        schema: {
+          params: targetPlayerIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -114,6 +159,13 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
       Params: { targetPlayerId: string };
     }>(
       '/pvp/ambush/:targetPlayerId',
+      {
+        schema: {
+          body: pvpAmbushBodySchema,
+          params: targetPlayerIdParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
       async (request, reply) => {
         if (!request.playerId) {
           return reply.code(401).send({
@@ -136,28 +188,6 @@ export function createPvpRoutes({ pvpService }: PvpRouteDependencies): FastifyPl
   };
 }
 
-function sendPvpError(reply: FastifyReply, error: unknown) {
-  if (error instanceof PvpError) {
-    const statusCode =
-      error.code === 'not_found'
-        ? 404
-        : error.code === 'forbidden'
-          ? 403
-          : error.code === 'validation'
-            ? 400
-            : error.code === 'cooldown_active' ||
-                error.code === 'character_not_ready' ||
-                error.code === 'conflict' ||
-                error.code === 'insufficient_resources'
-              ? 409
-              : 409;
-
-    return reply.code(statusCode).send({
-      message: error.message,
-    });
-  }
-
-  return reply.code(500).send({
-    message: 'Falha inesperada ao processar combate PvP.',
-  });
+function sendPvpError(_reply: FastifyReply, error: unknown): never {
+  throwRouteHttpError(error, 'Falha inesperada ao processar combate PvP.');
 }

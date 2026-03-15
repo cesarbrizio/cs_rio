@@ -1,5 +1,7 @@
 import { type FastifyPluginAsync } from 'fastify';
 
+import { type ActionIdempotency } from '../action-idempotency.js';
+import { createHttpRateLimitHook } from '../http-hardening.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createPrisonActionLockMiddleware } from '../middleware/prison.js';
 import { type AuthService } from '../../services/auth.js';
@@ -56,6 +58,7 @@ import { createUniversityRoutes } from './university.js';
 import { type PrisonSystemContract } from '../../systems/PrisonSystem.js';
 
 interface ApiRouteDependencies {
+  actionIdempotency: ActionIdempotency;
   authService: AuthService;
   bankService: BankServiceContract;
   bichoService: BichoServiceContract;
@@ -85,6 +88,7 @@ interface ApiRouteDependencies {
 }
 
 export function createApiRoutes({
+  actionIdempotency,
   authService,
   bankService,
   bichoService,
@@ -122,21 +126,22 @@ export function createApiRoutes({
     await fastify.register(createAuthRoutes({ authService }));
     await fastify.register(async (protectedRoutes) => {
       protectedRoutes.addHook('preHandler', createAuthMiddleware(authService));
+      protectedRoutes.addHook('preHandler', createHttpRateLimitHook());
       protectedRoutes.addHook('preHandler', createPrisonActionLockMiddleware(prisonSystem));
       await protectedRoutes.register(createBankRoutes({ bankService }));
       await protectedRoutes.register(createBichoRoutes({ bichoService }));
       await protectedRoutes.register(createBocaRoutes({ bocaService }));
-      await protectedRoutes.register(createCrimeRoutes({ crimeService }));
+      await protectedRoutes.register(createCrimeRoutes({ actionIdempotency, crimeService }));
       await protectedRoutes.register(createDrugSaleRoutes({ drugSaleService }));
       await protectedRoutes.register(createEventRoutes({ gameEventService }));
       await protectedRoutes.register(createFactionRoutes({ factionService }));
       await protectedRoutes.register(createFactoryRoutes({ factoryService }));
       await protectedRoutes.register(createFrontStoreRoutes({ frontStoreService }));
-      await protectedRoutes.register(createHospitalRoutes({ hospitalService }));
+      await protectedRoutes.register(createHospitalRoutes({ actionIdempotency, hospitalService }));
       await protectedRoutes.register(createInventoryRoutes({ playerService }));
-      await protectedRoutes.register(createMarketRoutes({ marketService }));
+      await protectedRoutes.register(createMarketRoutes({ actionIdempotency, marketService }));
       await protectedRoutes.register(createPlayerRoutes({ playerService }));
-      await protectedRoutes.register(createPrisonRoutes({ prisonService }));
+      await protectedRoutes.register(createPrisonRoutes({ actionIdempotency, prisonService }));
       await protectedRoutes.register(createPvpRoutes({ pvpService }));
       await protectedRoutes.register(createPuteiroRoutes({ puteiroService }));
       await protectedRoutes.register(createPropertyRoutes({ propertyService }));
@@ -144,7 +149,7 @@ export function createApiRoutes({
       await protectedRoutes.register(createRoundRoutes({ roundService }));
       await protectedRoutes.register(createRaveRoutes({ raveService }));
       await protectedRoutes.register(createSlotMachineRoutes({ slotMachineService }));
-      await protectedRoutes.register(createTerritoryRoutes({ territoryService }));
+      await protectedRoutes.register(createTerritoryRoutes({ actionIdempotency, territoryService }));
       await protectedRoutes.register(createTribunalRoutes({ tribunalService }));
       await protectedRoutes.register(createTrainingRoutes({ trainingService }));
       await protectedRoutes.register(createUniversityRoutes({ universityService }));

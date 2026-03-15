@@ -4,6 +4,7 @@ import {
 } from '@cs-rio/shared';
 import { type AuthContext, type Client, Room } from 'colyseus';
 
+import { type InfrastructureLogger } from '../observability/logger.js';
 import { AuthError, type AuthService } from '../services/auth.js';
 import { type PlayerService } from '../services/player.js';
 import { resolveRealtimeAccessToken } from './auth.js';
@@ -27,7 +28,8 @@ export interface GameRoomAuth {
 
 export interface GameRoomDependencies {
   authService: Pick<AuthService, 'verifyAccessToken'>;
-  playerService: Pick<PlayerService, 'getPlayerProfile'>;
+  logger?: Pick<InfrastructureLogger, 'error'>;
+  playerService: Pick<PlayerService, 'getFreshPlayerProfile'>;
 }
 
 export interface GameRoomOptions {
@@ -70,7 +72,7 @@ export function createGameRoom(dependencies: GameRoomDependencies) {
       }
 
       const identity = dependencies.authService.verifyAccessToken(token);
-      const profile = await dependencies.playerService.getPlayerProfile(identity.playerId);
+      const profile = await dependencies.playerService.getFreshPlayerProfile(identity.playerId);
 
       if (!profile.hasCharacter) {
         throw new AuthError('unauthorized', 'Personagem ainda nao foi criado para esta conta.');
@@ -116,6 +118,19 @@ export function createGameRoom(dependencies: GameRoomDependencies) {
 
     public override onLeave(client: Client): void {
       this.state.players.delete(client.sessionId);
+    }
+
+    public override onUncaughtException(error: Error, methodName: string): void {
+      dependencies.logger?.error(
+        {
+          err: error,
+          methodName,
+          regionId: this.state?.regionId,
+          roomId: this.roomId,
+          roomName: this.roomName,
+        },
+        'Realtime game room uncaught exception.',
+      );
     }
   };
 }

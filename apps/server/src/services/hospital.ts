@@ -1,5 +1,7 @@
 import {
   DEFAULT_CHARACTER_APPEARANCE,
+  isValidAuthNickname,
+  normalizeAuthNickname,
   type CharacterAppearance,
   type HospitalActionResponse,
   type HospitalCenterResponse,
@@ -17,12 +19,13 @@ import { drugs, playerHospitalStatPurchases, players } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { resolveHospitalCycleKey } from './hospital-cycle.js';
 import {
+  buildNpcInflationSummary,
   DatabaseNpcInflationReader,
   inflateNpcMoney,
   type NpcInflationProfile,
   type NpcInflationReaderContract,
 } from './npc-inflation.js';
-import { buildPlayerProfileCacheKey } from './player.js';
+import { invalidatePlayerProfileCache } from './player-cache.js';
 import { DrugToleranceSystem } from '../systems/DrugToleranceSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 
@@ -215,6 +218,7 @@ export class HospitalService implements HospitalServiceContract {
     return {
       currentCycleKey: cycleKey,
       hospitalization,
+      npcInflation: buildNpcInflationSummary(inflationProfile),
       player: {
         addiction: syncedPlayer.addiction,
         appearance: syncedPlayer.appearanceJson ?? DEFAULT_CHARACTER_APPEARANCE,
@@ -300,13 +304,15 @@ export class HospitalService implements HospitalServiceContract {
       throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para tratamento.');
     }
 
-    await db
-      .update(players)
-      .set({
-        hp: 100,
-        money: sql`${players.money} - ${treatmentCost}`,
-      })
-      .where(eq(players.id, playerId));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(players)
+        .set({
+          hp: 100,
+          money: sql`${players.money} - ${treatmentCost}`,
+        })
+        .where(eq(players.id, playerId));
+    });
 
     return this.buildActionResponse(playerId, {
       action: 'treatment',
@@ -329,13 +335,15 @@ export class HospitalService implements HospitalServiceContract {
       throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para desintoxicação.');
     }
 
-    await db
-      .update(players)
-      .set({
-        addiction: 0,
-        money: sql`${players.money} - ${detoxCost}`,
-      })
-      .where(eq(players.id, playerId));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(players)
+        .set({
+          addiction: 0,
+          money: sql`${players.money} - ${detoxCost}`,
+        })
+        .where(eq(players.id, playerId));
+    });
 
     await Promise.all([
       ...drugIds.map((drugId) => this.drugToleranceSystem.clear(playerId, drugId)),
@@ -363,26 +371,28 @@ export class HospitalService implements HospitalServiceContract {
       throw new HospitalError('insufficient_resources', 'Créditos insuficientes para a cirurgia.');
     }
 
-    const [owner] = await db
-      .select({
-        id: players.id,
-      })
-      .from(players)
-      .where(eq(players.nickname, nextNickname))
-      .limit(1);
+    await db.transaction(async (tx) => {
+      const [owner] = await tx
+        .select({
+          id: players.id,
+        })
+        .from(players)
+        .where(eq(players.nickname, nextNickname))
+        .limit(1);
 
-    if (owner && owner.id !== playerId) {
-      throw new HospitalError('conflict', 'Este nickname já está em uso.');
-    }
+      if (owner && owner.id !== playerId) {
+        throw new HospitalError('conflict', 'Este nickname já está em uso.');
+      }
 
-    await db
-      .update(players)
-      .set({
-        appearanceJson: nextAppearance,
-        credits: sql`${players.credits} - ${SURGERY_CREDITS_COST}`,
-        nickname: nextNickname,
-      })
-      .where(eq(players.id, playerId));
+      await tx
+        .update(players)
+        .set({
+          appearanceJson: nextAppearance,
+          credits: sql`${players.credits} - ${SURGERY_CREDITS_COST}`,
+          nickname: nextNickname,
+        })
+        .where(eq(players.id, playerId));
+    });
 
     return this.buildActionResponse(playerId, {
       action: 'surgery',
@@ -404,14 +414,16 @@ export class HospitalService implements HospitalServiceContract {
       throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para tratar DST.');
     }
 
-    await db
-      .update(players)
-      .set({
-        dstRecoversAt: null,
-        hasDst: false,
-        money: sql`${players.money} - ${dstTreatmentCost}`,
-      })
-      .where(eq(players.id, playerId));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(players)
+        .set({
+          dstRecoversAt: null,
+          hasDst: false,
+          money: sql`${players.money} - ${dstTreatmentCost}`,
+        })
+        .where(eq(players.id, playerId));
+    });
 
     return this.buildActionResponse(playerId, {
       action: 'dst_treatment',
@@ -431,13 +443,15 @@ export class HospitalService implements HospitalServiceContract {
       throw new HospitalError('insufficient_resources', 'Créditos insuficientes para o plano de saúde.');
     }
 
-    await db
-      .update(players)
-      .set({
-        credits: sql`${players.credits} - ${HEALTH_PLAN_CREDITS_COST}`,
-        healthPlanCycleKey: cycleKey,
-      })
-      .where(eq(players.id, playerId));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(players)
+        .set({
+          credits: sql`${players.credits} - ${HEALTH_PLAN_CREDITS_COST}`,
+          healthPlanCycleKey: cycleKey,
+        })
+        .where(eq(players.id, playerId));
+    });
 
     return this.buildActionResponse(playerId, {
       action: 'health_plan',
@@ -531,7 +545,7 @@ export class HospitalService implements HospitalServiceContract {
       purchasedItemCode?: HospitalStatItemCode | null;
     },
   ): Promise<HospitalActionResponse> {
-    await this.keyValueStore.delete?.(buildPlayerProfileCacheKey(playerId));
+    await invalidatePlayerProfileCache(this.keyValueStore, playerId);
     const center = await this.getCenter(playerId);
 
     return {
@@ -707,9 +721,9 @@ function resolveTreatmentCost(hp: number): number {
 }
 
 function validateNickname(input: string): string {
-  const nickname = input.trim();
+  const nickname = normalizeAuthNickname(input);
 
-  if (!/^[A-Za-z0-9_]{3,16}$/u.test(nickname)) {
+  if (!isValidAuthNickname(nickname)) {
     throw new HospitalError(
       'validation',
       'Nickname deve ter entre 3 e 16 caracteres usando apenas letras, números e underscore.',

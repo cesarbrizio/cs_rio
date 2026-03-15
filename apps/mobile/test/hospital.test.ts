@@ -1,3 +1,4 @@
+import { type NpcInflationSummary } from '@cs-rio/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -64,6 +65,7 @@ describe('hospital helpers', () => {
           startedAt: null,
           trigger: null,
         },
+        npcInflation: buildNpcInflationStub(),
         player: {
           addiction: 0,
           appearance: { hair: 'corte_curto', outfit: 'camisa_branca', skin: 'pele_media' },
@@ -114,3 +116,29 @@ describe('hospital helpers', () => {
     ).toBe(true);
   });
 });
+
+function buildNpcInflationStub(): NpcInflationSummary {
+  return {
+    affectedServices: ['hospital', 'training', 'university', 'black_market'],
+    currentGameDay: 12,
+    currentMultiplier: 1.12,
+    currentSurchargePercent: 12,
+    gameDayDurationHours: 6,
+    maxMultiplier: 1.65,
+    nextIncreaseGameDay: 13,
+    nextIncreaseInDays: 1,
+    nextMultiplier: 1.13,
+    nextSurchargePercent: 13,
+    resetsOnNewRound: true,
+    roundActive: true,
+    schedule: [
+      {
+        gameDay: 1,
+        multiplier: 1,
+        surchargePercent: 0,
+      },
+    ],
+    tier: 'rising' as const,
+    totalGameDays: 156,
+  };
+}

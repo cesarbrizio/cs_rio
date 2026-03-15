@@ -1,6 +1,7 @@
 import { type FactionRank } from '@cs-rio/shared';
 import { type AuthContext, type Client, Room } from 'colyseus';
 
+import { type InfrastructureLogger } from '../observability/logger.js';
 import { AuthError, type AuthService } from '../services/auth.js';
 import { type PlayerService } from '../services/player.js';
 import { resolveRealtimeAccessToken } from './auth.js';
@@ -25,7 +26,8 @@ export interface FactionRoomAuth {
 
 export interface FactionRoomDependencies {
   authService: Pick<AuthService, 'verifyAccessToken'>;
-  playerService: Pick<PlayerService, 'getPlayerProfile'>;
+  logger?: Pick<InfrastructureLogger, 'error'>;
+  playerService: Pick<PlayerService, 'getFreshPlayerProfile'>;
 }
 
 export interface FactionRoomOptions {
@@ -71,7 +73,7 @@ export function createFactionRoom(dependencies: FactionRoomDependencies) {
       }
 
       const identity = dependencies.authService.verifyAccessToken(token);
-      const profile = await dependencies.playerService.getPlayerProfile(identity.playerId);
+      const profile = await dependencies.playerService.getFreshPlayerProfile(identity.playerId);
 
       if (!profile.hasCharacter) {
         throw new AuthError('unauthorized', 'Personagem ainda nao foi criado para esta conta.');
@@ -138,6 +140,19 @@ export function createFactionRoom(dependencies: FactionRoomDependencies) {
       if (auth) {
         appendFactionSystemMessage(this.state, `${auth.nickname} saiu da room da faccao.`, new Date());
       }
+    }
+
+    public override onUncaughtException(error: Error, methodName: string): void {
+      dependencies.logger?.error(
+        {
+          err: error,
+          factionId: this.state?.factionId,
+          methodName,
+          roomId: this.roomId,
+          roomName: this.roomName,
+        },
+        'Realtime faction room uncaught exception.',
+      );
     }
   };
 }

@@ -18,6 +18,7 @@ import {
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ActionIdempotency } from '../src/api/action-idempotency.js';
 import { createAuthMiddleware } from '../src/api/middleware/auth.js';
 import { createAuthRoutes } from '../src/api/routes/auth.js';
 import { createTerritoryRoutes } from '../src/api/routes/territory.js';
@@ -2609,6 +2610,7 @@ async function buildTestApp({
     random,
     repository,
   });
+  const actionIdempotency = new ActionIdempotency(keyValueStore);
   const app = Fastify();
 
   await app.register(createAuthRoutes({ authService }), {
@@ -2616,7 +2618,7 @@ async function buildTestApp({
   });
   await app.register(async (protectedRoutes) => {
     protectedRoutes.addHook('preHandler', createAuthMiddleware(authService));
-    await protectedRoutes.register(createTerritoryRoutes({ territoryService }), {
+    await protectedRoutes.register(createTerritoryRoutes({ actionIdempotency, territoryService }), {
       prefix: '/api',
     });
   });

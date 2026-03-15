@@ -29,4 +29,18 @@ describe('server bootstrap', () => {
       phase: 'fase-0-bootstrap',
     });
   });
+
+  it('returns x-request-id and preserves the incoming correlation header', async () => {
+    const app = await appPromise;
+    const response = await app.inject({
+      headers: {
+        'x-request-id': 'health-check-request-id',
+      },
+      method: 'GET',
+      url: '/api/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['x-request-id']).toBe('health-check-request-id');
+  });
 });

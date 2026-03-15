@@ -16,8 +16,18 @@ describe('hospital routes', () => {
   let customHospitalService: HospitalService | null;
 
   beforeEach(async () => {
-    customHospitalService = null;
-    app = await createApp();
+    customHospitalService = new HospitalService({
+      inflationReader: {
+        getProfile: async () => ({
+          currentRoundDay: 1,
+          moneyMultiplier: 1,
+          roundId: null,
+        }),
+      },
+    });
+    app = await createApp({
+      hospitalService: customHospitalService,
+    });
     await app.ready();
   });
 
@@ -91,6 +101,9 @@ describe('hospital routes', () => {
 
   it('inflates hospital NPC prices by round day in the center and treatment flow', async () => {
     await app.close();
+    if (customHospitalService) {
+      await customHospitalService.close?.();
+    }
     customHospitalService = new HospitalService({
       inflationReader: {
         getProfile: async () => ({

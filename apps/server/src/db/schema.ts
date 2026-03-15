@@ -150,6 +150,7 @@ export const factionBankEntryTypeEnum = pgEnum('faction_bank_entry_type', [
 ]);
 export const factionBankOriginTypeEnum = pgEnum('faction_bank_origin_type', [
   'manual',
+  'bicho',
   'boca',
   'rave',
   'puteiro',
@@ -158,6 +159,7 @@ export const factionBankOriginTypeEnum = pgEnum('faction_bank_origin_type', [
   'slot_machine',
   'favela_service',
   'propina',
+  'upgrade',
 ]);
 export const playerBankEntryTypeEnum = pgEnum('player_bank_entry_type', [
   'deposit',

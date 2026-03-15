@@ -1,7 +1,14 @@
 import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
-import { type OwnedPropertySummary } from '@cs-rio/shared';
+import {
+  SLOT_MACHINE_DEFAULT_HOUSE_EDGE,
+  SLOT_MACHINE_DEFAULT_JACKPOT_CHANCE,
+  SLOT_MACHINE_DEFAULT_MAX_BET,
+  SLOT_MACHINE_DEFAULT_MIN_BET,
+  SLOT_MACHINE_INSTALL_COST,
+  type OwnedPropertySummary,
+} from '@cs-rio/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
@@ -53,6 +60,17 @@ export function OperationsScreen(): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [slotMachineActionMode, setSlotMachineActionMode] = useState<'configure' | 'install' | null>(null);
+  const [slotMachineInstallQuantityInput, setSlotMachineInstallQuantityInput] = useState('1');
+  const [slotMachineHouseEdgeInput, setSlotMachineHouseEdgeInput] = useState(
+    formatPercentageInput(SLOT_MACHINE_DEFAULT_HOUSE_EDGE),
+  );
+  const [slotMachineJackpotInput, setSlotMachineJackpotInput] = useState(
+    formatPercentageInput(SLOT_MACHINE_DEFAULT_JACKPOT_CHANCE),
+  );
+  const [slotMachineMinBetInput, setSlotMachineMinBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MIN_BET));
+  const [slotMachineMaxBetInput, setSlotMachineMaxBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MAX_BET));
+  const [slotMachineResultMessage, setSlotMachineResultMessage] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setError(null);
@@ -165,6 +183,25 @@ export function OperationsScreen(): JSX.Element {
     () => (dashboard && selectedProperty ? resolvePropertyOperationSnapshot(selectedProperty, dashboard) : null),
     [dashboard, selectedProperty],
   );
+  const selectedSlotMachine = useMemo(
+    () =>
+      dashboard?.slotMachineBook.slotMachines.find((entry) => entry.id === selectedProperty?.id) ??
+      null,
+    [dashboard?.slotMachineBook.slotMachines, selectedProperty?.id],
+  );
+  const availableSlotMachineDefinition = useMemo(
+    () =>
+      dashboard?.propertyBook.availableProperties.find(
+        (propertyDefinition) => propertyDefinition.type === 'slot_machine',
+      ) ?? null,
+    [dashboard?.propertyBook.availableProperties],
+  );
+  const ownedSlotMachineCount = useMemo(
+    () => allProperties.filter((property) => property.type === 'slot_machine').length,
+    [allProperties],
+  );
+  const isSlotMachineDiscoveryActive =
+    route.params?.focusPropertyType === 'slot_machine' || selectedProperty?.type === 'slot_machine';
   const unlockedSoldierTemplates = useMemo(
     () =>
       (dashboard?.propertyBook.soldierTemplates ?? []).filter(
@@ -195,6 +232,18 @@ export function OperationsScreen(): JSX.Element {
       setSelectedSoldierType(null);
     }
   }, [selectedSoldierTemplate, selectedSoldierType, unlockedSoldierTemplates]);
+
+  useEffect(() => {
+    if (!selectedSlotMachine) {
+      setSlotMachineActionMode(null);
+      return;
+    }
+
+    setSlotMachineHouseEdgeInput(formatPercentageInput(selectedSlotMachine.config.houseEdge));
+    setSlotMachineJackpotInput(formatPercentageInput(selectedSlotMachine.config.jackpotChance));
+    setSlotMachineMinBetInput(String(Math.round(selectedSlotMachine.config.minBet)));
+    setSlotMachineMaxBetInput(String(Math.round(selectedSlotMachine.config.maxBet)));
+  }, [selectedSlotMachine]);
 
   const summary = useMemo(() => {
     const ownedProperties = dashboard?.propertyBook.ownedProperties ?? [];
@@ -291,6 +340,9 @@ export function OperationsScreen(): JSX.Element {
     try {
       const message = await collectPropertyOperation(selectedProperty);
       setFeedback(message);
+      if (selectedProperty.type === 'slot_machine') {
+        setSlotMachineResultMessage(message);
+      }
       setBootstrapStatus(message);
       await loadDashboard();
     } catch (nextError) {
@@ -299,6 +351,86 @@ export function OperationsScreen(): JSX.Element {
       setIsSubmitting(false);
     }
   }, [loadDashboard, selectedOperation, selectedProperty, setBootstrapStatus]);
+
+  const handleInstallSlotMachines = useCallback(async () => {
+    if (!selectedProperty || selectedProperty.type !== 'slot_machine') {
+      setError('Selecione uma maquininha antes de instalar novas unidades.');
+      return;
+    }
+
+    const quantity = sanitizePositiveInteger(slotMachineInstallQuantityInput);
+
+    if (quantity <= 0) {
+      setError('Informe uma quantidade inteira positiva para instalar.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await slotMachineApi.install(selectedProperty.id, {
+        quantity,
+      });
+      const message = `${response.installedQuantity} maquina(s) instalada(s). Custo total ${formatOperationsCurrency(response.totalInstallCost)}.`;
+      setFeedback(message);
+      setSlotMachineResultMessage(message);
+      setBootstrapStatus(message);
+      setSlotMachineActionMode(null);
+      await loadDashboard();
+    } catch (nextError) {
+      setError(formatApiError(nextError).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [loadDashboard, selectedProperty, setBootstrapStatus, slotMachineInstallQuantityInput]);
+
+  const handleConfigureSlotMachine = useCallback(async () => {
+    if (!selectedProperty || selectedProperty.type !== 'slot_machine') {
+      setError('Selecione uma maquininha antes de configurar a operação.');
+      return;
+    }
+
+    const houseEdge = sanitizePercentageInput(slotMachineHouseEdgeInput);
+    const jackpotChance = sanitizePercentageInput(slotMachineJackpotInput);
+    const minBet = sanitizePositiveInteger(slotMachineMinBetInput);
+    const maxBet = sanitizePositiveInteger(slotMachineMaxBetInput);
+
+    if (houseEdge <= 0 || jackpotChance <= 0 || minBet <= 0 || maxBet <= 0) {
+      setError('Preencha margem, jackpot e apostas com valores válidos.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await slotMachineApi.configure(selectedProperty.id, {
+        houseEdge,
+        jackpotChance,
+        maxBet,
+        minBet,
+      });
+      const message = `Maquininha configurada. Casa ${formatPercent(houseEdge)} · jackpot ${formatPercent(jackpotChance)} · faixa ${formatOperationsCurrency(minBet)} → ${formatOperationsCurrency(maxBet)}.`;
+      setFeedback(message);
+      setSlotMachineResultMessage(message);
+      setBootstrapStatus(message);
+      setSlotMachineActionMode(null);
+      await loadDashboard();
+    } catch (nextError) {
+      setError(formatApiError(nextError).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    loadDashboard,
+    selectedProperty,
+    setBootstrapStatus,
+    slotMachineHouseEdgeInput,
+    slotMachineJackpotInput,
+    slotMachineMaxBetInput,
+    slotMachineMinBetInput,
+  ]);
 
   const canUpgrade =
     Boolean(selectedProperty) &&
@@ -309,6 +441,14 @@ export function OperationsScreen(): JSX.Element {
     Boolean(selectedOperation?.readyToCollect) && !isLoading && !isSubmitting;
   const canHireSoldiers =
     Boolean(selectedProperty && selectedProperty.definition.soldierCapacity > 0 && selectedSoldierTemplate) &&
+    !isLoading &&
+    !isSubmitting;
+  const canInstallSlotMachine =
+    Boolean(selectedProperty && selectedProperty.type === 'slot_machine' && selectedSlotMachine) &&
+    !isLoading &&
+    !isSubmitting;
+  const canConfigureSlotMachine =
+    Boolean(selectedProperty && selectedProperty.type === 'slot_machine' && selectedSlotMachine) &&
     !isLoading &&
     !isSubmitting;
 
@@ -347,6 +487,39 @@ export function OperationsScreen(): JSX.Element {
 
       {error ? <Banner copy={error} tone="danger" /> : null}
       {feedback ? <Banner copy={feedback} tone="neutral" /> : null}
+
+      {isSlotMachineDiscoveryActive ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Radar da Maquininha</Text>
+          <View style={styles.detailCard}>
+            <Text style={styles.infoBlockCopy}>
+              Maquininha é negócio passivo. Você instala as máquinas, regula aposta mínima/máxima, margem da casa e jackpot, e depois coleta o caixa.
+            </Text>
+            <Text style={styles.infoBlockCopy}>
+              Diferente do Jogo do Bicho, aqui não existe aposta manual do jogador: o foco é configurar a operação e rentabilizar o ponto.
+            </Text>
+            <View style={styles.metricRow}>
+              <MetricPill label="Suas máquinas" value={`${ownedSlotMachineCount}`} />
+              <MetricPill
+                label="Preço base"
+                value={
+                  availableSlotMachineDefinition
+                    ? formatOperationsCurrency(availableSlotMachineDefinition.basePrice)
+                    : '--'
+                }
+              />
+              <MetricPill
+                label="Instalação"
+                value={formatOperationsCurrency(SLOT_MACHINE_INSTALL_COST)}
+              />
+              <MetricPill
+                label="Unlock"
+                value={`${availableSlotMachineDefinition?.unlockLevel ?? '--'}`}
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -423,7 +596,9 @@ export function OperationsScreen(): JSX.Element {
           <EmptyState
             copy={
               activeTab === 'business'
-                ? 'Nenhum negócio ativo ainda. Compre ou provisione um ativo operacional para ver caixa e coleta.'
+                ? route.params?.focusPropertyType === 'slot_machine'
+                  ? 'Você ainda não tem nenhuma maquininha ativa. Compre o ativo no patrimônio e depois volte aqui para instalar, configurar e coletar o caixa.'
+                  : 'Nenhum negócio ativo ainda. Compre ou provisione um ativo operacional para ver caixa e coleta.'
                 : 'Nenhum patrimônio pessoal comprado ainda. Os ativos entram aqui com prestígio, utilidade e risco.'
             }
           />
@@ -494,6 +669,174 @@ export function OperationsScreen(): JSX.Element {
                       {line}
                     </Text>
                   ))}
+                </View>
+              ) : null}
+
+              {selectedProperty.type === 'slot_machine' && selectedSlotMachine ? (
+                <View style={styles.infoBlock}>
+                  <Text style={styles.infoBlockTitle}>Mesa da maquininha</Text>
+                  <Text style={styles.infoBlockCopy}>
+                    Negócio passivo do patrimônio. Ajuste a casa, a faixa de aposta e o jackpot para puxar tráfego, depois colete o caixa.
+                  </Text>
+                  <View style={styles.metricRow}>
+                    <MetricPill
+                      label="Instaladas"
+                      value={`${selectedSlotMachine.economics.installedMachines}/${selectedSlotMachine.economics.capacity}`}
+                    />
+                    <MetricPill
+                      label="Faixa"
+                      value={`${formatOperationsCurrency(selectedSlotMachine.config.minBet)} → ${formatOperationsCurrency(selectedSlotMachine.config.maxBet)}`}
+                    />
+                    <MetricPill
+                      label="Casa"
+                      value={formatPercent(selectedSlotMachine.config.houseEdge)}
+                    />
+                    <MetricPill
+                      label="Jackpot"
+                      value={formatPercent(selectedSlotMachine.config.jackpotChance)}
+                    />
+                  </View>
+
+                  <View style={styles.buttonRow}>
+                    <Pressable
+                      disabled={!canInstallSlotMachine}
+                      onPress={() => {
+                        setSlotMachineActionMode((current) =>
+                          current === 'install' ? null : 'install',
+                        );
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButtonWide,
+                        !canInstallSlotMachine ? styles.buttonDisabled : null,
+                        pressed ? styles.buttonPressed : null,
+                      ]}
+                    >
+                      <Text style={styles.secondaryButtonLabel}>Instalar</Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={!canConfigureSlotMachine}
+                      onPress={() => {
+                        setSlotMachineActionMode((current) =>
+                          current === 'configure' ? null : 'configure',
+                        );
+                      }}
+                      style={({ pressed }) => [
+                        styles.secondaryButtonWide,
+                        !canConfigureSlotMachine ? styles.buttonDisabled : null,
+                        pressed ? styles.buttonPressed : null,
+                      ]}
+                    >
+                      <Text style={styles.secondaryButtonLabel}>Configurar</Text>
+                    </Pressable>
+                  </View>
+
+                  {slotMachineActionMode === 'install' ? (
+                    <View style={styles.inlineManagementCard}>
+                      <Text style={styles.inlineManagementTitle}>Instalar novas máquinas</Text>
+                      <Text style={styles.inlineManagementCopy}>
+                        Cada unidade custa {formatOperationsCurrency(SLOT_MACHINE_INSTALL_COST)} e ocupa a capacidade do ativo.
+                      </Text>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => {
+                          setSlotMachineInstallQuantityInput(value.replace(/[^0-9]/g, ''));
+                        }}
+                        placeholder="1"
+                        placeholderTextColor={colors.muted}
+                        style={styles.numericInput}
+                        value={slotMachineInstallQuantityInput}
+                      />
+                      <Pressable
+                        disabled={!canInstallSlotMachine}
+                        onPress={() => {
+                          void handleInstallSlotMachines();
+                        }}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          !canInstallSlotMachine ? styles.buttonDisabled : null,
+                          pressed ? styles.buttonPressed : null,
+                        ]}
+                      >
+                        <Text style={styles.primaryButtonLabel}>Confirmar instalação</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+
+                  {slotMachineActionMode === 'configure' ? (
+                    <View style={styles.inlineManagementCard}>
+                      <Text style={styles.inlineManagementTitle}>Configurar operação</Text>
+                      <Text style={styles.inlineManagementCopy}>
+                        Ajuste o equilíbrio entre margem da casa, jackpot e faixa de aposta para definir o perfil do ponto.
+                      </Text>
+                      <View style={styles.metricRow}>
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Casa (%)</Text>
+                          <TextInput
+                            keyboardType="decimal-pad"
+                            onChangeText={(value) => {
+                              setSlotMachineHouseEdgeInput(sanitizeDecimalInput(value));
+                            }}
+                            placeholder="22"
+                            placeholderTextColor={colors.muted}
+                            style={styles.numericInput}
+                            value={slotMachineHouseEdgeInput}
+                          />
+                        </View>
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Jackpot (%)</Text>
+                          <TextInput
+                            keyboardType="decimal-pad"
+                            onChangeText={(value) => {
+                              setSlotMachineJackpotInput(sanitizeDecimalInput(value));
+                            }}
+                            placeholder="1"
+                            placeholderTextColor={colors.muted}
+                            style={styles.numericInput}
+                            value={slotMachineJackpotInput}
+                          />
+                        </View>
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Aposta mín.</Text>
+                          <TextInput
+                            keyboardType="number-pad"
+                            onChangeText={(value) => {
+                              setSlotMachineMinBetInput(value.replace(/[^0-9]/g, ''));
+                            }}
+                            placeholder="100"
+                            placeholderTextColor={colors.muted}
+                            style={styles.numericInput}
+                            value={slotMachineMinBetInput}
+                          />
+                        </View>
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Aposta máx.</Text>
+                          <TextInput
+                            keyboardType="number-pad"
+                            onChangeText={(value) => {
+                              setSlotMachineMaxBetInput(value.replace(/[^0-9]/g, ''));
+                            }}
+                            placeholder="1000"
+                            placeholderTextColor={colors.muted}
+                            style={styles.numericInput}
+                            value={slotMachineMaxBetInput}
+                          />
+                        </View>
+                      </View>
+                      <Pressable
+                        disabled={!canConfigureSlotMachine}
+                        onPress={() => {
+                          void handleConfigureSlotMachine();
+                        }}
+                        style={({ pressed }) => [
+                          styles.primaryButton,
+                          !canConfigureSlotMachine ? styles.buttonDisabled : null,
+                          pressed ? styles.buttonPressed : null,
+                        ]}
+                      >
+                        <Text style={styles.primaryButtonLabel}>Salvar configuração</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -630,6 +973,13 @@ export function OperationsScreen(): JSX.Element {
           </View>
         </>
       ) : null}
+      <OperationResultModal
+        message={slotMachineResultMessage}
+        onClose={() => {
+          setSlotMachineResultMessage(null);
+        }}
+        title="Maquininha atualizada"
+      />
     </InGameScreenLayout>
   );
 
@@ -668,6 +1018,27 @@ export function OperationsScreen(): JSX.Element {
   }
 }
 
+function sanitizePositiveInteger(value: string): number {
+  const normalized = Number.parseInt(value.replace(/[^0-9]/g, ''), 10);
+  return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function sanitizeDecimalInput(value: string): string {
+  return value
+    .replace(',', '.')
+    .replace(/[^0-9.]/g, '')
+    .replace(/(\..*)\./g, '$1');
+}
+
+function sanitizePercentageInput(value: string): number {
+  const normalized = Number.parseFloat(value.replace(',', '.'));
+  return Number.isFinite(normalized) ? normalized / 100 : 0;
+}
+
+function formatPercentageInput(value: number): string {
+  return `${Math.round(value * 1000) / 10}`.replace(/\.0$/, '');
+}
+
 function formatDateLabel(value: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -690,6 +1061,33 @@ function Banner(props: {
     >
       <Text style={styles.bannerCopy}>{props.copy}</Text>
     </View>
+  );
+}
+
+function OperationResultModal(props: {
+  message: string | null;
+  onClose: () => void;
+  title: string;
+}): JSX.Element {
+  return (
+    <Modal animationType="fade" transparent visible={Boolean(props.message)}>
+      <View style={styles.modalRoot}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalEyebrow}>Operação concluída</Text>
+          <Text style={styles.modalTitle}>{props.title}</Text>
+          <Text style={styles.modalCopy}>{props.message}</Text>
+          <Pressable
+            onPress={props.onClose}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.buttonPressed : null,
+            ]}
+          >
+            <Text style={styles.primaryButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1031,6 +1429,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  inlineManagementCard: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 10,
+    padding: 14,
+  },
+  inlineManagementTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  inlineManagementCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  formField: {
+    flexGrow: 1,
+    minWidth: '46%',
+  },
+  formLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  numericInput: {
+    backgroundColor: '#111111',
+    borderColor: colors.line,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: 10,
@@ -1096,5 +1534,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  modalRoot: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#161616',
+    borderColor: colors.line,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    maxWidth: 420,
+    padding: 20,
+    width: '100%',
+  },
+  modalEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
