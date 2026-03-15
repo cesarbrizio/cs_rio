@@ -321,6 +321,8 @@ function ActionCard({
       </View>
 
       <Pressable
+        accessibilityLabel={disabled ? `${label} indisponível` : label}
+        accessibilityRole="button"
         disabled={disabled}
         onPress={onPress}
         style={({ pressed }) => [
@@ -362,6 +364,8 @@ function Banner({
       <Text style={styles.bannerCopy}>{message}</Text>
       {actionLabel && onPress ? (
         <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
           onPress={onPress}
           style={({ pressed }) => [styles.bannerButton, pressed ? styles.buttonPressed : null]}
         >

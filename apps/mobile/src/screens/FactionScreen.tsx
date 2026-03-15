@@ -149,6 +149,8 @@ export function FactionScreen(): JSX.Element {
     () => [...realtimeSnapshot.coordinationCalls].reverse(),
     [realtimeSnapshot.coordinationCalls],
   );
+  const latestRealtimeChat = sortedRealtimeChat[0] ?? null;
+  const latestRealtimeCoordination = sortedRealtimeCoordination[0] ?? null;
   const getFactionAvailableJoinSlots = useCallback(
     (faction: (typeof sortedFactions)[number]) =>
       (faction as typeof faction & { availableJoinSlots?: number | null }).availableJoinSlots ?? null,
@@ -787,6 +789,64 @@ export function FactionScreen(): JSX.Element {
         </SectionCard>
 
         <SectionCard
+          subtitle="Entrada rápida para o canal interno da facção, com status da sala, últimas mensagens e último chamado do bonde."
+          title="Sala da facção"
+        >
+          <View style={styles.summaryGrid}>
+            <SummaryCard
+              label="Status"
+              tone={resolveRealtimeStatusColor(realtimeSnapshot.status)}
+              value={resolveRealtimeStatusLabel(realtimeSnapshot.status)}
+            />
+            <SummaryCard label="Online" tone={colors.success} value={`${realtimeSnapshot.members.length}`} />
+            <SummaryCard label="Chat" tone={colors.accent} value={`${realtimeSnapshot.chatMessages.length}`} />
+            <SummaryCard label="Chamados" tone={colors.warning} value={`${realtimeSnapshot.coordinationCalls.length}`} />
+          </View>
+          <Banner
+            copy={buildRealtimeStatusCopy(realtimeSnapshot.status)}
+            tone={realtimeSnapshot.status === 'connected' ? 'info' : 'danger'}
+          />
+          {latestRealtimeChat ? (
+            <View style={styles.listCard}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>Última mensagem</Text>
+                <Tag
+                  label={latestRealtimeChat.kind === 'system' ? 'Sistema' : latestRealtimeChat.nickname}
+                  tone="accent"
+                />
+              </View>
+              <Text style={styles.cardCopy}>{latestRealtimeChat.message}</Text>
+              <Text style={styles.mutedSmall}>{formatDateTimeLabel(latestRealtimeChat.createdAt)}</Text>
+            </View>
+          ) : null}
+          {latestRealtimeCoordination ? (
+            <View style={styles.listCard}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>Último chamado</Text>
+                <Tag
+                  label={resolveFactionCoordinationLabel(latestRealtimeCoordination.kind)}
+                  tone="warning"
+                />
+              </View>
+              <Text style={styles.cardCopy}>{latestRealtimeCoordination.label}</Text>
+              <Text style={styles.mutedSmall}>
+                {latestRealtimeCoordination.nickname} · {formatDateTimeLabel(latestRealtimeCoordination.createdAt)}
+              </Text>
+            </View>
+          ) : null}
+          {!latestRealtimeChat && !latestRealtimeCoordination ? (
+            <EmptyState copy="A sala ainda está vazia. Assim que alguém mandar chat ou coordenação, o histórico curto aparece aqui." />
+          ) : null}
+          <ActionButton
+            disabled={false}
+            label="Abrir sala"
+            onPress={() => {
+              setActiveTab('war');
+            }}
+          />
+        </SectionCard>
+
+        <SectionCard
           subtitle="Radar das outras facções ativas do servidor para leitura política, comparação de banco e entendimento do cenário."
           title="Facções em atividade"
         >
@@ -1155,15 +1215,64 @@ export function FactionScreen(): JSX.Element {
   const renderWar = () => (
     <>
       <SectionCard
-        subtitle="Sala de guerra em tempo real da facção: presença online, coordenação rápida e feed interno do bonde."
+        subtitle="Canal ao vivo da facção com status de conexão, presença online e feed curto para alinhamento rápido."
         title="Sala da facção"
       >
         <View style={styles.summaryGrid}>
-          <SummaryCard label="Status" tone={colors.info} value={realtimeSnapshot.status} />
+          <SummaryCard
+            label="Status"
+            tone={resolveRealtimeStatusColor(realtimeSnapshot.status)}
+            value={resolveRealtimeStatusLabel(realtimeSnapshot.status)}
+          />
           <SummaryCard label="Online" tone={colors.success} value={`${realtimeSnapshot.members.length}`} />
           <SummaryCard label="Chat" tone={colors.accent} value={`${realtimeSnapshot.chatMessages.length}`} />
           <SummaryCard label="Chamados" tone={colors.warning} value={`${realtimeSnapshot.coordinationCalls.length}`} />
         </View>
+        <Banner
+          copy={buildRealtimeStatusCopy(realtimeSnapshot.status)}
+          tone={realtimeSnapshot.status === 'connected' ? 'info' : 'danger'}
+        />
+      </SectionCard>
+
+      <SectionCard
+        subtitle="Chat interno da facção em tempo real para alinhamento rápido antes de crimes coletivos."
+        title="Chat da facção"
+      >
+        <TextInput
+          onChangeText={setChatMessage}
+          placeholder="Mensagem curta para o QG..."
+          placeholderTextColor={colors.muted}
+          style={[styles.input, styles.textarea]}
+          value={chatMessage}
+        />
+        <ActionButton
+          disabled={isMutating || realtimeSnapshot.status !== 'connected'}
+          label="Enviar no chat"
+          onPress={handleSendChat}
+        />
+        {sortedRealtimeChat.length > 0 ? (
+          <View style={styles.listColumn}>
+            {sortedRealtimeChat.map((entry) => (
+              <View key={entry.id} style={styles.listCard}>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardTitle}>
+                    {entry.kind === 'system' ? 'Sistema' : entry.nickname}
+                  </Text>
+                  <Text style={styles.mutedSmall}>{formatDateTimeLabel(entry.createdAt)}</Text>
+                </View>
+                <Text style={styles.cardCopy}>{entry.message}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <EmptyState copy="Nenhuma mensagem ainda. Assim que alguém entrar na sala ou mandar chat, o feed aparece aqui." />
+        )}
+      </SectionCard>
+
+      <SectionCard
+        subtitle="Feed curto de coordenação para situações quentes. O mais novo aparece primeiro para resposta rápida."
+        title="Chamadas do bonde"
+      >
         <View style={styles.filterRow}>
           {COORDINATION_KINDS.map((entry) => (
             <Pressable
@@ -1200,12 +1309,6 @@ export function FactionScreen(): JSX.Element {
           label="Publicar coordenação"
           onPress={handleSendCoordination}
         />
-      </SectionCard>
-
-      <SectionCard
-        subtitle="Feed curto de coordenação para situações quentes. O mais novo aparece primeiro para resposta rápida."
-        title="Chamadas do bonde"
-      >
         {sortedRealtimeCoordination.length > 0 ? (
           <View style={styles.listColumn}>
             {sortedRealtimeCoordination.map((entry) => (
@@ -1222,41 +1325,6 @@ export function FactionScreen(): JSX.Element {
           </View>
         ) : (
           <EmptyState copy="Sem chamadas ainda. Use o composer acima para puxar ataque, defesa, bonde ou suprimento." />
-        )}
-      </SectionCard>
-
-      <SectionCard
-        subtitle="Chat interno da facção em tempo real para alinhamento rápido antes de crimes coletivos."
-        title="Chat da facção"
-      >
-        <TextInput
-          onChangeText={setChatMessage}
-          placeholder="Mensagem curta para o QG..."
-          placeholderTextColor={colors.muted}
-          style={[styles.input, styles.textarea]}
-          value={chatMessage}
-        />
-        <ActionButton
-          disabled={isMutating || realtimeSnapshot.status !== 'connected'}
-          label="Enviar no chat"
-          onPress={handleSendChat}
-        />
-        {sortedRealtimeChat.length > 0 ? (
-          <View style={styles.listColumn}>
-            {sortedRealtimeChat.map((entry) => (
-              <View key={entry.id} style={styles.listCard}>
-                <View style={styles.cardHeaderRow}>
-                  <Text style={styles.cardTitle}>
-                    {entry.kind === 'system' ? 'Sistema' : entry.nickname}
-                  </Text>
-                  <Text style={styles.mutedSmall}>{formatDateTimeLabel(entry.createdAt)}</Text>
-                </View>
-                <Text style={styles.cardCopy}>{entry.message}</Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <EmptyState copy="Nenhuma mensagem ainda. Assim que alguém entrar na sala ou mandar chat, o feed aparece aqui." />
         )}
       </SectionCard>
 
@@ -1493,6 +1561,8 @@ export function FactionScreen(): JSX.Element {
       <View style={styles.segmentRow}>
         {FACTION_SCREEN_TABS.map((tab) => (
           <Pressable
+            accessibilityLabel={`Abrir aba ${resolveFactionScreenTabLabel(tab)}`}
+            accessibilityRole="button"
             disabled={!currentFactionId && tab !== 'overview'}
             key={tab}
             onPress={() => {
@@ -1557,6 +1627,53 @@ function parsePositiveAmount(value: string): number | null {
   return Number.isFinite(normalized) && normalized > 0 ? normalized : null;
 }
 
+function resolveRealtimeStatusLabel(
+  status: FactionRealtimeSnapshot['status'],
+): string {
+  switch (status) {
+    case 'connected':
+      return 'Conectado';
+    case 'connecting':
+      return 'Conectando';
+    case 'reconnecting':
+      return 'Reconectando';
+    case 'disconnected':
+    default:
+      return 'Offline';
+  }
+}
+
+function resolveRealtimeStatusColor(
+  status: FactionRealtimeSnapshot['status'],
+): string {
+  switch (status) {
+    case 'connected':
+      return colors.success;
+    case 'connecting':
+    case 'reconnecting':
+      return colors.warning;
+    case 'disconnected':
+    default:
+      return colors.danger;
+  }
+}
+
+function buildRealtimeStatusCopy(
+  status: FactionRealtimeSnapshot['status'],
+): string {
+  switch (status) {
+    case 'connected':
+      return 'Sala conectada. Chat, chamados e presença online estão sincronizando em tempo real.';
+    case 'connecting':
+      return 'Conectando a sala da facção. Assim que abrir, o chat e os chamados começam a aparecer aqui.';
+    case 'reconnecting':
+      return 'Reconectando a sala da facção. O feed pode atrasar por alguns segundos enquanto o realtime volta.';
+    case 'disconnected':
+    default:
+      return 'Sala offline no momento. Atualize o painel ou reabra o QG para reconectar.';
+  }
+}
+
 function formatDateTimeLabel(value: string): string {
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -1579,6 +1696,8 @@ function ActionButton({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1607,6 +1726,8 @@ function MiniButton({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1659,6 +1780,8 @@ function MutationResultModal({
           <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
           <Text style={styles.modalCopy}>{message}</Text>
           <Pressable
+            accessibilityLabel="Fechar resultado da facção"
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
           >

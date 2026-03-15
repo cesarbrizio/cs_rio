@@ -147,6 +147,47 @@ describe('ActionIdempotency', () => {
       ),
     ).resolves.toEqual({ ok: true });
   });
+
+  it('compartilha o lock entre guardas diferentes quando o store e compartilhado', async () => {
+    const sharedStore = new InMemoryKeyValueStore();
+    const firstGuard = new ActionIdempotency(sharedStore);
+    const secondGuard = new ActionIdempotency(sharedStore);
+    const request = buildRequest({
+      headers: {
+        'idempotency-key': 'shared-lock',
+      },
+    });
+    let release: (() => void) | null = null;
+
+    const firstExecution = firstGuard.run(
+      request,
+      {
+        action: 'market.order.create',
+      },
+      () =>
+        new Promise<{ ok: true }>((resolve) => {
+          release = () => resolve({ ok: true });
+        }),
+    );
+
+    await Promise.resolve();
+
+    await expect(
+      secondGuard.run(
+        request,
+        {
+          action: 'market.order.create',
+        },
+        async () => ({ ok: true }),
+      ),
+    ).rejects.toMatchObject({
+      message: DUPLICATE_ACTION_MESSAGE,
+      statusCode: 409,
+    });
+
+    release?.();
+    await expect(firstExecution).resolves.toEqual({ ok: true });
+  });
 });
 
 function buildRequest(input: {

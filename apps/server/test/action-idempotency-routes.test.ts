@@ -132,6 +132,67 @@ describe('route action idempotency', () => {
     }
   });
 
+  it('compartilha idempotencia entre duas apps quando o store e compartilhado', async () => {
+    const sharedStore = new InMemoryKeyValueStore();
+    const createOrder = vi.fn(async () => ({ order: { id: 'order-shared' } }));
+    const appA = await createAppWithToken(
+      {
+        marketService: {
+          createOrder,
+        } as unknown as MarketServiceContract,
+      },
+      {
+        keyValueStore: sharedStore,
+      },
+    );
+    const appB = await createAppWithToken(
+      {
+        marketService: {
+          createOrder,
+        } as unknown as MarketServiceContract,
+      },
+      {
+        keyValueStore: sharedStore,
+      },
+    );
+
+    try {
+      const payload = {
+        itemId: 'drug-1',
+        itemType: 'drug',
+        pricePerUnit: 65,
+        quantity: 1,
+        side: 'buy',
+      };
+      const headers = {
+        authorization: `Bearer ${appA.accessToken}`,
+        'idempotency-key': 'shared-market-order',
+      };
+
+      const first = await appA.server.inject({
+        headers,
+        method: 'POST',
+        payload,
+        url: '/api/market/orders',
+      });
+
+      const second = await appB.server.inject({
+        headers,
+        method: 'POST',
+        payload,
+        url: '/api/market/orders',
+      });
+
+      expect(first.statusCode).toBe(201);
+      expect(second.statusCode).toBe(409);
+      expect(second.json().message).toBe(DUPLICATE_ACTION_MESSAGE);
+      expect(createOrder).toHaveBeenCalledTimes(1);
+    } finally {
+      await appA.server.close();
+      await appB.server.close();
+    }
+  });
+
   it('protege tratamento do hospital contra retry imediato', async () => {
     const applyTreatment = vi.fn(async () => ({ action: 'treatment' }));
     const app = await createAppWithToken({
@@ -235,16 +296,21 @@ describe('route action idempotency', () => {
   });
 });
 
-async function createAppWithToken(overrides: {
-  crimeService?: CrimeServiceContract;
-  hospitalService?: HospitalServiceContract;
-  marketService?: MarketServiceContract;
-  prisonService?: PrisonServiceContract;
-  territoryService?: TerritoryServiceContract;
-}) {
+async function createAppWithToken(
+  overrides: {
+    crimeService?: CrimeServiceContract;
+    hospitalService?: HospitalServiceContract;
+    marketService?: MarketServiceContract;
+    prisonService?: PrisonServiceContract;
+    territoryService?: TerritoryServiceContract;
+  },
+  options: {
+    keyValueStore?: KeyValueStore;
+  } = {},
+) {
   const server = await createApp({
     ...overrides,
-    keyValueStore: new InMemoryKeyValueStore(),
+    keyValueStore: options.keyValueStore ?? new InMemoryKeyValueStore(),
   });
   await server.ready();
 

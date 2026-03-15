@@ -3,22 +3,17 @@ import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   REGIONS,
   type NpcInflationSummary,
+  type PlayerProfile,
   type RoundSummary,
 } from '@cs-rio/shared';
 import { type InputRect } from '@engine/input-handler';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, StyleSheet, type LayoutChangeEvent, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GameView, type GameViewPlayerState } from '../components/GameView';
-import {
-  ActionBar,
-  type ActionBarButton,
-} from '../components/hud/ActionBar';
-import { ContextMenu } from '../components/hud/ContextMenu';
-import { HudToast } from '../components/hud/HudToast';
-import { Minimap, type MinimapMarker } from '../components/hud/Minimap';
-import { StatusBar } from '../components/hud/StatusBar';
+import { type ActionBarButton } from '../components/hud/ActionBar';
+import { type MinimapMarker } from '../components/hud/Minimap';
 import { zonaNorteMapData } from '../data/zonaNortePrototypeMap';
 import {
   resolveEventDestinationLabel,
@@ -62,6 +57,11 @@ import {
   type RoundPressure,
   type WorldContextSpot,
 } from './home/homeTypes';
+import {
+  HomeHudOverlay,
+  type HomeHudToastConfig,
+  type HomeInfoCardContent,
+} from './home/HomeHudOverlay';
 import { useHomeMapScene } from './home/useHomeMapScene';
 
 interface CriticalUiActionOptions {
@@ -74,8 +74,16 @@ interface CriticalUiActionOptions {
   navigate?: () => void;
 }
 
+type HomeNavigate = <T extends keyof RootStackParamList>(
+  screen: T,
+  ...rest: undefined extends RootStackParamList[T]
+    ? [params?: RootStackParamList[T]]
+    : [params: RootStackParamList[T]]
+) => void;
+
 export function HomeScreen(): JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigateTyped = navigation.navigate as HomeNavigate;
   const dismissEventBanner = useAppStore((state) => state.dismissEventBanner);
   const eventBanner = useAppStore((state) => state.eventBanner);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
@@ -667,16 +675,12 @@ export function HomeScreen(): JSX.Element {
       InteractionManager.runAfterInteractions(task);
     });
   }, []);
-  const navigateNow = useCallback((
-    screen: keyof RootStackParamList,
-    params?: RootStackParamList[keyof RootStackParamList],
-  ) => {
-    const navigator = navigation as unknown as {
-      navigate: (screenName: string, screenParams?: object) => void;
-    };
-
-    navigator.navigate(screen, params as object | undefined);
-  }, [navigation]);
+  const navigateNow = useCallback<HomeNavigate>(
+    (screen, ...rest) => {
+      navigateTyped(screen, ...rest);
+    },
+    [navigateTyped],
+  );
   const runCriticalUiAction = useCallback((options: CriticalUiActionOptions) => {
     if (options.haptic === 'light') {
       hapticLight();
@@ -1277,6 +1281,95 @@ export function HomeScreen(): JSX.Element {
     if (realtimeSnapshot.status === 'reconnecting') return 'Reconectando...';
     return 'Conectando...';
   }, [realtimeSnapshot.status]);
+  const topToast = useMemo<HomeHudToastConfig | null>(() => {
+    if (player?.prison.isImprisoned) {
+      return {
+        accent: colors.danger,
+        autoDismissMs: 0,
+        ctaLabel: 'Abrir prisão',
+        message: `Preso · ${Math.max(1, Math.ceil(player.prison.remainingSeconds / 60))}min restantes`,
+        onCta: () => {
+          runCriticalUiAction({
+            accent: colors.danger,
+            bootstrapMessage: 'Abrindo a central da prisão.',
+            feedbackMessage: 'Prisão selecionada.',
+            navigate: () => {
+              navigateNow('Prison');
+            },
+          });
+        },
+      };
+    }
+
+    if (player?.hospitalization.isHospitalized) {
+      return {
+        accent: colors.warning,
+        autoDismissMs: 0,
+        ctaLabel: 'Abrir hospital',
+        message: `Internado · ${Math.max(1, Math.ceil(player.hospitalization.remainingSeconds / 60))}min restantes`,
+        onCta: () => {
+          runCriticalUiAction({
+            accent: colors.warning,
+            bootstrapMessage: 'Abrindo a central do hospital.',
+            feedbackMessage: 'Hospital selecionado.',
+            navigate: () => {
+              navigateNow('Hospital');
+            },
+          });
+        },
+      };
+    }
+
+    if (eventBanner) {
+      return {
+        accent: resolveEventNotificationAccent(eventBanner.severity),
+        ctaLabel: resolveEventDestinationLabel(eventBanner.destination),
+        message: `${eventBanner.title} · ${eventBanner.regionLabel} · ${resolveEventNotificationTimeLabel(eventBanner.remainingSeconds)}`,
+        onCta: handleEventBannerPress,
+        onDismiss: handleDismissEventBanner,
+      };
+    }
+
+    if (tutorialActive && tutorialStep) {
+      return {
+        accent: colors.accent,
+        autoDismissMs: 15000,
+        ctaLabel: tutorialStep.ctaLabel,
+        message: `Tutorial ${tutorialProgress.current}/${tutorialProgress.total}: ${tutorialStep.title} · ${tutorialRemainingMinutes} min restantes`,
+        onCta: handleTutorialPrimaryAction,
+        onDismiss: dismissTutorial,
+      };
+    }
+
+    return null;
+  }, [
+    dismissTutorial,
+    eventBanner,
+    handleDismissEventBanner,
+    handleEventBannerPress,
+    handleTutorialPrimaryAction,
+    navigateNow,
+    player?.hospitalization.isHospitalized,
+    player?.hospitalization.remainingSeconds,
+    player?.prison.isImprisoned,
+    player?.prison.remainingSeconds,
+    runCriticalUiAction,
+    tutorialActive,
+    tutorialProgress,
+    tutorialRemainingMinutes,
+    tutorialStep,
+  ]);
+  const expandedInfoContent = useMemo<HomeInfoCardContent | null>(() => {
+    if (!expandedInfoPanel) {
+      return null;
+    }
+
+    return expandedInfoPanel === 'round'
+      ? roundDetail
+      : expandedInfoPanel === 'world'
+        ? worldDetail
+        : focusDetail;
+  }, [expandedInfoPanel, focusDetail, roundDetail, worldDetail]);
 
   const hudUiRects = useMemo(
     () => [hudUiRectState.top, hudUiRectState.bottom].flatMap((rect) => (rect ? [rect] : [])),
@@ -1289,6 +1382,14 @@ export function HomeScreen(): JSX.Element {
       [key]: rect,
     }));
   }, []);
+  const handleTopHudLayout = useCallback((event: LayoutChangeEvent) => {
+    const { x, y, width, height } = event.nativeEvent.layout;
+    updateHudRect('top', { x, y, width, height });
+  }, [updateHudRect]);
+  const handleBottomHudLayout = useCallback((event: LayoutChangeEvent) => {
+    const { x, y, width, height } = event.nativeEvent.layout;
+    updateHudRect('bottom', { x, y, width, height });
+  }, [updateHudRect]);
   const issueCameraCommand = useCallback((type: 'follow' | 'free' | 'recenter') => {
     cameraCommandTokenRef.current += 1;
     setCameraCommand({
@@ -1392,316 +1493,83 @@ export function HomeScreen(): JSX.Element {
             zones={staticWorldZones}
           />
 
-          {/* A.2 — hudLayer redesenhado: só bordas */}
-          <View pointerEvents="box-none" style={styles.hudLayer}>
-            {/* === TOPO: StatusBar compacto + Minimap === */}
-            <View
-              onLayout={(event) => {
-                const { x, y, width, height } = event.nativeEvent.layout;
-                updateHudRect('top', { x, y, width, height });
-              }}
-              pointerEvents="box-none"
-              style={styles.topSection}
-            >
-              <View style={styles.topHudRow}>
-                <View style={styles.statusContainer}>
-                  <StatusBar
-                    connectionStatus={realtimeSnapshot.status}
-                    onOpenProfile={() => {
-                      runCriticalUiAction({
-                        accent: colors.info,
-                        bootstrapMessage: 'Abrindo o perfil completo.',
-                        feedbackMessage: 'Perfil selecionado.',
-                        navigate: () => {
-                          navigateNow('Profile');
-                        },
-                      });
-                    }}
-                    player={player}
-                    playerPosition={hudPlayerState?.position ?? null}
-                  />
-                </View>
-                <View style={styles.minimapCluster}>
-                  <Minimap
-                    mapHeight={map.height}
-                    mapLabel={regionLabel}
-                    mapWidth={map.width}
-                    markers={minimapMarkers}
-                    onOpenFullMap={() => {
-                      runCriticalUiAction({
-                        accent: colors.info,
-                        bootstrapMessage: 'Abrindo o mapa tático.',
-                        feedbackMessage: 'Mapa tático selecionado.',
-                        navigate: () => {
-                          navigateNow('Map');
-                        },
-                      });
-                    }}
-                    onlineCount={realtimeSnapshot.players.length}
-                    playerPosition={hudPlayerState?.position ?? null}
-                  />
-                  <View style={styles.cameraActions}>
-                    <Pressable
-                      accessibilityLabel="Recentralizar no jogador"
-                      onPress={() => {
-                        runCriticalUiAction({
-                          accent: colors.info,
-                          feedbackMessage: 'Jogador recentralizado.',
-                          haptic: 'light',
-                          immediateSideEffect: () => {
-                            issueCameraCommand('recenter');
-                          },
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.cameraFab,
-                        pressed ? styles.cameraFabPressed : null,
-                      ]}
-                    >
-                      <Text style={styles.cameraFabGlyph}>◎</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        const nextMode = cameraMode === 'follow' ? 'free' : 'follow';
-                        runCriticalUiAction({
-                          accent: nextMode === 'follow' ? colors.success : colors.muted,
-                          feedbackMessage:
-                            nextMode === 'follow'
-                              ? 'Câmera em seguir jogador.'
-                              : 'Câmera livre ativada.',
-                          haptic: 'light',
-                          immediateSideEffect: () => {
-                            issueCameraCommand(nextMode);
-                          },
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.followChip,
-                        cameraMode === 'follow' ? styles.followChipActive : null,
-                        pressed ? styles.followChipPressed : null,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.followChipLabel,
-                          cameraMode === 'follow' ? styles.followChipLabelActive : null,
-                        ]}
-                      >
-                        {cameraMode === 'follow' ? 'Seguindo' : 'Seguir'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  {connectionLabel ? (
-                    <View style={styles.connectionStrip}>
-                      <View style={styles.connectionDivider} />
-                      <Text
-                        style={[
-                          styles.connectionStripText,
-                          realtimeSnapshot.status === 'disconnected'
-                            ? styles.connectionStripTextDanger
-                            : styles.connectionStripTextWarning,
-                        ]}
-                      >
-                        {connectionLabel}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-
-              {/* A.3 — Toasts compactos em vez de cards grandes */}
-              <View pointerEvents="box-none" style={styles.toastArea}>
-                {player?.prison.isImprisoned ? (
-                  <HudToast
-                    accent={colors.danger}
-                    autoDismissMs={0}
-                    ctaLabel="Abrir prisão"
-                    message={`Preso · ${Math.max(1, Math.ceil(player.prison.remainingSeconds / 60))}min restantes`}
-                    onCta={() => {
-                      runCriticalUiAction({
-                        accent: colors.danger,
-                        bootstrapMessage: 'Abrindo a central da prisão.',
-                        feedbackMessage: 'Prisão selecionada.',
-                        navigate: () => {
-                          navigateNow('Prison');
-                        },
-                      });
-                    }}
-                  />
-                ) : player?.hospitalization.isHospitalized ? (
-                  <HudToast
-                    accent={colors.warning}
-                    autoDismissMs={0}
-                    ctaLabel="Abrir hospital"
-                    message={`Internado · ${Math.max(1, Math.ceil(player.hospitalization.remainingSeconds / 60))}min restantes`}
-                    onCta={() => {
-                      runCriticalUiAction({
-                        accent: colors.warning,
-                        bootstrapMessage: 'Abrindo a central do hospital.',
-                        feedbackMessage: 'Hospital selecionado.',
-                        navigate: () => {
-                          navigateNow('Hospital');
-                        },
-                      });
-                    }}
-                  />
-                ) : eventBanner ? (
-                  <HudToast
-                    accent={resolveEventNotificationAccent(eventBanner.severity)}
-                    ctaLabel={resolveEventDestinationLabel(eventBanner.destination)}
-                    message={`${eventBanner.title} · ${eventBanner.regionLabel} · ${resolveEventNotificationTimeLabel(eventBanner.remainingSeconds)}`}
-                    onCta={handleEventBannerPress}
-                    onDismiss={handleDismissEventBanner}
-                  />
-                ) : tutorialActive && tutorialStep ? (
-                  <HudToast
-                    accent={colors.accent}
-                    autoDismissMs={15000}
-                    ctaLabel={tutorialStep.ctaLabel}
-                    message={`Tutorial ${tutorialProgress.current}/${tutorialProgress.total}: ${tutorialStep.title} · ${tutorialRemainingMinutes} min restantes`}
-                    onCta={handleTutorialPrimaryAction}
-                    onDismiss={dismissTutorial}
-                  />
-                ) : null}
-              </View>
-            </View>
-
-            {/* === FUNDO: Recursos + Feedback + ActionBar === */}
-            <View
-              onLayout={(event) => {
-                const { x, y, width, height } = event.nativeEvent.layout;
-                updateHudRect('bottom', { x, y, width, height });
-              }}
-              pointerEvents="box-none"
-              style={styles.bottomHud}
-            >
-              {/* C.2 — Resource bar + round indicator */}
-              <View style={styles.resourceRow}>
-                <View style={[styles.resourcePill, { borderColor: 'rgba(217,95,95,0.3)' }]}>
-                  <Text style={[styles.resourceLabel, { color: '#d95f5f' }]}>HP</Text>
-                  <Text style={styles.resourceValue}>{Math.round(player?.resources.hp ?? 0)}</Text>
-                </View>
-                <View style={[styles.resourcePill, { borderColor: 'rgba(63,163,77,0.3)' }]}>
-                  <Text style={[styles.resourceLabel, { color: colors.success }]}>STA</Text>
-                  <Text style={styles.resourceValue}>{Math.round(player?.resources.stamina ?? 0)}</Text>
-                </View>
-                <View style={[styles.resourcePill, { borderColor: 'rgba(79,142,232,0.3)' }]}>
-                  <Text style={[styles.resourceLabel, { color: '#4f8ee8' }]}>NRV</Text>
-                  <Text style={styles.resourceValue}>{Math.round(player?.resources.nerve ?? 0)}</Text>
-                </View>
-              </View>
-
-              <View style={styles.compactSignalsCard}>
-                <View style={styles.worldPulseRow}>
-                  <Pressable
-                    onPress={() => {
-                      toggleExpandedInfoPanel('round');
-                    }}
-                    style={({ pressed }) => [
-                      styles.roundPressureChip,
-                      pressed ? styles.compactChipPressed : null,
-                    ]}
-                  >
-                    <Text numberOfLines={1} style={styles.roundPressureChipLabel}>
-                      {compactRoundLabel}
-                    </Text>
-                  </Pressable>
-                  {roundPressure ? (
-                    <Pressable
-                      onPress={() => {
-                        toggleExpandedInfoPanel('round');
-                      }}
-                      style={({ pressed }) => [
-                        styles.roundPressureChip,
-                        pressed ? styles.compactChipPressed : null,
-                      ]}
-                    >
-                      <Text numberOfLines={1} style={styles.roundPressureChipLabel}>
-                        {roundPressure.labels[0]}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                  {worldPulseItems.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {
-                        toggleExpandedInfoPanel('world');
-                      }}
-                      style={({ pressed }) => [
-                        styles.worldPulseChip,
-                        pressed ? styles.compactChipPressed : null,
-                      ]}
-                    >
-                      <View style={[styles.worldPulseDot, { backgroundColor: item.accent }]} />
-                      <Text numberOfLines={1} style={styles.worldPulseLabel}>
-                        {item.label}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.worldPulseValue}>
-                        {item.value}
-                      </Text>
-                    </Pressable>
-                  ))}
-                  <Pressable
-                    onPress={() => {
-                      toggleExpandedInfoPanel('focus');
-                    }}
-                    style={({ pressed }) => [
-                      styles.roundPressureChip,
-                      pressed ? styles.compactChipPressed : null,
-                    ]}
-                  >
-                    <Text numberOfLines={1} style={styles.roundPressureChipLabel}>
-                      {focusChipLabel}
-                    </Text>
-                  </Pressable>
-                </View>
-                {expandedInfoPanel ? (
-                  <View style={styles.expandedInfoCard}>
-                    <Text numberOfLines={2} style={styles.expandedInfoHeadline}>
-                      {expandedInfoPanel === 'round'
-                        ? roundDetail.headline
-                        : expandedInfoPanel === 'world'
-                          ? worldDetail.headline
-                          : focusDetail.headline}
-                    </Text>
-                    <Text numberOfLines={3} style={styles.expandedInfoDetail}>
-                      {expandedInfoPanel === 'round'
-                        ? roundDetail.detail
-                        : expandedInfoPanel === 'world'
-                          ? worldDetail.detail
-                          : focusDetail.detail}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Feedback — single line */}
-              {interactionFeedback ? (
-                <HudToast
-                  key={interactionFeedback.id}
-                  accent={interactionFeedback.accent}
-                  autoDismissMs={1400}
-                  message={interactionFeedback.message}
-                  onDismiss={() => {
-                    setInteractionFeedback((currentFeedback) =>
-                      currentFeedback?.id === interactionFeedback.id ? null : currentFeedback,
-                    );
-                  }}
-                />
-              ) : null}
-
-              {/* ActionBar compacto */}
-              <ActionBar buttons={quickActions} onPress={handleActionBarPress} />
-            </View>
-
-            <ContextMenu
-              onActionPress={handleContextActionPress}
-              onClose={() => {
-                setContextTarget(null);
-              }}
-              target={contextTarget}
-            />
-          </View>
+          <HomeHudOverlay
+            cameraMode={cameraMode}
+            compactRoundLabel={compactRoundLabel}
+            connectionLabel={connectionLabel}
+            connectionStatus={realtimeSnapshot.status}
+            contextTarget={contextTarget}
+            expandedInfoContent={expandedInfoContent}
+            expandedInfoPanel={expandedInfoPanel}
+            focusChipLabel={focusChipLabel}
+            interactionFeedback={interactionFeedback}
+            mapHeight={map.height}
+            mapLabel={regionLabel}
+            mapWidth={map.width}
+            minimapMarkers={minimapMarkers}
+            onActionBarPress={handleActionBarPress}
+            onBottomLayout={handleBottomHudLayout}
+            onCloseContextMenu={() => {
+              setContextTarget(null);
+            }}
+            onContextActionPress={handleContextActionPress}
+            onDismissInteractionFeedback={() => {
+              setInteractionFeedback((currentFeedback) => currentFeedback ? null : currentFeedback);
+            }}
+            onOpenMap={() => {
+              runCriticalUiAction({
+                accent: colors.info,
+                bootstrapMessage: 'Abrindo o mapa tático.',
+                feedbackMessage: 'Mapa tático selecionado.',
+                navigate: () => {
+                  navigateNow('Map');
+                },
+              });
+            }}
+            onOpenProfile={() => {
+              runCriticalUiAction({
+                accent: colors.info,
+                bootstrapMessage: 'Abrindo o perfil completo.',
+                feedbackMessage: 'Perfil selecionado.',
+                navigate: () => {
+                  navigateNow('Profile');
+                },
+              });
+            }}
+            onRecenter={() => {
+              runCriticalUiAction({
+                accent: colors.info,
+                feedbackMessage: 'Jogador recentralizado.',
+                haptic: 'light',
+                immediateSideEffect: () => {
+                  issueCameraCommand('recenter');
+                },
+              });
+            }}
+            onToggleCameraMode={() => {
+              const nextMode = cameraMode === 'follow' ? 'free' : 'follow';
+              runCriticalUiAction({
+                accent: nextMode === 'follow' ? colors.success : colors.muted,
+                feedbackMessage:
+                  nextMode === 'follow'
+                    ? 'Câmera em seguir jogador.'
+                    : 'Câmera livre ativada.',
+                haptic: 'light',
+                immediateSideEffect: () => {
+                  issueCameraCommand(nextMode);
+                },
+              });
+            }}
+            onToggleExpandedInfoPanel={toggleExpandedInfoPanel}
+            onTopLayout={handleTopHudLayout}
+            onlineCount={realtimeSnapshot.players.length}
+            player={player as PlayerProfile | null}
+            playerPosition={hudPlayerState?.position ?? null}
+            quickActions={quickActions}
+            roundPressure={roundPressure}
+            topToast={topToast}
+            worldPulseItems={worldPulseItems}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -1728,333 +1596,5 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     position: 'relative',
-  },
-  /* A.2 — hudLayer edge-to-edge */
-  hudLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-    padding: 6,
-  },
-  /* --- Topo --- */
-  topSection: {
-    alignItems: 'flex-start',
-    gap: 4,
-  },
-  topHudRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  statusContainer: {
-    flexGrow: 0,
-    flexShrink: 1,
-    marginRight: 8,
-    maxWidth: 218,
-  },
-  minimapCluster: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  connectionStrip: {
-    alignItems: 'flex-end',
-    gap: 6,
-    minWidth: 112,
-    width: '100%',
-  },
-  connectionDivider: {
-    alignSelf: 'stretch',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    height: 1,
-  },
-  connectionStripText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  connectionStripTextDanger: {
-    color: colors.danger,
-  },
-  connectionStripTextWarning: {
-    color: colors.warning,
-  },
-  cameraActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  cameraFab: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.64)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
-  },
-  cameraFabPressed: {
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-  },
-  cameraFabGlyph: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-    lineHeight: 18,
-  },
-  followChip: {
-    backgroundColor: 'rgba(0, 0, 0, 0.64)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  followChipActive: {
-    backgroundColor: 'rgba(63, 163, 77, 0.22)',
-    borderColor: 'rgba(63, 163, 77, 0.45)',
-  },
-  followChipPressed: {
-    opacity: 0.82,
-  },
-  followChipLabel: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  followChipLabelActive: {
-    color: colors.success,
-  },
-  /* A.3 — área de toasts */
-  toastArea: {
-    maxWidth: '72%',
-    gap: 4,
-  },
-  /* --- Fundo --- */
-  bottomHud: {
-    alignItems: 'stretch',
-    gap: 6,
-    paddingBottom: 4,
-  },
-  /* C.2 — barra de recursos + rodada */
-  resourceRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  resourcePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    borderRadius: 10,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  resourceLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  resourceValue: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  roundPill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    borderColor: 'rgba(224, 176, 75, 0.2)',
-    borderRadius: 10,
-    borderWidth: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  roundLabel: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  roundBanner: {
-    backgroundColor: 'rgba(0, 0, 0, 0.58)',
-    borderColor: 'rgba(224, 176, 75, 0.24)',
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  roundBannerHeadline: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  roundBannerSubline: {
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  roundPressureRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  roundPressureChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  roundPressureChipLabel: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  roundPressureHeadline: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 15,
-    marginTop: 4,
-  },
-  roundPressureDetail: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  streetSceneCard: {
-    backgroundColor: 'rgba(6, 8, 10, 0.62)',
-    borderColor: 'rgba(224, 176, 75, 0.18)',
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 3,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  streetSceneEyebrow: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  streetSceneHeadline: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 16,
-  },
-  streetSceneDetail: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  worldPulseCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.52)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 8,
-    maxWidth: '100%',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  compactSignalsCard: {
-    gap: 8,
-    maxWidth: '100%',
-  },
-  compactChipPressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.98 }],
-  },
-  expandedInfoCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.54)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  expandedInfoHeadline: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 15,
-  },
-  expandedInfoDetail: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  worldPulseRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  worldPulseChip: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    maxWidth: '100%',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  worldPulseDot: {
-    borderRadius: 999,
-    height: 6,
-    width: 6,
-  },
-  worldPulseLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  worldPulseValue: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: '700',
-    maxWidth: 112,
-  },
-  nextMoveCard: {
-    gap: 2,
-  },
-  nextMoveLabel: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  nextMoveHeadline: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 16,
-  },
-  nextMoveReason: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  /* Feedback single-line */
-  feedbackText: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    borderRadius: 8,
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 16,
-    maxWidth: '78%',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
 });

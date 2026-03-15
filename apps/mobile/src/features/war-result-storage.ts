@@ -1,23 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 
+import { parseStoredStringArray } from './storage';
+
 const MAX_STORED_KEYS = 60;
 const STORAGE_PREFIX = 'cs_rio_seen_war_results:';
 
 export async function loadSeenWarResultKeys(playerId: string): Promise<Set<string>> {
   try {
-    const raw = await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`);
-
-    if (!raw) {
-      return new Set();
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed)) {
-      return new Set();
-    }
-
-    return new Set(parsed.filter((entry): entry is string => typeof entry === 'string'));
+    return new Set(
+      parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
+    );
   } catch {
     return new Set();
   }

@@ -144,6 +144,8 @@ export function CrimesScreen(): JSX.Element {
             <View style={styles.crimeList}>
               {group.crimes.map((crime) => (
                 <Pressable
+                  accessibilityLabel={`Selecionar crime ${crime.name}`}
+                  accessibilityRole="button"
                   key={crime.id}
                   onPress={() => {
                     setSelectedCrimeId(crime.id);
@@ -222,6 +224,8 @@ export function CrimesScreen(): JSX.Element {
                       ) : null}
 
                       <Pressable
+                        accessibilityLabel={`Confirmar crime ${crime.name}`}
+                        accessibilityRole="button"
                         disabled={!crime.isRunnable || isAttempting}
                         onPress={() => {
                           void handleAttemptCrime();

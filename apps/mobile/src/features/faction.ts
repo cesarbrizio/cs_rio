@@ -49,7 +49,7 @@ export function resolveFactionScreenTabLabel(tab: FactionScreenTab): string {
     case 'upgrades':
       return 'Upgrades';
     case 'war':
-      return 'Guerra';
+      return 'Sala';
     case 'leadership':
       return 'Candidatura';
     default:

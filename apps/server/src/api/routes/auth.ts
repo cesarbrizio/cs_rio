@@ -8,10 +8,11 @@ import {
   refreshBodySchema,
   registerBodySchema,
 } from '../schemas.js';
-import { type AuthService } from '../../services/auth.js';
+import { type AuthService, type KeyValueStore } from '../../services/auth.js';
 
 interface AuthRouteDependencies {
   authService: AuthService;
+  keyValueStore: KeyValueStore;
 }
 
 interface LoginBody {
@@ -29,9 +30,9 @@ interface RegisterBody {
   password: string;
 }
 
-export function createAuthRoutes({ authService }: AuthRouteDependencies): FastifyPluginAsync {
+export function createAuthRoutes({ authService, keyValueStore }: AuthRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
-    fastify.addHook('preHandler', createHttpRateLimitHook());
+    fastify.addHook('preHandler', createHttpRateLimitHook({ keyValueStore }));
 
     fastify.post<{ Body: RegisterBody }>(
       '/auth/register',

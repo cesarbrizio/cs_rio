@@ -1,4 +1,4 @@
-import { type GridPoint, type ScreenPoint } from '@engine/types';
+import { type CameraState, type GridPoint, type ScreenPoint } from '@engine/types';
 
 import { type MapEntityKind, type MapStructureKind } from '../../data/mapRegionVisuals';
 
@@ -8,6 +8,10 @@ export interface GameEntity {
   kind?: MapEntityKind | 'player';
   label?: string;
   position: GridPoint;
+}
+
+export interface GameEntityWorldPoint extends GameEntity {
+  worldPoint: ScreenPoint;
 }
 
 export interface GameZone {
@@ -81,4 +85,16 @@ export interface WorldLabelOverlay {
   zoneId?: string;
   x: number;
   y: number;
+}
+
+export interface DestinationOverlay {
+  x: number;
+  y: number;
+}
+
+export interface DebugState {
+  camera: CameraState;
+  clipName: string | null;
+  fps: number;
+  playerPosition: GridPoint;
 }

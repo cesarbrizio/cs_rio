@@ -54,6 +54,8 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
         <View style={styles.quickRow}>
           {primaryButtons.map((button) => (
             <Pressable
+              accessibilityLabel={button.label}
+              accessibilityRole="button"
               android_ripple={{ borderless: false, color: 'rgba(255,255,255,0.08)' }}
               key={button.id}
               onPress={() => {
@@ -85,6 +87,8 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
           ))}
 
           <Pressable
+            accessibilityLabel="Abrir mais ações"
+            accessibilityRole="button"
             android_ripple={{ borderless: false, color: 'rgba(255,255,255,0.1)' }}
             onPress={() => {
               setExpanded(true);
@@ -103,6 +107,7 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
       <Modal animationType="slide" transparent visible={expanded}>
         <View style={styles.modalRoot}>
           <Pressable
+            accessibilityElementsHidden
             onPress={() => {
               setExpanded(false);
             }}
@@ -118,6 +123,8 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
                 </Text>
               </View>
               <Pressable
+                accessibilityLabel="Fechar ações rápidas"
+                accessibilityRole="button"
                 onPress={() => {
                   setExpanded(false);
                 }}
@@ -137,6 +144,8 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
                   <View style={styles.grid}>
                     {groupedButtons[group]?.map((button) => (
                       <Pressable
+                        accessibilityLabel={button.label}
+                        accessibilityRole="button"
                         android_ripple={{ borderless: false, color: 'rgba(255,255,255,0.08)' }}
                         key={button.id}
                         onPress={() => {

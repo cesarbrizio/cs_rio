@@ -594,6 +594,190 @@
 - [x] **B.7.5** Critério final
   - qualquer pessoa do time consegue usar o `ROLL_OUT.md` como checklist real de subida e validação
 
+## Backlog Técnico Pós-Hardening / Pós-Playtest
+
+> Ajustes identificados depois do fechamento do hardening estrutural e do backlog imediato de produto.
+> Estes itens não bloqueiam o Pré-Alpha funcional atual, mas representam a próxima camada de robustez, manutenção, acessibilidade e preparação para escala.
+
+### C.1 — Migrar rate limiting e idempotência para store distribuído
+
+> **Prioridade**
+>
+> - média
+> - aceitável para servidor único de playtest
+> - bloqueante antes de escalar horizontalmente ou operar múltiplas instâncias do backend
+
+- [x] **C.1.1** Substituir store in-memory do rate limiting por store com Redis
+  - manter mesmo contrato HTTP
+  - preservar comportamento atual de bloqueio
+  - evitar divergência entre múltiplas instâncias
+
+- [x] **C.1.2** Substituir store in-memory da idempotência por store com Redis
+  - impedir replay duplicado mesmo com múltiplas réplicas do server
+  - manter TTL e semântica atuais
+
+- [x] **C.1.3** Cobrir cenário distribuído em teste
+  - provar que duas instâncias simuladas compartilham o mesmo estado de rate limit/idempotência
+
+- [x] **C.1.4** Critério final
+  - rate limiting e idempotência continuam funcionando
+  - múltiplas instâncias enxergam o mesmo estado
+
+### C.2 — Reduzir mais os hotspots do mobile
+
+> **Prioridade**
+>
+> - média
+> - não é bug funcional hoje
+> - reduz risco de regressão e custo de manutenção nas telas mais críticas
+
+- [x] **C.2.1** Continuar o fatiamento de `HomeScreen`
+  - extrair subcomponentes claros de:
+    - HUD
+    - tutorial
+    - painel de eventos
+    - feedback de combate
+    - overlays específicos
+
+- [x] **C.2.2** Continuar o fatiamento de `GameView`
+  - extrair mais responsabilidades visuais/interativas
+  - reduzir acoplamento entre render, input e labels
+
+- [x] **C.2.3** Controlar o custo de props na extração
+  - evitar prop drilling desnecessário
+  - preferir hooks/helpers locais ou contexto quando fizer sentido
+
+- [x] **C.2.4** Critério final
+  - `HomeScreen` e `GameView` ficam menores e mais previsíveis
+  - comportamento visual permanece igual
+
+### C.3 — Reduzir usos de `any` no mobile
+
+> **Prioridade**
+>
+> - média
+> - não bloqueia o funcionamento atual
+> - melhora confiança do TypeScript e reduz bugs silenciosos
+
+- [x] **C.3.1** Mapear os usos de `any` por categoria
+  - realtime
+  - parsing de payload
+  - assertions de componentes
+  - utilitários diversos
+
+- [x] **C.3.2** Atacar primeiro os `any` de maior risco
+  - serviços realtime
+  - payloads de API/socket
+  - pontos que atravessam estado global
+
+- [x] **C.3.3** Trocar `any` por tipos explícitos ou `unknown` com narrowing
+  - evitar só “trocar por outro tipo frouxo”
+
+- [x] **C.3.4** Critério final
+  - queda perceptível da contagem de `any`
+  - sem perda de legibilidade
+
+### C.4 — Ampliar cobertura de validação no `shared`
+
+> **Prioridade**
+>
+> - média
+> - baixo risco imediato
+> - melhora robustez de contratos reaproveitados em server e mobile
+
+- [x] **C.4.1** Cobrir edge cases de email
+  - inválidos comuns
+  - uppercase/lowercase
+  - whitespace
+  - formatos estranhos
+
+- [x] **C.4.2** Cobrir edge cases de nickname e texto
+  - unicode
+  - comprimento extremo
+  - colapso de espaços
+  - caracteres não desejados
+
+- [x] **C.4.3** Cobrir edge cases monetários e numéricos
+  - precisão extrema
+  - decimais fora do esperado
+  - limites negativos/zero
+  - overflow lógico
+
+- [x] **C.4.4** Critério final
+  - validators compartilhados têm cobertura para happy path e edge cases relevantes
+
+### C.5 — Introduzir acessibilidade mínima no mobile
+
+> **Prioridade**
+>
+> - baixa
+> - não impacta a funcionalidade central
+> - necessária para conformidade, inclusão e qualidade de UI
+
+- [x] **C.5.1** Definir padrão mínimo de acessibilidade para o app
+  - `accessibilityLabel`
+  - `accessibilityRole`
+  - ordem básica de leitura
+
+- [x] **C.5.2** Aplicar primeiro nas telas mais importantes
+  - login
+  - home
+  - crimes
+  - mercado
+  - território
+  - facção
+  - hospital
+  - prisão
+
+- [x] **C.5.3** Critério final
+  - os fluxos principais têm labels e roles mínimas consistentes
+
+### C.6 — Fechar a UI de chat
+
+> **Prioridade**
+>
+> - baixa
+> - funcionalidade de base existe
+> - o que falta é surfacing e UX
+
+- [x] **C.6.1** Expor chat de facção no mobile
+  - usar o realtime já existente
+  - criar entrada clara no fluxo da facção
+
+- [x] **C.6.2** Definir escopo inicial do chat
+  - histórico curto
+  - envio de mensagem
+  - estado de conexão básico
+  - sem tentar resolver chat completo “social” de primeira
+
+- [x] **C.6.3** Critério final
+  - o jogador consegue ver e enviar mensagens da facção pelo app
+
+### C.7 — Adicionar monitoramento mínimo de performance no mobile
+
+> **Prioridade**
+>
+> - baixa
+> - não bloqueia o funcionamento atual
+> - importante para sair de percepção subjetiva e medir gargalo real
+
+- [x] **C.7.1** Definir observabilidade mínima do mobile
+  - latência de API
+  - falhas de render
+  - falhas de realtime
+  - sinais básicos de performance percebida
+
+- [x] **C.7.2** Adicionar medição leve sem poluir o app
+  - evitar SDK pesado se não houver necessidade imediata
+  - priorizar instrumentação simples e útil
+
+- [x] **C.7.3** Planejar ou instalar trilha de crash reporting
+  - mesmo que inicial e reduzida
+  - com ambiente de staging/dev claramente separado
+
+- [x] **C.7.4** Critério final
+  - o time deixa de depender só de impressão subjetiva para investigar performance e crashes
+
 ## Legenda de Status
 
 ```

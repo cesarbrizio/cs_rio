@@ -42,6 +42,8 @@ export function AuthScreenLayout({
         <View style={styles.card}>{children}</View>
 
         <Pressable
+          accessibilityLabel={isLoading ? `${actionLabel}. Processando.` : actionLabel}
+          accessibilityRole="button"
           disabled={isLoading}
           onPress={onActionPress}
           style={({ pressed }) => [
@@ -54,7 +56,12 @@ export function AuthScreenLayout({
           </Text>
         </Pressable>
 
-        <Pressable onPress={onFooterPress} style={styles.footerLink}>
+        <Pressable
+          accessibilityLabel={`${footerCopy} ${footerLabel}`}
+          accessibilityRole="button"
+          onPress={onFooterPress}
+          style={styles.footerLink}
+        >
           <Text style={styles.footerCopy}>{footerCopy}</Text>
           <Text style={styles.footerLabel}>{footerLabel}</Text>
         </Pressable>

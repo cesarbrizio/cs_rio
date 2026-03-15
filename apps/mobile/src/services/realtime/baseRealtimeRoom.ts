@@ -1,3 +1,8 @@
+import {
+  recordRealtimeEvent,
+  type MobileRealtimeChannel,
+} from '../../features/mobile-observability';
+
 export type BaseRealtimeConnectionStatus =
   | 'connected'
   | 'connecting'
@@ -65,6 +70,7 @@ export class BaseRealtimeRoomService<Snapshot, State> {
   protected constructor(
     initialSnapshot: Snapshot,
     clientFactory: () => BaseColyseusClientLike<State>,
+    private readonly observabilityChannel?: MobileRealtimeChannel,
   ) {
     this.snapshot = initialSnapshot;
     this.clientFactory = clientFactory;
@@ -104,6 +110,7 @@ export class BaseRealtimeRoomService<Snapshot, State> {
     }
 
     this.setSnapshot(buildSnapshot(this.snapshot));
+    this.recordRealtimeEvent('disconnected');
   }
 
   protected async leaveCurrentRoom(onBeforeLeave?: () => void): Promise<void> {
@@ -128,6 +135,7 @@ export class BaseRealtimeRoomService<Snapshot, State> {
     this.currentRoom = room;
     this.reconnectAttempts = 0;
     config.onBeforeBind?.();
+    this.recordRealtimeEvent('connected');
     this.setSnapshot(
       config.updateFromState(room.state, room, 'connected', config.fallbackContext),
     );
@@ -147,6 +155,7 @@ export class BaseRealtimeRoomService<Snapshot, State> {
         return;
       }
 
+      this.recordRealtimeEvent('connected', `[${code}] ${message ?? 'Erro de realtime.'}`);
       this.setSnapshot(config.buildErrorSnapshot(this.snapshot, code, message));
     });
 
@@ -159,10 +168,15 @@ export class BaseRealtimeRoomService<Snapshot, State> {
       config.onBeforeUnexpectedLeave?.();
 
       if (this.disconnectRequested) {
+        this.recordRealtimeEvent('disconnected');
         this.setSnapshot(config.buildDisconnectedSnapshot(this.snapshot));
         return;
       }
 
+      this.recordRealtimeEvent(
+        'reconnecting',
+        reason ?? 'Conexão em tempo real perdida.',
+      );
       this.setSnapshot(config.buildReconnectingSnapshot(this.snapshot, reason));
       this.scheduleReconnect(room.reconnectionToken, config);
     });
@@ -201,8 +215,10 @@ export class BaseRealtimeRoomService<Snapshot, State> {
 
     if (attempt > maxReconnectAttempts) {
       if (config.buildReconnectExhaustedSnapshot) {
+        this.recordRealtimeEvent('disconnected', 'Tentativas de reconexão esgotadas.');
         this.setSnapshot(config.buildReconnectExhaustedSnapshot(this.snapshot));
       } else {
+        this.recordRealtimeEvent('disconnected', 'Tentativas de reconexão esgotadas.');
         this.setSnapshot(config.buildDisconnectedSnapshot(this.snapshot));
       }
       return;
@@ -227,8 +243,32 @@ export class BaseRealtimeRoomService<Snapshot, State> {
       const room = await this.ensureClient().reconnect(reconnectionToken);
       this.bindRoom(room, config);
     } catch (error) {
+      this.recordRealtimeEvent('reconnecting', normalizeReconnectError(error));
       this.setSnapshot(config.buildReconnectErrorSnapshot(this.snapshot, error));
       this.scheduleReconnect(reconnectionToken, config);
     }
   }
+
+  protected recordRealtimeEvent(
+    status: BaseRealtimeConnectionStatus,
+    errorMessage?: string,
+  ): void {
+    if (!this.observabilityChannel) {
+      return;
+    }
+
+    recordRealtimeEvent({
+      channel: this.observabilityChannel,
+      errorMessage,
+      status,
+    });
+  }
+}
+
+function normalizeReconnectError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return 'Falha ao reconectar o realtime.';
 }

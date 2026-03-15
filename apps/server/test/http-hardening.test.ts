@@ -12,8 +12,43 @@ import {
   factionCreateBodySchema,
   loginBodySchema,
 } from '../src/api/schemas.js';
+import type { KeyValueStore } from '../src/services/auth.js';
 
 const apps: FastifyInstance[] = [];
+
+class InMemoryKeyValueStore implements KeyValueStore {
+  private readonly entries = new Map<string, { expiresAt: number | null; value: string }>();
+
+  async get(key: string): Promise<string | null> {
+    this.purgeExpired(key);
+    return this.entries.get(key)?.value ?? null;
+  }
+
+  async increment(key: string, ttlSeconds: number): Promise<number> {
+    this.purgeExpired(key);
+    const currentValue = Number(this.entries.get(key)?.value ?? '0') + 1;
+    this.entries.set(key, {
+      expiresAt: Date.now() + ttlSeconds * 1000,
+      value: String(currentValue),
+    });
+    return currentValue;
+  }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    this.entries.set(key, {
+      expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
+      value,
+    });
+  }
+
+  private purgeExpired(key: string): void {
+    const entry = this.entries.get(key);
+
+    if (entry && entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
+      this.entries.delete(key);
+    }
+  }
+}
 
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
@@ -165,6 +200,68 @@ describe('HTTP hardening', () => {
     }
 
     const rateLimitedResponse = await app.inject({
+      method: 'POST',
+      url: '/actions/hot',
+    });
+
+    expect(rateLimitedResponse.statusCode).toBe(429);
+    expect(rateLimitedResponse.json()).toMatchObject({
+      category: 'rate_limited',
+    });
+  });
+
+  it('shares protected mutation rate limiting across app instances when the store is shared', async () => {
+    const sharedStore = new InMemoryKeyValueStore();
+    const appA = await createHardeningApp(async (instance) => {
+      instance.addHook('preHandler', async (request) => {
+        request.playerId = 'player-1';
+      });
+      instance.addHook('preHandler', createHttpRateLimitHook({ keyValueStore: sharedStore }));
+      instance.post(
+        '/actions/hot',
+        {
+          schema: {
+            response: buildStandardResponseSchema(200),
+          },
+        },
+        async () => ({
+          ok: true,
+        }),
+      );
+    });
+    const appB = await createHardeningApp(async (instance) => {
+      instance.addHook('preHandler', async (request) => {
+        request.playerId = 'player-1';
+      });
+      instance.addHook('preHandler', createHttpRateLimitHook({ keyValueStore: sharedStore }));
+      instance.post(
+        '/actions/hot',
+        {
+          schema: {
+            response: buildStandardResponseSchema(200),
+          },
+        },
+        async () => ({
+          ok: true,
+        }),
+      );
+    });
+
+    for (let index = 0; index < 60; index += 1) {
+      const firstAppResponse = await appA.inject({
+        method: 'POST',
+        url: '/actions/hot',
+      });
+      const secondAppResponse = await appB.inject({
+        method: 'POST',
+        url: '/actions/hot',
+      });
+
+      expect(firstAppResponse.statusCode).toBe(200);
+      expect(secondAppResponse.statusCode).toBe(200);
+    }
+
+    const rateLimitedResponse = await appB.inject({
       method: 'POST',
       url: '/actions/hot',
     });

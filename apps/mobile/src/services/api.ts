@@ -121,6 +121,7 @@ import axios, {
 } from 'axios';
 
 import { appEnv } from '../config/env';
+import { recordApiMetric } from '../features/mobile-observability';
 
 export const api = axios.create({
   baseURL: normalizeApiBaseUrl(appEnv.apiUrl),
@@ -133,10 +134,16 @@ interface AuthInterceptorOptions {
 }
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _observability?: {
+    method: string;
+    path: string;
+    startedAt: number;
+  };
   _retry?: boolean;
 };
 
 let authInterceptorsInstalled = false;
+let diagnosticsInterceptorsInstalled = false;
 
 export const authApi = {
   login(input: AuthLoginInput): Promise<AuthSession> {
@@ -699,6 +706,63 @@ export function installAuthInterceptors({
       }
 
       throw error;
+    },
+  );
+}
+
+export function installApiObservabilityInterceptors(): void {
+  if (diagnosticsInterceptorsInstalled) {
+    return;
+  }
+
+  diagnosticsInterceptorsInstalled = true;
+
+  api.interceptors.request.use((config) => {
+    const observableConfig = config as RetryableRequestConfig;
+    observableConfig._observability = {
+      method: (config.method ?? 'GET').toUpperCase(),
+      path: config.url ?? '/unknown',
+      startedAt: Date.now(),
+    };
+    return config;
+  });
+
+  api.interceptors.response.use(
+    (response) => {
+      const observableConfig = response.config as RetryableRequestConfig;
+      recordApiMetric({
+        durationMs: Date.now() - (observableConfig._observability?.startedAt ?? Date.now()),
+        method: observableConfig._observability?.method ?? (response.config.method ?? 'GET').toUpperCase(),
+        path: observableConfig._observability?.path ?? response.config.url ?? '/unknown',
+        statusCode: response.status,
+      });
+      return response;
+    },
+    (error: AxiosError<ApiErrorResponse>) => {
+      const observableConfig = error.config as RetryableRequestConfig | undefined;
+      const startedAt = observableConfig?._observability?.startedAt ?? Date.now();
+      const statusCode = error.response?.status ?? null;
+
+      if (
+        !(
+          statusCode === 401 &&
+          observableConfig &&
+          !observableConfig._retry &&
+          !isAuthPath(observableConfig.url)
+        )
+      ) {
+        recordApiMetric({
+          durationMs: Date.now() - startedAt,
+          errorMessage: formatApiError(error).message,
+          method:
+            observableConfig?._observability?.method ??
+            (observableConfig?.method ?? 'GET').toUpperCase(),
+          path: observableConfig?._observability?.path ?? observableConfig?.url ?? '/unknown',
+          statusCode,
+        });
+      }
+
+      return Promise.reject(error);
     },
   );
 }

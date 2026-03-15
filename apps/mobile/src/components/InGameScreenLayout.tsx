@@ -58,6 +58,7 @@ export function InGameScreenLayout({
     <SafeAreaView edges={['right', 'bottom', 'left']} style={styles.safeArea}>
       <View style={styles.root}>
         <Pressable
+          accessibilityElementsHidden
           onPress={() => {
             queueMapReturnCue({
               accent: colors.info,
@@ -87,6 +88,8 @@ export function InGameScreenLayout({
             <View style={styles.heroTopRow}>
               <Text style={styles.eyebrow}>{eyebrow}</Text>
               <Pressable
+                accessibilityLabel={`Voltar ao mapa a partir de ${title}`}
+                accessibilityRole="button"
                 onPress={() => {
                   queueMapReturnCue({
                     accent: colors.info,

@@ -544,6 +544,8 @@ export function TerritoryScreen(): JSX.Element {
             <View style={styles.regionGrid}>
               {regionGroups.map((group) => (
                 <Pressable
+                  accessibilityLabel={`Focar região ${resolveRegionLabel(group.region.regionId)}`}
+                  accessibilityRole="button"
                   key={group.region.regionId}
                   onPress={() => {
                     handleSelectRegion(group.region.regionId);
@@ -575,6 +577,8 @@ export function TerritoryScreen(): JSX.Element {
             <View style={styles.favelaGrid}>
               {selectedRegion?.favelas.map((favela) => (
                 <Pressable
+                  accessibilityLabel={`Selecionar favela ${favela.name}`}
+                  accessibilityRole="button"
                   key={favela.id}
                   onPress={() => {
                     handleSelectFavela(favela);
@@ -1106,6 +1110,8 @@ function ActionButton({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1139,6 +1145,8 @@ function InlineBanner({
       <Text style={styles.bannerCopy}>{message}</Text>
       {actionLabel && onPress ? (
         <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
           onPress={onPress}
           style={({ pressed }) => [styles.bannerButton, pressed ? styles.cardPressed : null]}
         >
@@ -1171,6 +1179,8 @@ function MutationResultModal({
           <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
           <Text style={styles.modalCopy}>{message}</Text>
           <Pressable
+            accessibilityLabel="Fechar resultado territorial"
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.modalButton, pressed ? styles.cardPressed : null]}
           >
@@ -1193,6 +1203,8 @@ function MiniToggle({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [
         styles.toggleChip,

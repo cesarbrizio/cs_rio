@@ -6,6 +6,7 @@ import {
   deriveAppErrorBoundaryState,
   type AppErrorBoundaryState,
 } from './app-error-boundary.shared';
+import { recordRenderFailure } from '../features/mobile-observability';
 import { colors } from '../theme/colors';
 
 interface AppErrorBoundaryProps {
@@ -31,6 +32,10 @@ export class AppErrorBoundary extends Component<
   }
 
   public componentDidCatch(error: Error, info: ErrorInfo): void {
+    recordRenderFailure({
+      componentStack: info.componentStack,
+      errorMessage: this.state.errorMessage || error.message || 'Falha de render.',
+    });
     console.error('[AppErrorBoundary] render failure', error, info.componentStack);
   }
 

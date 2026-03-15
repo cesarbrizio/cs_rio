@@ -25,6 +25,7 @@ export function AuthField({
         <Text style={styles.fieldLabel}>{label}</Text>
         {isPasswordField && onTogglePasswordVisibility ? (
           <Pressable
+            accessibilityLabel={isPasswordVisible ? `Ocultar ${label.toLowerCase()}` : `Mostrar ${label.toLowerCase()}`}
             accessibilityRole="button"
             onPress={onTogglePasswordVisibility}
             hitSlop={8}
@@ -36,6 +37,7 @@ export function AuthField({
         ) : null}
       </View>
       <TextInput
+        accessibilityLabel={label}
         placeholderTextColor={colors.muted}
         secureTextEntry={shouldHidePassword}
         style={styles.input}

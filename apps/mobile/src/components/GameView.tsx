@@ -8,18 +8,9 @@ import { findPath } from '@engine/pathfinding';
 import { SpriteSheet } from '@engine/spritesheet';
 import { parseTilemap } from '@engine/tilemap-parser';
 import { type CameraMode, type CameraState, type GridPoint, type ScreenPoint } from '@engine/types';
-import {
-  Atlas,
-  Canvas,
-  Circle,
-  Group,
-  Path,
-  useImage,
-  useRSXformBuffer,
-  useRectBuffer,
-} from '@shopify/react-native-skia';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useImage, useRSXformBuffer, useRectBuffer } from '@shopify/react-native-skia';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -34,12 +25,11 @@ import {
   type MapEntityKind,
 } from '../data/mapRegionVisuals';
 import { getMapStructureDefinition } from '../data/mapStructureCatalog';
+import { recordPerformanceFpsSample } from '../features/mobile-observability';
 import { colors } from '../theme/colors';
 import {
   clampOverlayPosition,
   createCameraMatrix,
-  createDiamondPath,
-  createPolylinePath,
   getMapWorldBounds,
   getSceneWorldBounds,
   hasCameraChanged,
@@ -47,11 +37,11 @@ import {
   mapDirectionToSprite,
   projectWorldToScreen,
   scalePolygonPoints,
-  toAlphaHex,
 } from './game-view/geometry';
-import { renderMapEntityMarker, renderMapStructure } from './game-view/renderers';
 import {
+  type DebugState,
   type GameEntity,
+  type GameEntityWorldPoint,
   type GameStructure,
   type GameTrail,
   type GameZone,
@@ -59,6 +49,8 @@ import {
   type WorldLandmarkOverlay,
   type WorldStructureOverlay,
 } from './game-view/types';
+import { GameCanvasScene } from './game-view/GameCanvasScene';
+import { GameOverlayLayer } from './game-view/GameOverlayLayer';
 
 export interface GameViewPlayerState {
   animation: string;
@@ -90,13 +82,6 @@ interface GameViewProps {
   trails?: GameTrail[];
   uiRects?: InputRect[];
   zones?: GameZone[];
-}
-
-interface DebugState {
-  camera: CameraState;
-  clipName: string | null;
-  fps: number;
-  playerPosition: GridPoint;
 }
 
 const INITIAL_VIEWPORT_SIZE = 1;
@@ -194,6 +179,7 @@ export function GameView({
   );
   const facingDirectionRef = useRef('s');
   const fpsTimestampRef = useRef(0);
+  const fpsTelemetryTimestampRef = useRef(0);
   const inertiaVelocityRef = useRef<ScreenPoint>({ x: 0, y: 0 });
   const lastWalkSfxAtRef = useRef(0);
   const isPanningRef = useRef(false);
@@ -270,6 +256,7 @@ export function GameView({
     facingDirectionRef.current = 's';
     inertiaVelocityRef.current = { x: 0, y: 0 };
     isPanningRef.current = false;
+    fpsTelemetryTimestampRef.current = 0;
     debugCameraRef.current = cameraRef.current.getState();
     debugPathLengthRef.current = 0;
     cameraMatrixValue.value = createCameraMatrix(debugCameraRef.current);
@@ -513,6 +500,14 @@ export function GameView({
           },
         });
       }
+
+      if (
+        performance.now() - fpsTelemetryTimestampRef.current > 2_500 ||
+        Math.round(nextFps) < 35
+      ) {
+        fpsTelemetryTimestampRef.current = performance.now();
+        recordPerformanceFpsSample(Math.round(nextFps));
+      }
     });
 
     return () => {
@@ -667,7 +662,7 @@ export function GameView({
           worldPoint: cartToIso(entity.position, tileSize),
         })),
     [entities, structureEntityIds, tileSize],
-  );
+  ) as GameEntityWorldPoint[];
   const spatialLabelOverlays = useMemo<WorldLabelOverlay[]>(() => {
     const labels: WorldLabelOverlay[] = [];
 
@@ -910,308 +905,43 @@ export function GameView({
     <View onLayout={handleLayout} style={styles.wrapper}>
       <GestureDetector gesture={composedGesture}>
         <View style={styles.canvasFrame}>
-          <Canvas style={styles.canvas}>
-            <Group matrix={cameraMatrixValue}>
-              {null}
-
-              {null}
-
-              {null}
-
-              {landmarkWorldOverlays.map((landmark) => (
-                <Group key={landmark.id}>
-                  <Path
-                    color={toAlphaHex(landmark.accent, 0.18)}
-                    path={createDiamondPath(
-                      landmark.positionWorldPoint.x,
-                      landmark.positionWorldPoint.y,
-                      landmark.shape === 'warehouse' ? 26 : 22,
-                      landmark.shape === 'tower' ? 18 : 16,
-                    )}
-                  />
-                  <Path
-                    color={toAlphaHex(landmark.accent, 0.64)}
-                    path={createDiamondPath(
-                      landmark.positionWorldPoint.x,
-                      landmark.positionWorldPoint.y,
-                      landmark.shape === 'warehouse' ? 18 : 16,
-                      landmark.shape === 'tower' ? 14 : 12,
-                    )}
-                  />
-                  <Circle
-                    color={toAlphaHex(landmark.accent, 0.96)}
-                    cx={landmark.positionWorldPoint.x}
-                    cy={landmark.positionWorldPoint.y - (landmark.shape === 'tower' ? 16 : 10)}
-                    r={landmark.shape === 'plaza' ? 4 : 5}
-                  />
-                </Group>
-              ))}
-
-              {null}
-
-              {structureWorldOverlays.map((structure) => (
-                <Group key={structure.id}>
-                  {renderMapStructure(structure, structureSvgCatalog[structure.kind])}
-                </Group>
-              ))}
-
-              {selectedTileWorldPoint ? (
-                <>
-                  <Path
-                    color="rgba(224, 176, 75, 0.22)"
-                    path={createDiamondPath(
-                      selectedTileWorldPoint.x,
-                      selectedTileWorldPoint.y,
-                      tileSize.width * 1.36,
-                      tileSize.height * 1.36,
-                    )}
-                  />
-                  <Path
-                    color="rgba(224, 176, 75, 0.54)"
-                    path={createDiamondPath(
-                      selectedTileWorldPoint.x,
-                      selectedTileWorldPoint.y,
-                      tileSize.width * 1.12,
-                      tileSize.height * 1.12,
-                    )}
-                    style="stroke"
-                    strokeWidth={4}
-                  />
-                  <Circle
-                    color="rgba(244, 241, 232, 0.76)"
-                    cx={selectedTileWorldPoint.x}
-                    cy={selectedTileWorldPoint.y - 10}
-                    r={5}
-                  />
-                  <Circle
-                    color="rgba(244, 241, 232, 0.28)"
-                    cx={selectedTileWorldPoint.x}
-                    cy={selectedTileWorldPoint.y - 10}
-                    r={11}
-                  />
-                </>
-              ) : null}
-
-              {pathWorldPoints.length > 1 ? (
-                <Path
-                  color="rgba(244, 225, 174, 0.5)"
-                  path={createPolylinePath(pathWorldPoints.map((point) => ({ x: point.x, y: point.y - 10 })))}
-                  style="stroke"
-                  strokeCap="round"
-                  strokeJoin="round"
-                  strokeWidth={4}
-                />
-              ) : null}
-
-              {pathWorldPoints.map((point, index) => (
-                <Circle
-                  color="rgba(244, 241, 232, 0.58)"
-                  cx={point.x}
-                  cy={point.y - 10}
-                  key={`${point.x}:${point.y}:${index}`}
-                  r={index === pathWorldPoints.length - 1 ? 7 : 4}
-                />
-              ))}
-
-              {entityWorldPoints.map((entity) => (
-                <Group key={entity.id}>
-                  {renderMapEntityMarker(entity)}
-                </Group>
-              ))}
-
-              <Circle color="rgba(17, 17, 17, 0.28)" cx={playerWorldXValue} cy={playerWorldYValue} r={18} />
-              <Circle color="rgba(63, 163, 77, 0.24)" cx={playerWorldXValue} cy={playerHaloYValue} r={34} />
-              <Circle color="rgba(63, 163, 77, 0.42)" cx={playerWorldXValue} cy={playerHaloYValue} r={24} />
-              <Circle color="rgba(244, 241, 232, 0.84)" cx={playerWorldXValue} cy={playerBeaconYValue} r={6} />
-
-              {playerImage ? (
-                <Atlas image={playerImage} sprites={playerSpriteBuffer} transforms={playerTransformBuffer} />
-              ) : (
-                <Circle color={colors.success} cx={playerWorldXValue} cy={playerWorldYValue} r={12} />
-              )}
-
-              <Circle color="rgba(63, 163, 77, 0.96)" cx={playerWorldXValue} cy={playerMarkerYValue} r={7} />
-            </Group>
-          </Canvas>
+          <GameCanvasScene
+            cameraMatrixValue={cameraMatrixValue}
+            entityWorldPoints={entityWorldPoints}
+            landmarkWorldOverlays={landmarkWorldOverlays}
+            pathWorldPoints={pathWorldPoints}
+            playerBeaconYValue={playerBeaconYValue}
+            playerHaloYValue={playerHaloYValue}
+            playerImage={playerImage}
+            playerMarkerYValue={playerMarkerYValue}
+            playerSpriteBuffer={playerSpriteBuffer}
+            playerTransformBuffer={playerTransformBuffer}
+            playerWorldXValue={playerWorldXValue}
+            playerWorldYValue={playerWorldYValue}
+            selectedTileWorldPoint={selectedTileWorldPoint}
+            structureSvgCatalog={structureSvgCatalog}
+            structureWorldOverlays={structureWorldOverlays}
+            tileSize={tileSize}
+          />
         </View>
       </GestureDetector>
 
-      {spatialLabelOverlays.length > 0 ? (
-        <View pointerEvents="box-none" style={styles.spatialLabelLayer}>
-          {spatialLabelOverlays.map((overlay) => (
-            <Fragment key={overlay.id}>
-              {overlay.anchorX !== undefined &&
-              overlay.anchorY !== undefined &&
-              overlay.anchorY > overlay.y + (overlay.ownerLabel ? 34 : 18) ? (
-                <>
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.spatialLabelConnector,
-                      {
-                        backgroundColor: `${overlay.accent}bb`,
-                        height: Math.max(6, overlay.anchorY - (overlay.y + (overlay.ownerLabel ? 34 : 18))),
-                        left: overlay.anchorX - 1,
-                        top: overlay.y + (overlay.ownerLabel ? 34 : 18),
-                      },
-                    ]}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.spatialLabelConnectorDot,
-                      {
-                        backgroundColor: `${overlay.accent}dd`,
-                        left: overlay.anchorX - 3,
-                        top: overlay.anchorY - 3,
-                      },
-                    ]}
-                  />
-                </>
-              ) : null}
-              {overlay.kind === 'zone' && overlay.zoneId && onZoneTap ? (
-                <Pressable
-                  onPress={() => {
-                    onZoneTap(overlay.zoneId!);
-                  }}
-                  style={({ pressed }) => [
-                    styles.spatialLabel,
-                    styles.zoneLabel,
-                    overlay.relation === 'ally' ? styles.allyZoneLabel : null,
-                    overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
-                    overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
-                    overlay.selected ? styles.selectedZoneLabel : null,
-                    pressed ? styles.pressedZoneLabel : null,
-                    {
-                      borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
-                      left: overlay.x,
-                      top: overlay.y,
-                    },
-                  ]}
-                >
-                  <Text numberOfLines={2} style={styles.spatialLabelText}>
-                    {overlay.label}
-                  </Text>
-                  {overlay.ownerLabel ? (
-                    <Text numberOfLines={1} style={styles.zoneOwnerText}>
-                      {overlay.ownerLabel}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              ) : overlay.kind === 'entity' && overlay.entityId && onEntityTap ? (
-                <Pressable
-                  onPress={() => {
-                    onEntityTap(overlay.entityId!);
-                  }}
-                  style={({ pressed }) => [
-                    styles.spatialLabel,
-                    styles.entityLabel,
-                    overlay.entityKind === 'market' ? styles.marketLabel : null,
-                    overlay.entityKind === 'boca' ? styles.bocaLabel : null,
-                    overlay.entityKind === 'factory' ? styles.factoryLabel : null,
-                    overlay.entityKind === 'party' ? styles.partyLabel : null,
-                    overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                    overlay.entityKind === 'training' ? styles.trainingLabel : null,
-                    overlay.entityKind === 'university' ? styles.universityLabel : null,
-                    overlay.entityKind === 'docks' ? styles.docksLabel : null,
-                    overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
-                    pressed ? styles.pressedZoneLabel : null,
-                    {
-                      borderColor: `${overlay.accent}aa`,
-                      left: overlay.x,
-                      top: overlay.y,
-                    },
-                  ]}
-                >
-                  <Text numberOfLines={1} style={styles.spatialLabelText}>
-                    {overlay.label}
-                  </Text>
-                </Pressable>
-              ) : (
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.spatialLabel,
-                    overlay.kind === 'zone' ? styles.zoneLabel : styles.entityLabel,
-                    overlay.kind === 'entity' && overlay.entityKind === 'market' ? styles.marketLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'boca' ? styles.bocaLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'factory' ? styles.factoryLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'party' ? styles.partyLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'training' ? styles.trainingLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'university' ? styles.universityLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'docks' ? styles.docksLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
-                    overlay.kind === 'trail' ? styles.trailLabel : null,
-                    overlay.kind === 'zone' && overlay.relation === 'ally' ? styles.allyZoneLabel : null,
-                    overlay.kind === 'zone' && overlay.relation === 'enemy' ? styles.enemyZoneLabel : null,
-                    overlay.kind === 'zone' && overlay.relation === 'neutral' ? styles.neutralZoneLabel : null,
-                    overlay.selected ? styles.selectedZoneLabel : null,
-                    {
-                      borderColor: `${overlay.accent}${overlay.selected ? 'ff' : '88'}`,
-                      left: overlay.x,
-                      top: overlay.y,
-                    },
-                  ]}
-                >
-                  <Text numberOfLines={1} style={styles.spatialLabelText}>
-                    {overlay.label}
-                  </Text>
-                  {overlay.kind === 'zone' && overlay.ownerLabel ? (
-                    <Text numberOfLines={1} style={styles.zoneOwnerText}>
-                      {overlay.ownerLabel}
-                    </Text>
-                  ) : null}
-                </View>
-              )}
-            </Fragment>
-          ))}
-        </View>
-      ) : null}
-
-      {destinationOverlay ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.destinationOverlay,
-            {
-              left: destinationOverlay.x,
-              top: destinationOverlay.y,
-            },
-          ]}
-        >
-          <Text style={styles.destinationOverlayLabel}>Destino</Text>
-        </View>
-      ) : null}
-
-      {showDebugOverlay ? (
-        <View onLayout={(event) => handlePanelLayout('debug', event)} style={styles.debugPanel}>
-          <Text style={styles.debugLine}>Mapa {map.width}x{map.height}</Text>
-          <Text style={styles.debugLine}>Cam {debugState.camera.mode} {debugState.camera.zoom.toFixed(2)}x</Text>
-          <Text style={styles.debugLine}>
-            Tile {selectedTile ? `${selectedTile.x},${selectedTile.y}` : '--'}
-          </Text>
-          <Text style={styles.debugLine}>
-            Player {debugState.playerPosition.x.toFixed(1)},{debugState.playerPosition.y.toFixed(1)}
-          </Text>
-          <Text style={styles.debugLine}>Clip {debugState.clipName ?? '--'}</Text>
-          <Text style={styles.debugLine}>FPS {debugState.fps}</Text>
-        </View>
-      ) : null}
-
-      {showControlsOverlay ? (
-        <View onLayout={(event) => handlePanelLayout('controls', event)} style={styles.controls}>
-          <Text style={styles.controlText}>
-            Toque move. Pressione para marcar tile. Arraste faz pan. Pinch controla zoom.
-          </Text>
-          <Pressable
-            onPress={() => syncCameraDebug(cameraRef.current.setMode('follow'))}
-            style={({ pressed }) => [styles.followButton, pressed ? styles.followButtonPressed : null]}
-          >
-            <Text style={styles.followButtonLabel}>Seguir jogador</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <GameOverlayLayer
+        debugState={debugState}
+        destinationOverlay={destinationOverlay}
+        mapHeight={map.height}
+        mapWidth={map.width}
+        onEntityTap={onEntityTap}
+        onFollowPress={() => {
+          syncCameraDebug(cameraRef.current.setMode('follow'));
+        }}
+        onPanelLayout={handlePanelLayout}
+        onZoneTap={onZoneTap}
+        selectedTileLabel={selectedTile ? `${selectedTile.x},${selectedTile.y}` : '--'}
+        showControlsOverlay={showControlsOverlay}
+        showDebugOverlay={showDebugOverlay}
+        spatialLabelOverlays={spatialLabelOverlays}
+      />
     </View>
   );
 }
@@ -1226,167 +956,5 @@ const styles = StyleSheet.create({
   },
   canvasFrame: {
     flex: 1,
-  },
-  canvas: {
-    flex: 1,
-  },
-  spatialLabelLayer: {
-    bottom: 0,
-    left: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  destinationOverlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(8, 8, 8, 0.84)',
-    borderColor: 'rgba(224, 176, 75, 0.55)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    position: 'absolute',
-  },
-  destinationOverlayLabel: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  spatialLabel: {
-    backgroundColor: 'rgba(10, 10, 10, 0.82)',
-    borderRadius: 999,
-    borderWidth: 1,
-    maxWidth: 138,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    position: 'absolute',
-  },
-  spatialLabelConnector: {
-    borderRadius: 999,
-    position: 'absolute',
-    width: 2,
-  },
-  spatialLabelConnectorDot: {
-    borderRadius: 999,
-    height: 6,
-    position: 'absolute',
-    width: 6,
-  },
-  zoneLabel: {
-    backgroundColor: 'rgba(16, 18, 22, 0.9)',
-    minWidth: 108,
-  },
-  allyZoneLabel: {
-    backgroundColor: 'rgba(17, 47, 28, 0.92)',
-  },
-  enemyZoneLabel: {
-    backgroundColor: 'rgba(58, 22, 22, 0.92)',
-  },
-  neutralZoneLabel: {
-    backgroundColor: 'rgba(28, 31, 37, 0.92)',
-  },
-  selectedZoneLabel: {
-    borderWidth: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-  },
-  pressedZoneLabel: {
-    opacity: 0.78,
-    transform: [{ scale: 0.98 }],
-  },
-  entityLabel: {
-    backgroundColor: 'rgba(22, 19, 14, 0.92)',
-  },
-  marketLabel: {
-    backgroundColor: 'rgba(60, 26, 18, 0.94)',
-  },
-  bocaLabel: {
-    backgroundColor: 'rgba(43, 20, 22, 0.94)',
-  },
-  factoryLabel: {
-    backgroundColor: 'rgba(22, 40, 28, 0.94)',
-  },
-  partyLabel: {
-    backgroundColor: 'rgba(46, 24, 54, 0.94)',
-  },
-  hospitalLabel: {
-    backgroundColor: 'rgba(20, 34, 54, 0.94)',
-  },
-  trainingLabel: {
-    backgroundColor: 'rgba(54, 40, 18, 0.94)',
-  },
-  universityLabel: {
-    backgroundColor: 'rgba(18, 36, 52, 0.94)',
-  },
-  docksLabel: {
-    backgroundColor: 'rgba(18, 34, 42, 0.94)',
-  },
-  scrapyardLabel: {
-    backgroundColor: 'rgba(45, 31, 23, 0.94)',
-  },
-  trailLabel: {
-    backgroundColor: 'rgba(14, 28, 35, 0.92)',
-  },
-  spatialLabelText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  zoneOwnerText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  debugPanel: {
-    backgroundColor: 'rgba(17, 17, 17, 0.72)',
-    borderBottomRightRadius: 18,
-    gap: 2,
-    left: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    position: 'absolute',
-    top: 0,
-  },
-  debugLine: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  controls: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(10, 10, 10, 0.86)',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  controlText: {
-    color: colors.muted,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-    paddingRight: 12,
-  },
-  followButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  followButtonPressed: {
-    opacity: 0.84,
-  },
-  followButtonLabel: {
-    color: '#15110a',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
   },
 });

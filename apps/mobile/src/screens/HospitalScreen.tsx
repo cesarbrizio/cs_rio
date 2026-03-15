@@ -337,6 +337,7 @@ export function HospitalScreen(): JSX.Element {
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Nickname</Text>
           <TextInput
+            accessibilityLabel="Novo nickname"
             autoCapitalize="none"
             onChangeText={setNicknameDraft}
             placeholder="Novo apelido"
@@ -376,6 +377,8 @@ export function HospitalScreen(): JSX.Element {
           </Text>
 
           <Pressable
+            accessibilityLabel={`Aplicar cirurgia por ${center?.services.surgery.creditsCost ?? 0} créditos`}
+            accessibilityRole="button"
             disabled={isMutating || !center?.services.surgery.available || !surgeryHasChanges}
             onPress={() => {
               void runHospitalAction('surgery');
@@ -525,6 +528,8 @@ function ActionCard({
         </Text>
       </View>
       <Pressable
+        accessibilityLabel={buttonLabel}
+        accessibilityRole="button"
         disabled={disabled}
         onPress={onPress}
         style={({ pressed }) => [
@@ -561,7 +566,12 @@ function Banner({
     <View style={[styles.banner, tone === 'danger' ? styles.bannerDanger : styles.bannerInfo]}>
       <Text style={styles.bannerCopy}>{message}</Text>
       {actionLabel && onPress ? (
-        <Pressable onPress={onPress} style={({ pressed }) => [styles.bannerButton, pressed ? styles.buttonPressed : null]}>
+        <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ pressed }) => [styles.bannerButton, pressed ? styles.buttonPressed : null]}
+        >
           <Text style={styles.bannerButtonLabel}>{actionLabel}</Text>
         </Pressable>
       ) : null}
@@ -591,6 +601,8 @@ function MutationResultModal({
           <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
           <Text style={styles.modalCopy}>{message}</Text>
           <Pressable
+            accessibilityLabel="Fechar resultado do hospital"
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
           >
@@ -615,6 +627,8 @@ function ChoiceRow({
     <View style={styles.choiceRow}>
       {options.map((option) => (
         <Pressable
+          accessibilityLabel={`Selecionar ${option.label}`}
+          accessibilityRole="button"
           key={option.id}
           onPress={() => onSelect(option.id)}
           style={({ pressed }) => [
@@ -644,6 +658,8 @@ function ToneRow({
 
         return (
           <Pressable
+            accessibilityLabel={`Selecionar tom de pele ${option.label}`}
+            accessibilityRole="button"
             key={option.id}
             onPress={() => onSelect(option.id)}
             style={({ pressed }) => [

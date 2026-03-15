@@ -426,6 +426,8 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
       <View style={styles.segmentRow}>
         {(['buy', 'sell', 'repair', 'auction'] as const).map((tab) => (
           <Pressable
+            accessibilityLabel={`Abrir aba ${resolveMarketTabLabel(tab)}`}
+            accessibilityRole="button"
             key={tab}
             onPress={() => {
               setActiveTab(tab);
@@ -459,6 +461,8 @@ export function MarketScreen({ route }: MarketScreenProps): JSX.Element {
         <View style={styles.filterRow}>
           {ITEM_TYPE_FILTERS.map((filterId) => (
             <Pressable
+              accessibilityLabel={`Filtrar por ${resolveItemTypeFilterLabel(filterId)}`}
+              accessibilityRole="button"
               key={filterId}
               onPress={() => {
                 setItemTypeFilter(filterId);
@@ -980,6 +984,8 @@ function AuctionCard({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={`Selecionar leilão de ${auction.itemName}`}
+      accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1022,6 +1028,8 @@ function OrderCard({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={`Selecionar ordem de ${order.itemName}`}
+      accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1050,6 +1058,8 @@ function OrderCard({
 
       {actionLabel && onAction ? (
         <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
           onPress={onAction}
           style={({ pressed }) => [
             styles.secondaryButton,
@@ -1081,6 +1091,8 @@ function InventoryItemCard({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityLabel={`Selecionar item ${item.itemName ?? item.itemType}`}
+      accessibilityRole="button"
       disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [
@@ -1106,6 +1118,8 @@ function InventoryItemCard({
 
       {actionLabel && onAction ? (
         <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
           onPress={onAction}
           style={({ pressed }) => [
             styles.secondaryButton,
@@ -1142,6 +1156,8 @@ function MutationResultModal({
           <Text style={styles.modalTitle}>{tone === 'danger' ? 'Ação falhou' : 'Ação executada'}</Text>
           <Text style={styles.modalCopy}>{message}</Text>
           <Pressable
+            accessibilityLabel="Fechar resultado do mercado"
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.modalButton, pressed ? styles.buttonPressed : null]}
           >

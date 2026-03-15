@@ -8,12 +8,19 @@ import {
 import { Client } from 'colyseus.js';
 
 import { appEnv } from '../config/env';
+import { recordRealtimeEvent } from '../features/mobile-observability';
 import {
   BaseRealtimeRoomService,
   type BaseColyseusClientLike,
   type BaseColyseusRoomLike,
   type BaseRealtimeConnectionStatus,
 } from './realtime/baseRealtimeRoom';
+import {
+  isRecord,
+  iterateRealtimeCollection,
+  readNumber,
+  readString,
+} from './realtime/stateGuards';
 
 export type RealtimeConnectionStatus = BaseRealtimeConnectionStatus;
 
@@ -76,7 +83,7 @@ export class ColyseusService extends BaseRealtimeRoomService<
     clientFactory: () => BaseColyseusClientLike<RealtimeStateShape> = () =>
       new Client(appEnv.wsUrl),
   ) {
-    super(INITIAL_SNAPSHOT, clientFactory);
+    super(INITIAL_SNAPSHOT, clientFactory, 'region');
   }
 
   async connectToRegionRoom(input: ConnectToRegionRoomInput): Promise<RealtimeSnapshot> {
@@ -108,6 +115,10 @@ export class ColyseusService extends BaseRealtimeRoomService<
       roomName,
       status: 'connecting',
     });
+    recordRealtimeEvent({
+      channel: 'region',
+      status: 'connecting',
+    });
 
     try {
       const room = await this.ensureClient().joinOrCreate(roomName, {
@@ -117,6 +128,11 @@ export class ColyseusService extends BaseRealtimeRoomService<
 
       this.bindRegionRoom(room, input.regionId);
     } catch (error) {
+      recordRealtimeEvent({
+        channel: 'region',
+        errorMessage: normalizeRealtimeError(error),
+        status: 'disconnected',
+      });
       this.setSnapshot({
         ...this.snapshot,
         errorMessage: normalizeRealtimeError(error),
@@ -270,47 +286,32 @@ export const colyseusService = new ColyseusService();
 function extractPlayers(playersSource: unknown): RealtimePlayerSnapshot[] {
   const players: RealtimePlayerSnapshot[] = [];
 
-  iterateCollection(playersSource, (sessionId, value) => {
-    const player = value as Partial<RealtimePlayerSnapshot> | undefined;
+  iterateRealtimeCollection(playersSource, (sessionId, value) => {
+    if (!isRecord(value)) {
+      return;
+    }
 
-    if (!player?.playerId || !player.nickname) {
+    const playerId = readString(value, 'playerId');
+    const nickname = readString(value, 'nickname');
+
+    if (!playerId || !nickname) {
       return;
     }
 
     players.push({
-      animation: player.animation ?? 'idle_s',
-      nickname: player.nickname,
-      playerId: player.playerId,
-      regionId: player.regionId ?? 'centro',
+      animation: readString(value, 'animation') ?? 'idle_s',
+      nickname,
+      playerId,
+      regionId: readString(value, 'regionId') ?? 'centro',
       sessionId,
-      title: player.title ?? 'pivete',
-      vocation: player.vocation ?? 'cria',
-      x: typeof player.x === 'number' ? player.x : 0,
-      y: typeof player.y === 'number' ? player.y : 0,
+      title: readString(value, 'title') ?? 'pivete',
+      vocation: readString(value, 'vocation') ?? 'cria',
+      x: readNumber(value, 'x') ?? 0,
+      y: readNumber(value, 'y') ?? 0,
     });
   });
 
   return players;
-}
-
-function iterateCollection(
-  source: unknown,
-  callback: (key: string, value: unknown) => void,
-): void {
-  if (!source) {
-    return;
-  }
-
-  if (typeof (source as { forEach?: unknown }).forEach === 'function') {
-    (source as { forEach: (cb: (value: unknown, key: string) => void) => void }).forEach(
-      (value, key) => callback(key, value),
-    );
-    return;
-  }
-
-  for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
-    callback(key, value);
-  }
 }
 
 function normalizeRealtimeError(error: unknown): string {

@@ -9,12 +9,20 @@ import {
 import { Client } from 'colyseus.js';
 
 import { appEnv } from '../config/env';
+import { recordRealtimeEvent } from '../features/mobile-observability';
 import {
   BaseRealtimeRoomService,
   type BaseColyseusClientLike,
   type BaseColyseusRoomLike,
   type BaseRealtimeConnectionStatus,
 } from './realtime/baseRealtimeRoom';
+import {
+  collectRealtimeValues,
+  isRecord,
+  iterateRealtimeCollection,
+  readBoolean,
+  readString,
+} from './realtime/stateGuards';
 
 export type FactionRealtimeConnectionStatus = BaseRealtimeConnectionStatus;
 
@@ -95,7 +103,7 @@ export class FactionRealtimeService extends BaseRealtimeRoomService<
     clientFactory: () => BaseColyseusClientLike<FactionRealtimeStateShape> = () =>
       new Client(appEnv.wsUrl),
   ) {
-    super(INITIAL_SNAPSHOT, clientFactory);
+    super(INITIAL_SNAPSHOT, clientFactory, 'faction');
   }
 
   async connectToFactionRoom(input: ConnectToFactionRoomInput): Promise<FactionRealtimeSnapshot> {
@@ -120,13 +128,31 @@ export class FactionRealtimeService extends BaseRealtimeRoomService<
       roomName: FACTION_REALTIME_ROOM_NAME,
       status: 'connecting',
     });
-
-    const room = await this.ensureClient().joinOrCreate(FACTION_REALTIME_ROOM_NAME, {
-      accessToken: input.accessToken,
-      factionId: input.factionId,
+    recordRealtimeEvent({
+      channel: 'faction',
+      status: 'connecting',
     });
 
-    this.bindFactionRoom(room, input.factionId);
+    try {
+      const room = await this.ensureClient().joinOrCreate(FACTION_REALTIME_ROOM_NAME, {
+        accessToken: input.accessToken,
+        factionId: input.factionId,
+      });
+
+      this.bindFactionRoom(room, input.factionId);
+    } catch (error) {
+      const normalizedError = normalizeRealtimeError(error);
+      recordRealtimeEvent({
+        channel: 'faction',
+        errorMessage: normalizedError,
+        status: 'disconnected',
+      });
+      this.setSnapshot({
+        ...this.snapshot,
+        errorMessage: normalizedError,
+        status: 'disconnected',
+      });
+    }
     return this.snapshot;
   }
 
@@ -232,22 +258,27 @@ export const factionRealtimeService = new FactionRealtimeService();
 function extractFactionMembers(source: unknown): FactionRealtimeMemberSnapshot[] {
   const members: FactionRealtimeMemberSnapshot[] = [];
 
-  iterateCollection(source, (sessionId, value) => {
-    const member = value as Partial<FactionRealtimeMemberSnapshot> | undefined;
+  iterateRealtimeCollection(source, (sessionId, value) => {
+    if (!isRecord(value)) {
+      return;
+    }
 
-    if (!member?.playerId || !member.nickname) {
+    const playerId = readString(value, 'playerId');
+    const nickname = readString(value, 'nickname');
+
+    if (!playerId || !nickname) {
       return;
     }
 
     members.push({
-      isLeader: member.isLeader ?? false,
-      joinedAt: member.joinedAt ?? new Date(0).toISOString(),
-      nickname: member.nickname,
-      playerId: member.playerId,
-      rank: member.rank ?? 'cria',
+      isLeader: readBoolean(value, 'isLeader') ?? false,
+      joinedAt: readString(value, 'joinedAt') ?? new Date(0).toISOString(),
+      nickname,
+      playerId,
+      rank: readString(value, 'rank') ?? 'cria',
       sessionId,
-      title: member.title ?? 'pivete',
-      vocation: member.vocation ?? 'cria',
+      title: readString(value, 'title') ?? 'pivete',
+      vocation: readString(value, 'vocation') ?? 'cria',
     });
   });
 
@@ -255,90 +286,55 @@ function extractFactionMembers(source: unknown): FactionRealtimeMemberSnapshot[]
 }
 
 function extractFactionChatMessages(source: unknown): FactionRealtimeChatEntrySnapshot[] {
-  return extractArrayValues(source)
+  return collectRealtimeValues(source)
     .map((entry) => {
-      const message = entry as Partial<FactionRealtimeChatEntrySnapshot> | undefined;
+      if (!isRecord(entry)) {
+        return null;
+      }
 
-      if (!message?.id || !message.message) {
+      const id = readString(entry, 'id');
+      const messageText = readString(entry, 'message');
+
+      if (!id || !messageText) {
         return null;
       }
 
       return {
-        createdAt: message.createdAt ?? new Date(0).toISOString(),
-        id: message.id,
-        kind: message.kind ?? 'chat',
-        message: message.message,
-        nickname: message.nickname ?? 'Sistema',
-        playerId: message.playerId ?? 'system',
+        createdAt: readString(entry, 'createdAt') ?? new Date(0).toISOString(),
+        id,
+        kind: readString(entry, 'kind') ?? 'chat',
+        message: messageText,
+        nickname: readString(entry, 'nickname') ?? 'Sistema',
+        playerId: readString(entry, 'playerId') ?? 'system',
       };
     })
     .filter((entry): entry is FactionRealtimeChatEntrySnapshot => entry !== null);
 }
 
 function extractFactionCoordinationCalls(source: unknown): FactionRealtimeCoordinationSnapshot[] {
-  return extractArrayValues(source)
+  return collectRealtimeValues(source)
     .map((entry) => {
-      const coordination = entry as Partial<FactionRealtimeCoordinationSnapshot> | undefined;
+      if (!isRecord(entry)) {
+        return null;
+      }
 
-      if (!coordination?.id || !coordination.label) {
+      const id = readString(entry, 'id');
+      const label = readString(entry, 'label');
+
+      if (!id || !label) {
         return null;
       }
 
       return {
-        createdAt: coordination.createdAt ?? new Date(0).toISOString(),
-        id: coordination.id,
-        kind: isFactionCoordinationKind(coordination.kind) ? coordination.kind : 'gather',
-        label: coordination.label,
-        nickname: coordination.nickname ?? 'Sistema',
-        playerId: coordination.playerId ?? 'system',
+        createdAt: readString(entry, 'createdAt') ?? new Date(0).toISOString(),
+        id,
+        kind: isFactionCoordinationKind(entry.kind) ? entry.kind : 'gather',
+        label,
+        nickname: readString(entry, 'nickname') ?? 'Sistema',
+        playerId: readString(entry, 'playerId') ?? 'system',
       };
     })
     .filter((entry): entry is FactionRealtimeCoordinationSnapshot => entry !== null);
-}
-
-function extractArrayValues(source: unknown): unknown[] {
-  if (!source) {
-    return [];
-  }
-
-  if (Array.isArray(source)) {
-    return source;
-  }
-
-  if (typeof (source as { toArray?: unknown }).toArray === 'function') {
-    return (source as { toArray: () => unknown[] }).toArray();
-  }
-
-  if (typeof (source as { forEach?: unknown }).forEach === 'function') {
-    const values: unknown[] = [];
-    (source as { forEach: (cb: (value: unknown) => void) => void }).forEach((value) => {
-      values.push(value);
-    });
-    return values;
-  }
-
-  if (typeof (source as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function') {
-    return Array.from(source as Iterable<unknown>);
-  }
-
-  return Object.values(source as Record<string, unknown>);
-}
-
-function iterateCollection(source: unknown, callback: (key: string, value: unknown) => void): void {
-  if (!source) {
-    return;
-  }
-
-  if (typeof (source as { forEach?: unknown }).forEach === 'function') {
-    (source as { forEach: (cb: (value: unknown, key: string) => void) => void }).forEach(
-      (value, key) => callback(key, value),
-    );
-    return;
-  }
-
-  for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
-    callback(key, value);
-  }
 }
 
 function isFactionCoordinationKind(value: unknown): value is FactionCoordinationKind {
@@ -346,7 +342,11 @@ function isFactionCoordinationKind(value: unknown): value is FactionCoordination
 }
 
 function normalizeRealtimeError(error: unknown): string {
-  return error instanceof Error ? error.message : 'Falha ao reconectar na sala da facção.';
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return 'Falha de conexão com a sala da facção.';
 }
 
 function normalizeText(value: string | undefined): string | null {

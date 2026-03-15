@@ -379,11 +379,11 @@ export async function createApp(options: CreateAppOptions = {}) {
     }
   });
 
-    await app.register(
-      createApiRoutes({
-        actionIdempotency,
-        authService,
-        bankService,
+  await app.register(
+    createApiRoutes({
+      actionIdempotency,
+      authService,
+      bankService,
       bichoService,
       bocaService,
       crimeService,
@@ -393,12 +393,14 @@ export async function createApp(options: CreateAppOptions = {}) {
       factoryService,
       frontStoreService,
       hospitalService,
+      keyValueStore,
       marketService,
       playerService,
       prisonService,
-      pvpService,
-      puteiroService,
+      prisonSystem,
       propertyService,
+      puteiroService,
+      pvpService,
       robberyService,
       roundService,
       raveService,
@@ -407,7 +409,6 @@ export async function createApp(options: CreateAppOptions = {}) {
       tribunalService,
       trainingService,
       universityService,
-      prisonSystem,
     }),
     {
       prefix: '/api',

@@ -4,7 +4,7 @@ import { type ActionIdempotency } from '../action-idempotency.js';
 import { createHttpRateLimitHook } from '../http-hardening.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createPrisonActionLockMiddleware } from '../middleware/prison.js';
-import { type AuthService } from '../../services/auth.js';
+import { type AuthService, type KeyValueStore } from '../../services/auth.js';
 import { type BankServiceContract } from '../../services/bank.js';
 import { type BichoServiceContract } from '../../services/bicho.js';
 import { type BocaServiceContract } from '../../services/boca.js';
@@ -85,6 +85,7 @@ interface ApiRouteDependencies {
   trainingService: TrainingServiceContract;
   universityService: UniversityServiceContract;
   prisonSystem: PrisonSystemContract;
+  keyValueStore: KeyValueStore;
 }
 
 export function createApiRoutes({
@@ -115,6 +116,7 @@ export function createApiRoutes({
   trainingService,
   universityService,
   prisonSystem,
+  keyValueStore,
 }: ApiRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
     fastify.get('/health', async () => ({
@@ -123,10 +125,10 @@ export function createApiRoutes({
       phase: 'fase-0-bootstrap',
     }));
 
-    await fastify.register(createAuthRoutes({ authService }));
+    await fastify.register(createAuthRoutes({ authService, keyValueStore }));
     await fastify.register(async (protectedRoutes) => {
       protectedRoutes.addHook('preHandler', createAuthMiddleware(authService));
-      protectedRoutes.addHook('preHandler', createHttpRateLimitHook());
+      protectedRoutes.addHook('preHandler', createHttpRateLimitHook({ keyValueStore }));
       protectedRoutes.addHook('preHandler', createPrisonActionLockMiddleware(prisonSystem));
       await protectedRoutes.register(createBankRoutes({ bankService }));
       await protectedRoutes.register(createBichoRoutes({ bichoService }));

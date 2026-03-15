@@ -26,6 +26,7 @@ const apiState = {
 };
 
 const installAuthInterceptors = vi.fn();
+const installApiObservabilityInterceptors = vi.fn();
 
 vi.mock('expo-secure-store', () => ({
   deleteItemAsync: vi.fn(async (key: string) => {
@@ -51,6 +52,7 @@ vi.mock('../src/services/api', () => ({
     const message = maybeError.response?.data?.message;
     return message ? new Error(message) : error instanceof Error ? error : new Error('api error');
   },
+  installApiObservabilityInterceptors,
   installAuthInterceptors,
   inventoryApi: {
     consume: (inventoryItemId: string) =>
@@ -83,6 +85,7 @@ describe('auth store', () => {
     secureStoreState.clear();
     apiState.get.mockReset();
     apiState.post.mockReset();
+    installApiObservabilityInterceptors.mockClear();
     installAuthInterceptors.mockClear();
 
     vi.resetModules();

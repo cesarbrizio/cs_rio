@@ -14,7 +14,35 @@ export function normalizeEmail(value: string): string {
 }
 
 export function isValidEmail(value: string): boolean {
-  return AUTH_EMAIL_PATTERN.test(normalizeEmail(value));
+  const normalized = normalizeEmail(value);
+
+  if (!AUTH_EMAIL_PATTERN.test(normalized)) {
+    return false;
+  }
+
+  const atIndex = normalized.indexOf('@');
+  if (atIndex <= 0 || atIndex === normalized.length - 1) {
+    return false;
+  }
+
+  const localPart = normalized.slice(0, atIndex);
+  const domainPart = normalized.slice(atIndex + 1);
+  if (!localPart || !domainPart) {
+    return false;
+  }
+
+  if (
+    localPart.startsWith('.') ||
+    localPart.endsWith('.') ||
+    domainPart.startsWith('.') ||
+    domainPart.endsWith('.') ||
+    localPart.includes('..') ||
+    domainPart.includes('..')
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function normalizeAuthNickname(value: string): string {
@@ -72,7 +100,7 @@ export function normalizeOptionalToken(
 }
 
 export function normalizeRoundedMoney(value: number): number {
-  return Math.round(value * 100) / 100;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function normalizePositiveMoney(value: number): number | null {

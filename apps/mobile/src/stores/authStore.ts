@@ -20,6 +20,7 @@ import {
   authApi,
   formatApiError,
   inventoryApi,
+  installApiObservabilityInterceptors,
   installAuthInterceptors,
   playerApi,
 } from '../services/api';
@@ -311,6 +312,7 @@ function installApiInterceptors(): void {
     getAccessToken: () => useAuthStore.getState().token,
     refreshAccessToken: () => useAuthStore.getState().refreshAuth(),
   });
+  installApiObservabilityInterceptors();
 }
 
 function sanitizeCharacterCreationInput(input: PlayerCreationInput): PlayerCreationInput {

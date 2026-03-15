@@ -1,5 +1,6 @@
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
+import { type KeyValueStore } from '../services/auth.js';
 import { RouteHttpError } from './http-errors.js';
 
 const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -18,17 +19,29 @@ interface HttpRateLimitPolicy {
   windowMs: number;
 }
 
+interface HttpRateLimitStore {
+  consume(key: string, maxRequests: number, windowMs: number): Promise<{
+    count: number;
+    exceeded: boolean;
+    retryAfterMs: number;
+  }>;
+}
+
 interface RateLimitWindowState {
   count: number;
   expiresAt: number;
 }
 
-class InMemoryHttpRateLimitStore {
+interface CreateHttpRateLimitHookOptions {
+  keyValueStore?: KeyValueStore;
+}
+
+class InMemoryHttpRateLimitStore implements HttpRateLimitStore {
   private readonly windows = new Map<string, RateLimitWindowState>();
 
   private operations = 0;
 
-  consume(key: string, maxRequests: number, windowMs: number, now = Date.now()) {
+  async consume(key: string, maxRequests: number, windowMs: number, now = Date.now()) {
     this.operations += 1;
 
     if (this.operations % 100 === 0) {
@@ -74,6 +87,21 @@ class InMemoryHttpRateLimitStore {
   }
 }
 
+class KeyValueStoreHttpRateLimitStore implements HttpRateLimitStore {
+  constructor(private readonly keyValueStore: KeyValueStore) {}
+
+  async consume(key: string, maxRequests: number, windowMs: number) {
+    const ttlSeconds = Math.max(1, Math.ceil(windowMs / 1000));
+    const count = await this.keyValueStore.increment(`http-rate-limit:${key}`, ttlSeconds);
+
+    return {
+      count,
+      exceeded: count > maxRequests,
+      retryAfterMs: windowMs,
+    };
+  }
+}
+
 const ROUTE_RATE_LIMIT_POLICIES = new Map<string, HttpRateLimitPolicy>([
   [
     'POST /auth/register',
@@ -113,8 +141,10 @@ export function installHttpInputHardening(app: FastifyInstance): void {
   });
 }
 
-export function createHttpRateLimitHook() {
-  const store = new InMemoryHttpRateLimitStore();
+export function createHttpRateLimitHook(options: CreateHttpRateLimitHookOptions = {}) {
+  const store: HttpRateLimitStore = options.keyValueStore
+    ? new KeyValueStoreHttpRateLimitStore(options.keyValueStore)
+    : new InMemoryHttpRateLimitStore();
 
   return async function httpRateLimitHook(request: FastifyRequest, reply: FastifyReply) {
     const policy = resolveHttpRateLimitPolicy(request);
@@ -126,7 +156,7 @@ export function createHttpRateLimitHook() {
     const routeUrl = normalizeRouteUrl(readRouteUrl(request));
     const actor = resolveRateLimitActor(request, policy.scope);
     const key = `${request.method.toUpperCase()} ${routeUrl} :: ${actor}`;
-    const state = store.consume(key, policy.maxRequests, policy.windowMs);
+    const state = await store.consume(key, policy.maxRequests, policy.windowMs);
 
     if (!state.exceeded) {
       return;

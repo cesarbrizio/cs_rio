@@ -2,6 +2,8 @@
 
 > Jogo de RPG criminal multiplayer ambientado no Rio de Janeiro, com visual isométrico 2D.
 > Inspirado em The Crims, adaptado para a realidade carioca.
+> Última atualização operacional: **2026-03-15**.
+> Este documento combina intenção de design com estado real aprovado do Pré-Alpha. Quando houver divergência, prevalece o estado já consolidado no produto, em [MAPA.md](./MAPA.md), [TODO.md](./TODO.md), [CHEATS.md](./CHEATS.md) e [HARDENING.md](./HARDENING.md).
 
 ---
 
@@ -25,6 +27,16 @@ O jogador é um criminoso tentando sobreviver e ascender no submundo do crime do
 ### 1.2 Ambientação
 
 O cenário é o **Rio de Janeiro real**. O mapa reproduz a geografia da cidade com suas favelas, morros, zona sul, zona norte, centro, zona oeste, zona sudoeste e baixada. Cada região tem características socioeconômicas próprias que influenciam a dificuldade, o tipo de crime disponível, o volume de moradores e os recursos.
+
+No **Pré-Alpha atual**, a leitura espacial foi simplificada para favorecer clareza e velocidade de playtest:
+
+- o **mapa local** é compacto e prioriza **somente POIs interativos**
+- construções passivas, ruas decorativas e enchimento urbano não são o foco principal da UX
+- o **macro mapa do Rio** é a camada principal de deslocamento entre regiões
+- o jogador deve entender rapidamente:
+  - onde está
+  - quais favelas e serviços importam naquela região
+  - para onde vale a pena ir em seguida
 
 ### 1.3 Filosofia de Design: Jogo Estratégico de Otimização
 
@@ -913,26 +925,33 @@ Negócio "legal" que serve para lavar dinheiro. Disponível a partir do nível 6
 
 ### 8.5 Maquininha de Caça-Níquel / Jogo do Bicho
 
+Os dois sistemas existem no jogo, mas cumprem papéis diferentes e hoje a UX trata isso como regra de produto:
+
+- **Jogo do Bicho** = **ação/aposta manual**
+- **Maquininha de Caça-Níquel** = **ativo operacional/passivo**
+
 **Jogo do Bicho** (disponível nível 1+):
 - Aposta em animais (1-25)
-- Sorteio a cada 2 horas de jogo (30 min reais)
-- Pagamento: 18x a aposta no bicho certo
-- Com **Impulso de Jogo do Bicho**: +30% chance
-- Pode apostar na cabeça (animal exato: 18x), no grupo (grupo de 4: 5x), ou na dezena (dezena exata: 60x)
+- Sorteio a cada 2 horas de jogo (`30 min` reais)
+- Pode apostar na cabeça, no grupo ou na dezena
+- Fica exposto no mobile como **tela própria de ação**, não como propriedade
+- Se o jogador estiver faccionado, cada aposta válida também gera **repasse automático** para o banco da facção
+- O resultado é tratado como ação imediata: seleção inline, confirmação no próprio card e feedback claro no fluxo
 
-**Maquininha de Caça-Níquel** (disponível nível 5+):
-- Espalhadas por bares e bocas da cidade
-- Aposta por rodada: $100 a $100.000
-- Probabilidades configuradas pelo dono da maquininha
-- Jackpot: 100x a aposta (chance ~1%)
+**Maquininha de Caça-Níquel**:
+- É tratada como **negócio do jogador**, não como aposta manual instantânea
+- Vive no fluxo de **Operações**
+- Pode ser instalada, configurada e coletada
 - O dono da maquininha lucra com a margem da casa
-- Com impulso: +30% nas probabilidades de prêmio
+- A operação repassa comissão fixa para a facção do dono, se houver
+- A UX precisa comunicar claramente:
+  - adquirir/instalar
+  - configurar a operação
+  - coletar caixa
 
-**Comprar Maquininhas** (nível 6+):
-- Jogadores podem comprar maquininhas e instalar em locais estratégicos
-- Renda passiva com margem de 15-30% (configurável)
-- A operacao repassa comissao fixa para a faccao do dono, se houver
-- Atraem jogadores para a região (movimento)
+**Regra de leitura atual do produto:**
+- `Jogo do Bicho` é algo que o jogador **abre para apostar**
+- `Maquininha` é algo que o jogador **possui e opera**
 
 ### 8.6 Imoveis e Patrimonio Pessoal
 
@@ -1005,6 +1024,10 @@ Disponível a partir do nível 3 (Fogueteiro). Principal forma de aumentar atrib
 - Com **Impulso de Milico**: +30% em todos os atributos ganhos
 - Treinos em sequência sem descanso dão rendimento decrescente (-10% por treino consecutivo)
 - Descanso de 1h real entre treinos restaura o rendimento total
+- Ao terminar, o jogo trata isso como **resultado assíncrono**:
+  - notificação local quando fizer sentido
+  - modal de retorno ao abrir o app
+  - persistência do que já foi visto para não repetir alerta indefinidamente
 
 ### 9.2 Universidade do Crime
 
@@ -1014,6 +1037,11 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 - Cursos dão **habilidades passivas permanentes**
 - Cada curso tem pré-requisitos (nível, atributos mínimos, dinheiro)
 - Dura de 1 a 5 dias de jogo para completar (não pode treinar durante)
+- Ao concluir, o jogo precisa deixar claro:
+  - qual curso terminou
+  - qual passivo foi liberado
+  - qual o impacto prático no personagem
+- No estado atual do produto, a conclusão já segue o padrão assíncrono com notificação e modal de retorno
 
 **Cursos por vocação:**
 
@@ -1063,7 +1091,7 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 
 ### 10.1 Facções Fixas
 
-Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São controladas por jogadores (liderança disputável), mas nunca deixam de existir.
+Estas facções **sempre existem** no jogo e não podem ser dissolvidas. Elas podem ficar sob liderança de jogador, mas também podem operar sob **liderança NPC** enquanto nenhum jogador assumir o topo da hierarquia.
 
 | Sigla | Nome Completo | Território Inicial | Bônus Temático |
 |---|---|---|---|
@@ -1081,6 +1109,20 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
   - cada facção fixa nasce com um limite de vagas novas aberto para usuários reais
   - à medida que esses jogadores entram, os NPCs de base vão sendo substituídos
   - se as vagas acabarem, a entrada volta a depender de recrutamento/hierarquia normal
+- Enquanto a facção fixa estiver sob **liderança NPC**, a progressão de cargo é **automática**, respeitando:
+  - tempo mínimo na facção
+  - level mínimo
+  - conceito mínimo
+  - existência de vaga no cargo seguinte
+- Limiares atuais da progressão automática:
+  - `Cria -> Soldado`: 2 dias na facção, nível 3, conceito 200
+  - `Soldado -> Vapor`: 5 dias, nível 5, conceito 1.500
+  - `Vapor -> Gerente`: 9 dias, nível 6, conceito 5.000
+  - `Gerente -> General`: 14 dias, nível 8, conceito 50.000
+- Essa promoção automática:
+  - **não** vale para facções criadas/lideradas por jogador
+  - respeita limite de slots por cargo
+  - gera notificação e feedback claro ao jogador
 - Liderança pode ser disputada internamente:
   - **Eleição**: votação entre membros (1x por rodada, se solicitada por 30%+ dos membros)
   - **Desafio**: combate direto com o líder (PvP, requer nível 9+)
@@ -1122,13 +1164,48 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
 
 ### 10.4 Banco da Facção
 
-- Membros doam dinheiro, drogas e itens
-- Recebe automaticamente as comissoes fixas dos negocios lucrativos dos membros
-- Doações geram **pontos de facção** (proporcionais ao valor doado)
-- Todo movimento precisa ficar em **ledger auditavel**: origem, propriedade, jogador dono, valor bruto, comissao, destino
-- Pontos de facção desbloqueiam upgrades coletivos:
+O banco da facção funciona como **tesouraria coletiva real**.
 
-| Upgrade | Pontos Necessários | Efeito |
+**Entradas principais:**
+- depósitos manuais de membros autorizados
+- comissões automáticas de negócios lucrativos dos membros
+- serviços monopolizados de favela
+- espólio de guerra
+- percentuais de roubos e operações territoriais
+- repasse automático do **Jogo do Bicho**
+
+**Saídas principais:**
+- saque manual por cargos autorizados
+- custos e drenagens operacionais da facção
+- gasto coletivo com upgrades
+
+**Ledger obrigatório:**
+Todo movimento relevante precisa ficar em **ledger auditável**, com leitura clara de:
+- origem/destino
+- jogador envolvido, quando existir
+- negócio ou sistema envolvido, quando existir
+- valor bruto
+- comissão
+- valor líquido
+- saldo depois do evento
+
+Hoje o ledger já precisa cobrir explicitamente:
+- depósito manual
+- saque manual
+- comissão automática de negócio
+- comissão automática do jogo do bicho
+- gasto com upgrade
+- estorno/correção operacional quando existir
+
+**Relação entre banco e pontos:**
+- o **caixa faccional** é o recurso econômico principal para upgrades
+- os **pontos da facção** continuam existindo como métrica coletiva e de ranking
+- depósito manual ainda pode gerar pontos
+- mas upgrade não deve “brotar” só de pontos sem custo econômico real
+
+**Upgrades coletivos iniciais:**
+
+| Upgrade | Custo coletivo inicial | Efeito |
 |---|---|---|
 | Mula de Drogas Nível 1 | 5.000 | Entrega 1.000 unidades de droga a cada 10 dias de jogo |
 | Mula de Drogas Nível 2 | 20.000 | Entrega 10.000 unidades |
@@ -1139,6 +1216,14 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. São co
 | Arsenal Exclusivo | 30.000 | Acesso a armas especiais da facção |
 | Exército Expandido | 25.000 | +50% capacidade de soldados em territórios |
 | QG Fortificado | 40.000 | Sede da facção com defesa extra |
+
+No estado atual do produto, o `QG da Facção` já precisa mostrar:
+- saldo atual
+- entradas automáticas
+- depósitos
+- saídas
+- gastos com upgrade
+- histórico recente legível
 
 ### 10.5 Pontuação da Facção
 
@@ -1500,6 +1585,11 @@ Quando uma facção ataca território de outra. Disponível nível 9 (Líder da 
    - **Vitória do atacante**: conquista a favela, pega 30% do estoque, ganha conceito massivo
    - **Vitória do defensor**: mantém território, ganha conceito, 20% do armamento dos atacantes
    - **Empate**: ninguém conquista, ambos perdem recursos e membros
+   - o jogo também deve tratar esse desfecho como **resultado assíncrono legível**, inclusive se o jogador voltar depois que a guerra já terminou
+   - o retorno precisa separar:
+     - resultado territorial
+     - vencedor e score final
+     - impacto pessoal do jogador, quando houver
 5. **Cooldown**: 7 dias de jogo antes de poder atacar a mesma facção novamente
 6. **Satisfação**: moradores perdem -10 a -20% satisfação independente do resultado
 
@@ -1866,6 +1956,8 @@ Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
 | **Tratamento de DST** | Remove DSTs contraídas com GPs | $5.000 |
 | **Plano de Saúde** | Reduz hospitalização em 75% (mínimo 15min de jogo) | 10 créditos/rodada |
 
+> **Nota de implementação atual:** os custos monetários de serviços de NPC devem ser lidos como **custos-base**. Hospital, treino, universidade e ofertas sistêmicas do Mercado Negro já sofrem multiplicador de inflação ao longo da rodada.
+
 ### 15.2 Consumíveis de Stat (Hospital)
 
 Itens comprados no hospital que dão **aumento permanente** de atributos. Caros e com limites de compra por rodada.
@@ -1883,6 +1975,20 @@ Itens comprados no hospital que dão **aumento permanente** de atributos. Caros 
 
 O mapa isométrico do Rio de Janeiro inclui os seguintes tipos de locais:
 
+No estado atual do produto:
+
+- o **mapa local** prioriza POIs interativos e leitura rápida
+- construções passivas e ruas decorativas não são o foco principal da UX
+- o **macro mapa do Rio** é o principal fluxo de deslocamento entre regiões
+- o jogador deve identificar imediatamente:
+  - favela
+  - mercado
+  - hospital
+  - treino
+  - universidade
+  - QG da facção
+  - operações e pontos relevantes da região
+
 ### 16.1 Locais Fixos (sempre presentes)
 
 Presentes em todas as regiões do mapa:
@@ -1895,6 +2001,7 @@ Presentes em todas as regiões do mapa:
 - **Centro de Treino** — academia para treinar atributos
 - **Universidade do Crime** — cursos de especialização (apenas 1, no Centro)
 - **Tribunal** — onde se paga fiança e se resolve questões legais
+- **Macro mapa do Rio** — deslocamento regional e comparação entre zonas
 - **Ponto de Mototáxi** — transporte rápido entre regiões do mapa
 - **Bar/Boteco** — local social, maquininhas de caça-níquel, informações
 
@@ -2097,6 +2204,7 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 **Fontes de renda da faccao:**
 
 - comissao fixa sobre negocios lucrativos dos membros
+- comissao automatica do jogo do bicho
 - servicos monopolizados da favela
 - depositos manuais de membros
 - espolio de guerra
@@ -2130,8 +2238,32 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 
 ### 18.4 Inflação e Balanceamento
 
-- Preços de NPCs (hospital, treino) escalam com o dia da rodada
-- Nas últimas semanas da rodada, tudo fica mais caro (late-game mais competitivo)
+- A inflação atual do jogo é **inflação de serviços de NPC**, não inflação geral de toda a economia
+- Ela afeta hoje:
+  - hospital
+  - treino
+  - universidade
+  - ofertas sistêmicas do Mercado Negro
+- O multiplicador começa em `1.00x` no início da rodada
+- Ele cresce ao longo dos `156` dias de jogo da rodada
+- O teto atual é `1.65x`
+- A curva é progressiva: quanto mais perto do fim da rodada, mais caro fica usar serviços de NPC
+- A inflação reseta ao abrir uma nova rodada
+- O app deve comunicar sempre:
+  - multiplicador atual
+  - próximo aumento
+  - quantos dias faltam
+  - tabela completa de progressão por dia
+- Objetivo de design:
+  - pressionar decisão de tempo
+  - evitar que todo mundo deixe hospital, treino, universidade e fornecedor sistêmico para o fim
+  - criar dreno monetário no late game
+- Exemplo didático:
+  - hospital de `R$ 2.000` com inflação `1.30x` custa `R$ 2.600`
+  - treino de `R$ 10.000` com inflação `1.50x` custa `R$ 15.000`
+- O ganho do jogador é indireto:
+  - resolver cedo = paga menos
+  - deixar para depois = paga mais
 - Novos jogadores têm "proteção de novato": 3 dias de jogo sem poder ser atacado por PvP
 
 ---
