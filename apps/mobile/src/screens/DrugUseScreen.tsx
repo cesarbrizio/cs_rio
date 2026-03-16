@@ -18,16 +18,17 @@ import {
 } from '../features/drugs';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
+import { useInventoryStore } from '../stores/inventoryStore';
 import { colors } from '../theme/colors';
 
 type DrugUseScreenProps = NativeStackScreenProps<RootStackParamList, 'DrugUse'>;
 
 export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
-  const consumeDrugInventoryItem = useAuthStore((state) => state.consumeDrugInventoryItem);
   const isLoading = useAuthStore((state) => state.isLoading);
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
+  const consumeDrugInventoryItem = useInventoryStore((state) => state.consumeDrugInventoryItem);
   const [venue, setVenue] = useState<DrugVenue>(route.params?.initialVenue ?? 'rave');
   const [selectedInventoryItemId, setSelectedInventoryItemId] = useState<string | null>(
     route.params?.initialInventoryItemId ?? null,

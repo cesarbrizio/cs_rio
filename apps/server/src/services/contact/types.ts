@@ -5,6 +5,7 @@ import type {
   PlayerFactionSummary,
   VocationType,
 } from '@cs-rio/shared';
+import { DomainError, inferDomainErrorCategory } from '../../errors/domain-error.js';
 
 export interface ContactOwnerRecord {
   characterCreatedAt: Date | null;
@@ -62,12 +63,16 @@ export interface FactionContactSyncContract {
 
 type ContactErrorCode = 'conflict' | 'forbidden' | 'not_found' | 'unauthorized' | 'validation';
 
-export class ContactError extends Error {
+export function contactError(code: ContactErrorCode, message: string): DomainError {
+  return new DomainError('contact', code, inferDomainErrorCategory(code), message);
+}
+
+export class ContactError extends DomainError {
   constructor(
-    public readonly code: ContactErrorCode,
+    code: ContactErrorCode,
     message: string,
   ) {
-    super(message);
+    super('contact', code, inferDomainErrorCategory(code), message);
     this.name = 'ContactError';
   }
 }

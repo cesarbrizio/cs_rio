@@ -22,7 +22,6 @@ import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import {
   factionMembers,
-  factions,
   favelas,
   frontStoreBatches,
   frontStoreOperations,
@@ -33,6 +32,7 @@ import {
   soldiers,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import {
   resolveEconomyPropertyDefinition,
@@ -40,6 +40,7 @@ import {
   resolveRegionalEventMultiplier,
   type PropertyEventProfile,
 } from './economy-config.js';
+import { applyFactionBankDelta, applyPlayerResourceDeltas } from './financial-updates.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
@@ -231,12 +232,16 @@ type FrontStoreErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class FrontStoreError extends Error {
+export function frontStoreError(code: FrontStoreErrorCode, message: string): DomainError {
+  return new DomainError('front-store', code, inferDomainErrorCategory(code), message);
+}
+
+export class FrontStoreError extends DomainError {
   constructor(
-    public readonly code: FrontStoreErrorCode,
+    code: FrontStoreErrorCode,
     message: string,
   ) {
-    super(message);
+    super('front-store', code, inferDomainErrorCategory(code), message);
     this.name = 'FrontStoreError';
   }
 }
@@ -263,55 +268,25 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
       }
 
       if (input.playerMoneySpentOnMaintenance > 0) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: -input.playerMoneySpentOnMaintenance,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           return false;
         }
-
-        const nextMoney = roundCurrency(
-          Number.parseFloat(String(player.money)) - input.playerMoneySpentOnMaintenance,
-        );
-
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, playerId));
       }
 
       if (input.factionCommissionDelta > 0 && input.factionId) {
-        const [faction] = await tx
-          .select({
-            bankMoney: factions.bankMoney,
-          })
-          .from(factions)
-          .where(eq(factions.id, input.factionId))
-          .limit(1);
+        const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
+        const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+          bankMoneyDelta: input.factionCommissionDelta,
+          pointsDelta,
+        });
 
-        if (faction) {
-          const nextBankMoney = roundCurrency(
-            Number.parseFloat(String(faction.bankMoney)) + input.factionCommissionDelta,
-          );
-          const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
-
-          await tx
-            .update(factions)
-            .set({
-              bankMoney: nextBankMoney.toFixed(2),
-              points: sql`${factions.points} + ${pointsDelta}`,
-            })
-            .where(eq(factions.id, input.factionId));
-
-          await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-            balanceAfter: nextBankMoney,
+        if (factionMutation.status === 'updated') {
+          await insertFactionBankLedgerEntry(tx, {
+            balanceAfter: factionMutation.faction.bankMoney,
             commissionAmount: input.factionCommissionDelta,
             createdAt: input.lastRevenueAt,
             description: 'Comissao automatica recebida de uma loja de fachada de membro.',
@@ -397,56 +372,59 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
 
   async collectCash(playerId: string, propertyId: string): Promise<FrontStoreCollectRecord | null> {
     return db.transaction(async (tx) => {
-      const [operation] = await tx
+      const [property] = await tx
         .select({
-          cashBalance: frontStoreOperations.cashBalance,
+          id: properties.id,
         })
-        .from(frontStoreOperations)
-        .innerJoin(properties, eq(properties.id, frontStoreOperations.propertyId))
+        .from(properties)
         .where(
           and(
-            eq(frontStoreOperations.propertyId, propertyId),
+            eq(properties.id, propertyId),
             eq(properties.playerId, playerId),
             eq(properties.type, 'front_store'),
           ),
         )
         .limit(1);
-      const [player] = await tx
-        .select({
-          bankMoney: players.bankMoney,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
 
-      if (!operation || !player) {
+      if (!property) {
         return null;
       }
 
-      const collectedAmount = roundCurrency(Number.parseFloat(String(operation.cashBalance)));
+      const lockedOperation = await tx.execute(sql<{ cashBalance: string }>`
+        select ${frontStoreOperations.cashBalance} as "cashBalance"
+        from ${frontStoreOperations}
+        where ${frontStoreOperations.propertyId} = ${propertyId}
+        for update
+      `);
+      const drainedOperation = lockedOperation.rows[0];
+
+      if (!drainedOperation) {
+        return null;
+      }
+
+      const collectedAmount = roundCurrency(Number.parseFloat(String(drainedOperation.cashBalance)));
 
       if (collectedAmount <= 0) {
         return null;
       }
 
-      const playerBankMoneyAfterCollect = roundCurrency(
-        Number.parseFloat(String(player.bankMoney)) + collectedAmount,
-      );
-
-      await tx
-        .update(players)
-        .set({
-          bankMoney: playerBankMoneyAfterCollect.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      const collectedAt = new Date();
 
       await tx
         .update(frontStoreOperations)
         .set({
           cashBalance: '0.00',
-          lastCollectedAt: new Date(),
+          lastCollectedAt: collectedAt,
         })
         .where(eq(frontStoreOperations.propertyId, propertyId));
+
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        bankMoneyDelta: collectedAmount,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       await tx.insert(transactions).values({
         amount: collectedAmount.toFixed(2),
@@ -457,7 +435,7 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
 
       return {
         collectedAmount,
-        playerBankMoneyAfterCollect,
+        playerBankMoneyAfterCollect: balanceMutation.player.bankMoney,
       };
     });
   }
@@ -557,16 +535,13 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
         return null;
       }
 
-      const playerMoneyAfterInvest = roundCurrency(
-        Number.parseFloat(String(player.money)) - input.dirtyAmount,
-      );
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -input.dirtyAmount,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterInvest.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const [operation] = await tx
         .select({
@@ -616,7 +591,7 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
       return createdBatch
         ? {
             batchId: createdBatch.id,
-            playerMoneyAfterInvest,
+            playerMoneyAfterInvest: balanceMutation.player.money,
           }
         : null;
     });

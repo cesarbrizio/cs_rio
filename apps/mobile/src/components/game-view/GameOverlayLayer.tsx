@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { colors } from '../../theme/colors';
@@ -18,7 +19,7 @@ interface GameOverlayLayerProps {
   spatialLabelOverlays: WorldLabelOverlay[];
 }
 
-export function GameOverlayLayer({
+function GameOverlayLayerComponent({
   debugState,
   destinationOverlay,
   mapHeight,
@@ -211,6 +212,9 @@ export function GameOverlayLayer({
     </>
   );
 }
+
+export const GameOverlayLayer = memo(GameOverlayLayerComponent);
+GameOverlayLayer.displayName = 'GameOverlayLayer';
 
 const styles = StyleSheet.create({
   spatialLabelLayer: {

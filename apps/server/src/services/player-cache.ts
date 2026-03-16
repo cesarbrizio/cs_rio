@@ -1,11 +1,11 @@
-import type { KeyValueStore } from './auth.js';
+import type { KeyValueDelete } from './key-value-store.js';
 
 export function buildPlayerProfileCacheKey(playerId: string): string {
   return `player:profile:${playerId}`;
 }
 
 export async function invalidatePlayerProfileCache(
-  keyValueStore: Pick<KeyValueStore, 'delete'> | null | undefined,
+  keyValueStore: KeyValueDelete | null | undefined,
   playerId: string | null | undefined,
 ): Promise<void> {
   if (!playerId || !keyValueStore?.delete) {
@@ -16,7 +16,7 @@ export async function invalidatePlayerProfileCache(
 }
 
 export async function invalidatePlayerProfileCaches(
-  keyValueStore: Pick<KeyValueStore, 'delete'> | null | undefined,
+  keyValueStore: KeyValueDelete | null | undefined,
   playerIds: Iterable<string | null | undefined>,
 ): Promise<void> {
   if (!keyValueStore?.delete) {

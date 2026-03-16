@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_CHARACTER_APPEARANCE, VocationType } from '@cs-rio/shared';
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../src/app.js';
 import { db } from '../src/db/client.js';
@@ -32,6 +32,7 @@ describe('hospital routes', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await app.close();
     if (customHospitalService) {
       await customHospitalService.close?.();
@@ -248,6 +249,56 @@ describe('hospital routes', () => {
     expect(response.json().player.nickname).toMatch(/^Novo_/);
   });
 
+  it('rejects surgery when credits disappear before the debit transaction', async () => {
+    const player = await registerAndCreateCharacter();
+    const originalNickname = `P${randomUUID().slice(0, 8)}`;
+    await db
+      .update(players)
+      .set({
+        credits: 5,
+        nickname: originalNickname,
+      })
+      .where(eq(players.id, player.id));
+
+    await spendCreditsBeforeNextTransaction(player.id, 0);
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${player.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        appearance: {
+          hair: 'moicano',
+          outfit: 'terno_branco',
+          skin: 'pele_clara',
+        },
+        nickname: `Novo_${randomUUID().slice(0, 5)}`,
+      },
+      url: '/api/hospital/surgery',
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json()).toMatchObject({
+      category: 'domain',
+      message: 'Créditos insuficientes para a cirurgia.',
+    });
+
+    const [playerRow] = await db
+      .select({
+        appearanceJson: players.appearanceJson,
+        credits: players.credits,
+        nickname: players.nickname,
+      })
+      .from(players)
+      .where(eq(players.id, player.id))
+      .limit(1);
+
+    expect(playerRow?.credits).toBe(0);
+    expect(playerRow?.nickname).toBe(originalNickname);
+    expect(playerRow?.appearanceJson).toEqual(DEFAULT_CHARACTER_APPEARANCE);
+  });
+
   it('applies permanent stat items and enforces the cycle purchase cap', async () => {
     const player = await registerAndCreateCharacter();
     await updatePlayerState(player.id, {
@@ -350,6 +401,41 @@ describe('hospital routes', () => {
       await overdoseSystem.close();
     }
   });
+
+  it('rejects health plan when credits disappear before the debit transaction', async () => {
+    const player = await registerAndCreateCharacter();
+    await updatePlayerState(player.id, {
+      credits: 10,
+    });
+
+    await spendCreditsBeforeNextTransaction(player.id, 0);
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${player.accessToken}`,
+      },
+      method: 'POST',
+      url: '/api/hospital/health-plan',
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json()).toMatchObject({
+      category: 'domain',
+      message: 'Créditos insuficientes para o plano de saúde.',
+    });
+
+    const [playerRow] = await db
+      .select({
+        credits: players.credits,
+        healthPlanCycleKey: players.healthPlanCycleKey,
+      })
+      .from(players)
+      .where(eq(players.id, player.id))
+      .limit(1);
+
+    expect(playerRow?.credits).toBe(0);
+    expect(playerRow?.healthPlanCycleKey).toBeNull();
+  });
 });
 
 async function registerAndCreateCharacter(): Promise<{ accessToken: string; id: string }> {
@@ -411,4 +497,21 @@ async function updatePlayerState(
     }>,
 ): Promise<void> {
   await db.update(players).set(input).where(eq(players.id, playerId));
+}
+
+async function spendCreditsBeforeNextTransaction(playerId: string, nextCredits: number): Promise<void> {
+  const originalTransaction = db.transaction.bind(db);
+  const spy = vi.spyOn(db, 'transaction');
+
+  spy.mockImplementationOnce(async (...args) => {
+    const [callback] = args;
+    await db
+      .update(players)
+      .set({
+        credits: nextCredits,
+      })
+      .where(eq(players.id, playerId));
+
+    return originalTransaction(callback);
+  });
 }

@@ -1,5 +1,6 @@
 import { type GridPoint } from '@engine/types';
 import { type PlayerProfile } from '@cs-rio/shared';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { ContextMenu } from '../../components/hud/ContextMenu';
@@ -26,7 +27,7 @@ export interface HomeInfoCardContent {
   headline: string;
 }
 
-interface HomeHudOverlayProps {
+export interface HomeHudOverlayProps {
   cameraMode: 'follow' | 'free';
   compactRoundLabel: string;
   connectionLabel: string | null;
@@ -64,7 +65,7 @@ interface HomeHudOverlayProps {
   worldPulseItems: WorldPulseItem[];
 }
 
-export function HomeHudOverlay({
+function HomeHudOverlayComponent({
   cameraMode,
   compactRoundLabel,
   connectionLabel,
@@ -304,6 +305,9 @@ export function HomeHudOverlay({
     </View>
   );
 }
+
+export const HomeHudOverlay = memo(HomeHudOverlayComponent);
+HomeHudOverlay.displayName = 'HomeHudOverlay';
 
 const styles = StyleSheet.create({
   hudLayer: {

@@ -21,6 +21,7 @@ import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { players, trainingSessions } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import {
   AuthError,
   type AuthPlayerRecord,
@@ -46,6 +47,7 @@ import {
   assertPlayerActionUnlocked,
   type HospitalizationStatusReaderContract,
 } from './action-readiness.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 
 export interface TrainingRepository {
   claimTrainingSession(
@@ -108,12 +110,16 @@ type TrainingErrorCode =
   | 'training_ready_to_claim'
   | 'validation';
 
-export class TrainingError extends Error {
+export function trainingError(code: TrainingErrorCode, message: string): DomainError {
+  return new DomainError('training', code, inferDomainErrorCategory(code), message);
+}
+
+export class TrainingError extends DomainError {
   constructor(
-    public readonly code: TrainingErrorCode,
+    code: TrainingErrorCode,
     message: string,
   ) {
-    super(message);
+    super('training', code, inferDomainErrorCategory(code), message);
     this.name = 'TrainingError';
   }
 }
@@ -207,17 +213,16 @@ export class DatabaseTrainingRepository implements TrainingRepository {
         return null;
       }
 
-      const nextMoney = roundMoney(Number.parseFloat(player.money) - input.costMoney);
-      const nextCansaco = player.cansaco - input.costCansaco;
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        cansacoDelta: -input.costCansaco,
+        moneyDelta: -input.costMoney,
+      });
 
-      const [updatedPlayer] = await tx
-        .update(players)
-        .set({
-          money: nextMoney.toFixed(2),
-          cansaco: nextCansaco,
-        })
-        .where(eq(players.id, playerId))
-        .returning();
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
+
+      const [updatedPlayer] = await tx.select().from(players).where(eq(players.id, playerId)).limit(1);
 
       const [session] = await tx
         .insert(trainingSessions)
@@ -655,10 +660,6 @@ function resolveTrainingGains(
     inteligencia: Math.max(1, Math.round(basePoints * weights.inteligencia)),
     resistencia: Math.max(1, Math.round(basePoints * weights.resistencia)),
   };
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function serializeTrainingSession(

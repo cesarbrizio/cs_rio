@@ -1877,10 +1877,16 @@ describe('territory routes', () => {
   });
 
   it('applies the regional domination multiplier when the faction controls every favela in the region', async () => {
+    await app.server.close();
     state.favelas.set('favela-centro-1', {
       ...state.favelas.get('favela-centro-1')!,
       controllingFactionId: 'faction-cv',
       state: 'controlled',
+    });
+    app = await buildTestApp({
+      now: () => now,
+      random: sequenceRandom([0.1]),
+      state,
     });
 
     const accessToken = await registerAndExtractToken(app.server);

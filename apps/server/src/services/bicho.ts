@@ -23,7 +23,9 @@ import {
   players,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { roundCurrency } from './property.js';
 
@@ -128,12 +130,16 @@ type BichoErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class BichoError extends Error {
+export function bichoError(code: BichoErrorCode, message: string): DomainError {
+  return new DomainError('bicho', code, inferDomainErrorCategory(code), message);
+}
+
+export class BichoError extends DomainError {
   constructor(
-    public readonly code: BichoErrorCode,
+    code: BichoErrorCode,
     message: string,
   ) {
-    super(message);
+    super('bicho', code, inferDomainErrorCategory(code), message);
     this.name = 'BichoError';
   }
 }
@@ -333,13 +339,6 @@ export class DatabaseBichoRepository implements BichoRepository {
     },
   ): Promise<BichoPlaceBetRecord | null> {
     return db.transaction(async (tx) => {
-      const [player] = await tx
-        .select({
-          money: players.money,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
       const [draw] = await tx
         .select({
           id: bichoDraws.id,
@@ -349,18 +348,17 @@ export class DatabaseBichoRepository implements BichoRepository {
         .where(eq(bichoDraws.id, input.drawId))
         .limit(1);
 
-      if (!player || !draw) {
+      if (!draw) {
         return null;
       }
 
-      const playerMoneyAfterBet = roundCurrency(Number.parseFloat(String(player.money)) - input.amount);
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -input.amount,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterBet.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const [bet] = await tx
         .insert(bichoBets)
@@ -398,7 +396,7 @@ export class DatabaseBichoRepository implements BichoRepository {
       return bet
         ? {
             betId: bet.id,
-            playerMoneyAfterBet,
+            playerMoneyAfterBet: balanceMutation.player.money,
           }
         : null;
     });
@@ -462,26 +460,13 @@ export class DatabaseBichoRepository implements BichoRepository {
       }
 
       for (const [playerId, payout] of payoutsByPlayer.entries()) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: payout,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           continue;
         }
-
-        const nextMoney = roundCurrency(Number.parseFloat(String(player.money)) + payout);
-
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, playerId));
 
         await tx.insert(transactions).values({
           amount: payout.toFixed(2),

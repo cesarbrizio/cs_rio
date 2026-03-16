@@ -5,13 +5,15 @@ import {
   type PrisonCenterResponse,
   VocationType,
 } from '@cs-rio/shared';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { factionMembers, factions, players, prisonRecords } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { insertFactionBankLedgerEntry } from './faction.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { applyFactionBankDelta, applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { type PrisonSystemContract, getActivePrisonRecord } from '../systems/PrisonSystem.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
@@ -73,12 +75,16 @@ type PrisonErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class PrisonError extends Error {
+export function prisonError(code: PrisonErrorCode, message: string): DomainError {
+  return new DomainError('prison', code, inferDomainErrorCategory(code), message);
+}
+
+export class PrisonError extends DomainError {
   constructor(
-    public readonly code: PrisonErrorCode,
+    code: PrisonErrorCode,
     message: string,
   ) {
-    super(message);
+    super('prison', code, inferDomainErrorCategory(code), message);
     this.name = 'PrisonError';
   }
 }
@@ -261,30 +267,13 @@ export class PrisonService implements PrisonServiceContract {
     );
     const succeeded = this.random() * 100 < successChance;
     const result = await db.transaction(async (tx) => {
-      const [currentPlayer] = await tx
-        .select({
-          money: players.money,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -bribeCost,
+      });
 
-      if (!currentPlayer) {
+      if (balanceMutation.status !== 'updated') {
         return null;
       }
-
-      const nextMoney = roundCurrency(Number.parseFloat(String(currentPlayer.money)) - bribeCost);
-
-      if (nextMoney < 0) {
-        return null;
-      }
-
-      await tx
-        .update(players)
-        .set({
-          money: nextMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
 
       if (succeeded) {
         await tx
@@ -297,7 +286,7 @@ export class PrisonService implements PrisonServiceContract {
       }
 
       return {
-        moneyRemaining: nextMoney,
+        moneyRemaining: balanceMutation.player.money,
       };
     });
 
@@ -334,26 +323,24 @@ export class PrisonService implements PrisonServiceContract {
     }
 
     const result = await db.transaction(async (tx) => {
-      const [currentPlayer] = await tx
-        .select({
-          credits: players.credits,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
-
-      if (!currentPlayer || currentPlayer.credits < BAIL_CREDITS_COST) {
-        return null;
-      }
-
-      const nextCredits = currentPlayer.credits - BAIL_CREDITS_COST;
-
-      await tx
+      const [updatedPlayer] = await tx
         .update(players)
         .set({
-          credits: nextCredits,
+          credits: sql`${players.credits} - ${BAIL_CREDITS_COST}`,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`${players.credits} >= ${BAIL_CREDITS_COST}`,
+          ),
+        )
+        .returning({
+          credits: players.credits,
+        });
+
+      if (!updatedPlayer) {
+        return null;
+      }
 
       await tx
         .update(prisonRecords)
@@ -364,12 +351,12 @@ export class PrisonService implements PrisonServiceContract {
         .where(eq(prisonRecords.id, record.id));
 
       return {
-        creditsRemaining: nextCredits,
+        creditsRemaining: updatedPlayer.credits,
       };
     });
 
     if (!result) {
-      throw new PrisonError('conflict', 'Falha ao processar a fianca.');
+      throw new PrisonError('insufficient_resources', 'Creditos insuficientes para pagar a fianca.');
     }
 
     await this.invalidatePlayerProfile(playerId);
@@ -487,33 +474,16 @@ export class PrisonService implements PrisonServiceContract {
     }
 
     const result = await db.transaction(async (tx) => {
-      const [currentFaction] = await tx
-        .select({
-          bankMoney: factions.bankMoney,
-        })
-        .from(factions)
-        .where(eq(factions.id, rescuerMembership.factionId))
-        .limit(1);
+      const factionMutation = await applyFactionBankDelta(tx, rescuerMembership.factionId, {
+        bankMoneyDelta: -rescueCost,
+      });
 
-      if (!currentFaction) {
+      if (factionMutation.status !== 'updated') {
         return null;
       }
-
-      const nextBankMoney = roundCurrency(Number.parseFloat(String(currentFaction.bankMoney)) - rescueCost);
-
-      if (nextBankMoney < 0) {
-        return null;
-      }
-
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, rescuerMembership.factionId));
 
       await insertFactionBankLedgerEntry(tx as never, {
-        balanceAfter: nextBankMoney,
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: this.now(),
         description: `Resgate da prisao de ${targetMembership.nickname} autorizado por ${rescuer.nickname}.`,
@@ -534,7 +504,7 @@ export class PrisonService implements PrisonServiceContract {
         .where(eq(prisonRecords.id, targetPrison.id));
 
       return {
-        factionBankMoneyRemaining: nextBankMoney,
+        factionBankMoneyRemaining: factionMutation.faction.bankMoney,
       };
     });
 

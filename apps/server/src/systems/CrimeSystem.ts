@@ -13,6 +13,7 @@ import {
   vests,
   weapons,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import {
   NoopUniversityEffectReader,
   type UniversityEffectReaderContract,
@@ -207,12 +208,16 @@ type CrimeErrorCode =
   | 'not_found'
   | 'validation';
 
-export class CrimeError extends Error {
+export function crimeError(code: CrimeErrorCode, message: string): DomainError {
+  return new DomainError('crime', code, inferDomainErrorCategory(code), message);
+}
+
+export class CrimeError extends DomainError {
   constructor(
-    public readonly code: CrimeErrorCode,
+    code: CrimeErrorCode,
     message: string,
   ) {
-    super(message);
+    super('crime', code, inferDomainErrorCategory(code), message);
     this.name = 'CrimeError';
   }
 }

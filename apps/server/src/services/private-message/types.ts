@@ -1,3 +1,4 @@
+import { DomainError, inferDomainErrorCategory } from '../../errors/domain-error.js';
 import type { ContactOwnerRecord, ContactRepository, ContactSummaryRecord } from '../contact/types.js';
 
 export interface PrivateMessageRecord {
@@ -48,12 +49,16 @@ type PrivateMessageErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class PrivateMessageError extends Error {
+export function privateMessageError(code: PrivateMessageErrorCode, message: string): DomainError {
+  return new DomainError('private-message', code, inferDomainErrorCategory(code), message);
+}
+
+export class PrivateMessageError extends DomainError {
   constructor(
-    public readonly code: PrivateMessageErrorCode,
+    code: PrivateMessageErrorCode,
     message: string,
   ) {
-    super(message);
+    super('private-message', code, inferDomainErrorCategory(code), message);
     this.name = 'PrivateMessageError';
   }
 }

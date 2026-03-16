@@ -133,6 +133,56 @@ describe('prison routes', () => {
     });
   });
 
+  it('keeps the prisoner locked when credits disappear before the bail transaction', async () => {
+    const player = await registerAndCreateCharacter();
+    await updatePlayerState(player.id, {
+      credits: 10,
+    });
+    await imprisonPlayer(player.id, {
+      reason: 'Flagrado em blitz comum',
+      releaseInHours: 3,
+    });
+
+    await spendCreditsBeforeNextTransaction(player.id, 0);
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${player.accessToken}`,
+      },
+      method: 'POST',
+      url: '/api/prison/bail',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      category: 'domain',
+      message: 'Creditos insuficientes para pagar a fianca.',
+    });
+
+    const [playerRow] = await db
+      .select({
+        credits: players.credits,
+      })
+      .from(players)
+      .where(eq(players.id, player.id))
+      .limit(1);
+
+    expect(playerRow?.credits).toBe(0);
+
+    const [record] = await db
+      .select({
+        releaseAt: prisonRecords.releaseAt,
+        releasedEarlyBy: prisonRecords.releasedEarlyBy,
+      })
+      .from(prisonRecords)
+      .where(eq(prisonRecords.playerId, player.id))
+      .limit(1);
+
+    expect(record).toBeDefined();
+    expect(record?.releasedEarlyBy).toBeNull();
+    expect(record?.releaseAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
   it('extends the sentence and increases police heat when escape fails', async () => {
     await app.close();
     app = await createApp({
@@ -258,6 +308,23 @@ async function updatePlayerState(
   }>,
 ): Promise<void> {
   await db.update(players).set(input).where(eq(players.id, playerId));
+}
+
+async function spendCreditsBeforeNextTransaction(playerId: string, nextCredits: number): Promise<void> {
+  const originalTransaction = db.transaction.bind(db);
+  const spy = vi.spyOn(db, 'transaction');
+
+  spy.mockImplementationOnce(async (...args) => {
+    const [callback] = args;
+    await db
+      .update(players)
+      .set({
+        credits: nextCredits,
+      })
+      .where(eq(players.id, playerId));
+
+    return originalTransaction(callback);
+  });
 }
 
 async function imprisonPlayer(

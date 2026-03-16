@@ -49,6 +49,10 @@ class InMemoryKeyValueStore implements KeyValueStore {
   }
 }
 
+function castService<T>(value: Partial<T>): T {
+  return value as T;
+}
+
 describe('route action idempotency', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -57,9 +61,9 @@ describe('route action idempotency', () => {
   it('protege tentativa de crime contra double tap', async () => {
     const attemptCrime = vi.fn(async () => ({ action: 'crime' }));
     const app = await createAppWithToken({
-      crimeService: {
+      crimeService: castService<CrimeServiceContract>({
         attemptCrime,
-      } as unknown as CrimeServiceContract,
+      }),
     });
 
     try {
@@ -91,9 +95,9 @@ describe('route action idempotency', () => {
   it('protege criacao de ordem no mercado contra reenvio identico', async () => {
     const createOrder = vi.fn(async () => ({ order: { id: 'order-1' } }));
     const app = await createAppWithToken({
-      marketService: {
+      marketService: castService<MarketServiceContract>({
         createOrder,
-      } as unknown as MarketServiceContract,
+      }),
     });
 
     try {
@@ -137,9 +141,9 @@ describe('route action idempotency', () => {
     const createOrder = vi.fn(async () => ({ order: { id: 'order-shared' } }));
     const appA = await createAppWithToken(
       {
-        marketService: {
+        marketService: castService<MarketServiceContract>({
           createOrder,
-        } as unknown as MarketServiceContract,
+        }),
       },
       {
         keyValueStore: sharedStore,
@@ -147,9 +151,9 @@ describe('route action idempotency', () => {
     );
     const appB = await createAppWithToken(
       {
-        marketService: {
+        marketService: castService<MarketServiceContract>({
           createOrder,
-        } as unknown as MarketServiceContract,
+        }),
       },
       {
         keyValueStore: sharedStore,
@@ -196,9 +200,9 @@ describe('route action idempotency', () => {
   it('protege tratamento do hospital contra retry imediato', async () => {
     const applyTreatment = vi.fn(async () => ({ action: 'treatment' }));
     const app = await createAppWithToken({
-      hospitalService: {
+      hospitalService: castService<HospitalServiceContract>({
         applyTreatment,
-      } as unknown as HospitalServiceContract,
+      }),
     });
 
     try {
@@ -230,9 +234,9 @@ describe('route action idempotency', () => {
   it('protege suborno da prisao contra double tap', async () => {
     const attemptBribe = vi.fn(async () => ({ method: 'bribe' }));
     const app = await createAppWithToken({
-      prisonService: {
+      prisonService: castService<PrisonServiceContract>({
         attemptBribe,
-      } as unknown as PrisonServiceContract,
+      }),
     });
 
     try {
@@ -264,9 +268,9 @@ describe('route action idempotency', () => {
   it('protege declaracao de guerra no territorio contra repeticao imediata', async () => {
     const declareFactionWar = vi.fn(async () => ({ war: { status: 'declared' } }));
     const app = await createAppWithToken({
-      territoryService: {
+      territoryService: castService<TerritoryServiceContract>({
         declareFactionWar,
-      } as unknown as TerritoryServiceContract,
+      }),
     });
 
     try {

@@ -32,6 +32,7 @@ import {
   regions,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { CooldownSystem } from '../systems/CooldownSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
@@ -57,6 +58,7 @@ import {
   resolveDefaultFactionRobberyPolicy,
 } from './gameplay-config.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
+import { applyFactionBankDelta, applyPlayerResourceDeltas } from './financial-updates.js';
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { roundCurrency } from './property.js';
@@ -222,12 +224,16 @@ type RobberyErrorCode =
   | 'not_found'
   | 'validation';
 
-export class RobberyError extends Error {
+export function robberyError(code: RobberyErrorCode, message: string): DomainError {
+  return new DomainError('robbery', code, inferDomainErrorCategory(code), message);
+}
+
+export class RobberyError extends DomainError {
   constructor(
-    public readonly code: RobberyErrorCode,
+    code: RobberyErrorCode,
     message: string,
   ) {
-    super(message);
+    super('robbery', code, inferDomainErrorCategory(code), message);
     this.name = 'RobberyError';
   }
 }
@@ -473,7 +479,7 @@ export class RobberyService implements RobberyServiceContract {
       region,
     });
     const nextPolicePressure = clamp(region.policePressure + resolution.regionPolicePressureDelta, 0, 100);
-    const nextMoney = roundCurrency(player.money + resolution.netAmount);
+    let nextMoney = roundCurrency(player.money + resolution.netAmount);
     const nextCansaco = Math.max(0, player.cansaco - resolution.cansacoCost);
     const nextDisposicao = Math.max(0, player.disposicao - resolution.disposicaoCost);
     const nextHp = clamp(player.hp + resolution.hpDelta, 1, 100);
@@ -499,13 +505,22 @@ export class RobberyService implements RobberyServiceContract {
 
     await this.assertRobberyActionUnlocked(player.id);
     await db.transaction(async (tx) => {
+      const balanceMutation = await applyPlayerResourceDeltas(tx, player.id, {
+        cansacoDelta: -resolution.cansacoCost,
+        disposicaoDelta: -resolution.disposicaoCost,
+        moneyDelta: resolution.netAmount,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        throw new RobberyError('insufficient_resources', 'Nao foi possivel concluir o roubo com os recursos atuais.');
+      }
+
+      nextMoney = balanceMutation.player.money;
+
       await tx
         .update(players)
         .set({
           hp: nextHp,
-          money: nextMoney.toFixed(2),
-          disposicao: nextDisposicao,
-          cansaco: nextCansaco,
         })
         .where(eq(players.id, player.id));
 
@@ -687,7 +702,6 @@ export class RobberyService implements RobberyServiceContract {
     const nextPolicePressure = clamp(region.policePressure + resolution.heatDelta, 0, 100);
     const effectiveCommissionAmount = roundCurrency(resolution.grossAmount * resolution.effectiveCommissionRate);
     const effectiveNetAmount = roundCurrency(resolution.grossAmount - effectiveCommissionAmount);
-    const nextMoney = roundCurrency(player.money + effectiveNetAmount);
     const arrestedNow = resolution.success ? 0 : resolution.arrestedNow;
     const activeAfter = Math.max(0, favela.banditsActive - arrestedNow);
     const arrestedAfter = favela.banditsArrested + arrestedNow;
@@ -716,12 +730,13 @@ export class RobberyService implements RobberyServiceContract {
         .where(eq(regions.id, region.id));
 
       if (resolution.success) {
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, player.id));
+        const balanceMutation = await applyPlayerResourceDeltas(tx, player.id, {
+          moneyDelta: effectiveNetAmount,
+        });
+
+        if (balanceMutation.status !== 'updated') {
+          throw new RobberyError('not_found', 'Jogador nao encontrado para credito do roubo da favela.');
+        }
 
         await tx.insert(transactions).values({
           amount: effectiveNetAmount.toFixed(2),
@@ -1167,34 +1182,18 @@ async function creditFactionRobberyCommission(
     robberyLabel: string;
   },
 ): Promise<void> {
-  const [faction] = await executor
-    .select({
-      bankMoney: factions.bankMoney,
-      id: factions.id,
-      points: factions.points,
-    })
-    .from(factions)
-    .where(eq(factions.id, input.factionId))
-    .limit(1);
+  const pointsDelta = calculateFactionPointsDelta(input.amount);
+  const factionMutation = await applyFactionBankDelta(executor, input.factionId, {
+    bankMoneyDelta: input.amount,
+    pointsDelta,
+  });
 
-  if (!faction) {
+  if (factionMutation.status !== 'updated') {
     return;
   }
 
-  const currentBankMoney = parseFloat(String(faction.bankMoney));
-  const nextBankMoney = roundCurrency(currentBankMoney + input.amount);
-  const pointsDelta = calculateFactionPointsDelta(input.amount);
-
-  await executor
-    .update(factions)
-    .set({
-      bankMoney: nextBankMoney.toFixed(2),
-      points: faction.points + pointsDelta,
-    })
-    .where(eq(factions.id, input.factionId));
-
   await insertFactionBankLedgerEntry(executor, {
-    balanceAfter: nextBankMoney,
+    balanceAfter: factionMutation.faction.bankMoney,
     commissionAmount: input.amount,
     createdAt: input.now,
     description: `Repasse criminal de roubo: ${input.robberyLabel}`,

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { parseStoredStringArray } from './storage';
+import { parseStoredStringArray, warnStorageFallback } from './storage';
 
 const MAX_STORED_KEYS = 60;
 const STORAGE_PREFIX = 'cs_rio_seen_war_results:';
@@ -10,7 +10,8 @@ export async function loadSeenWarResultKeys(playerId: string): Promise<Set<strin
     return new Set(
       parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
     );
-  } catch {
+  } catch (error) {
+    warnStorageFallback('war-result-storage', 'falha ao ler resultados de guerra vistos; resetando cache local', error);
     return new Set();
   }
 }

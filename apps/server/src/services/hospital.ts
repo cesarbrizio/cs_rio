@@ -16,6 +16,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { drugs, playerHospitalStatPurchases, players } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { resolveHospitalCycleKey } from './hospital-cycle.js';
 import {
@@ -80,12 +81,16 @@ type HospitalErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class HospitalError extends Error {
+export function hospitalError(code: HospitalErrorCode, message: string): DomainError {
+  return new DomainError('hospital', code, inferDomainErrorCategory(code), message);
+}
+
+export class HospitalError extends DomainError {
   constructor(
-    public readonly code: HospitalErrorCode,
+    code: HospitalErrorCode,
     message: string,
   ) {
-    super(message);
+    super('hospital', code, inferDomainErrorCategory(code), message);
     this.name = 'HospitalError';
   }
 }
@@ -287,13 +292,25 @@ export class HospitalService implements HospitalServiceContract {
     }
 
     await db.transaction(async (tx) => {
-      await tx
+      const [updated] = await tx
         .update(players)
         .set({
           hp: 100,
-          money: sql`${players.money} - ${treatmentCost}`,
+          money: sql`round((${players.money} - ${treatmentCost})::numeric, 2)`,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`(${players.money} - ${treatmentCost}) >= 0`,
+          ),
+        )
+        .returning({
+          id: players.id,
+        });
+
+      if (!updated) {
+        throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para tratamento.');
+      }
     });
 
     return this.buildActionResponse(playerId, {
@@ -318,13 +335,25 @@ export class HospitalService implements HospitalServiceContract {
     }
 
     await db.transaction(async (tx) => {
-      await tx
+      const [updated] = await tx
         .update(players)
         .set({
           addiction: 0,
-          money: sql`${players.money} - ${detoxCost}`,
+          money: sql`round((${players.money} - ${detoxCost})::numeric, 2)`,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`(${players.money} - ${detoxCost}) >= 0`,
+          ),
+        )
+        .returning({
+          id: players.id,
+        });
+
+      if (!updated) {
+        throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para desintoxicação.');
+      }
     });
 
     await Promise.all([
@@ -366,14 +395,26 @@ export class HospitalService implements HospitalServiceContract {
         throw new HospitalError('conflict', 'Este nickname já está em uso.');
       }
 
-      await tx
+      const [updatedPlayer] = await tx
         .update(players)
         .set({
           appearanceJson: nextAppearance,
           credits: sql`${players.credits} - ${SURGERY_CREDITS_COST}`,
           nickname: nextNickname,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`${players.credits} >= ${SURGERY_CREDITS_COST}`,
+          ),
+        )
+        .returning({
+          id: players.id,
+        });
+
+      if (!updatedPlayer) {
+        throw new HospitalError('insufficient_resources', 'Créditos insuficientes para a cirurgia.');
+      }
     });
 
     return this.buildActionResponse(playerId, {
@@ -395,13 +436,44 @@ export class HospitalService implements HospitalServiceContract {
     }
 
     await db.transaction(async (tx) => {
-      await tx
+      const [updatedPlayer] = await tx
         .update(players)
         .set({
           credits: sql`${players.credits} - ${HEALTH_PLAN_CREDITS_COST}`,
           healthPlanCycleKey: cycleKey,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`${players.credits} >= ${HEALTH_PLAN_CREDITS_COST}`,
+            sql`coalesce(${players.healthPlanCycleKey}, '') <> ${cycleKey}`,
+          ),
+        )
+        .returning({
+          credits: players.credits,
+          healthPlanCycleKey: players.healthPlanCycleKey,
+          id: players.id,
+        });
+
+      if (updatedPlayer) {
+        return;
+      }
+
+      const [currentPlayer] = await tx
+        .select({
+          credits: players.credits,
+          healthPlanCycleKey: players.healthPlanCycleKey,
+          id: players.id,
+        })
+        .from(players)
+        .where(eq(players.id, playerId))
+        .limit(1);
+
+      if (currentPlayer?.healthPlanCycleKey === cycleKey) {
+        throw new HospitalError('conflict', 'Plano de saúde já ativo neste ciclo.');
+      }
+
+      throw new HospitalError('insufficient_resources', 'Créditos insuficientes para o plano de saúde.');
     });
 
     return this.buildActionResponse(playerId, {
@@ -451,13 +523,25 @@ export class HospitalService implements HospitalServiceContract {
     const now = this.now();
 
     await db.transaction(async (tx) => {
-      await tx
+      const [updated] = await tx
         .update(players)
         .set({
           ...nextStats,
-          money: sql`${players.money} - ${inflatedItemCost}`,
+          money: sql`round((${players.money} - ${inflatedItemCost})::numeric, 2)`,
         })
-        .where(eq(players.id, playerId));
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`(${players.money} - ${inflatedItemCost}) >= 0`,
+          ),
+        )
+        .returning({
+          id: players.id,
+        });
+
+      if (!updated) {
+        throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para comprar este item.');
+      }
 
       await tx
         .insert(playerHospitalStatPurchases)

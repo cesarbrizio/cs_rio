@@ -6,8 +6,8 @@ import {
   installGlobalHttpErrorHandler,
   throwRouteHttpError,
 } from '../src/api/http-errors.js';
+import { DomainError } from '../src/errors/domain-error.js';
 import { bindRequestContext, refreshRequestContext } from '../src/observability/request-context.js';
-import { AuthError } from '../src/services/auth.js';
 
 describe('global http error handler', () => {
   const app = Fastify({
@@ -32,7 +32,16 @@ describe('global http error handler', () => {
     installGlobalHttpErrorHandler(app);
 
     app.get('/domain', async () => {
-      throw new AuthError('validation', 'Email invalido.');
+      throw new DomainError('auth', 'validation', 'invalid_input', 'Email invalido.');
+    });
+
+    app.get('/insufficient', async () => {
+      throw new DomainError(
+        'hospital',
+        'insufficient_resources',
+        'insufficient_resources',
+        'Dinheiro insuficiente para tratamento.',
+      );
     });
 
     app.get('/internal', async () => {
@@ -83,6 +92,23 @@ describe('global http error handler', () => {
       category: 'internal',
       message: 'Falha inesperada na rota de teste.',
       requestId: 'internal-request-id',
+    });
+  });
+
+  it('applies domain-specific status overrides through DomainError', async () => {
+    const response = await app.inject({
+      headers: {
+        'x-request-id': 'insufficient-request-id',
+      },
+      method: 'GET',
+      url: '/insufficient',
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json<HttpErrorResponseBody>()).toEqual({
+      category: 'domain',
+      message: 'Dinheiro insuficiente para tratamento.',
+      requestId: 'insufficient-request-id',
     });
   });
 });

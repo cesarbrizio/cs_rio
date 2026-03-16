@@ -16,9 +16,9 @@ import {
   type FactionUpgradeType,
   type VocationType,
 } from '@cs-rio/shared';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 
-import { db } from '../../db/client.js';
+import { db, type DatabaseExecutor } from '../../db/client.js';
 import {
   factionBankLedger,
   factionLeadershipChallenges,
@@ -34,8 +34,10 @@ import {
   type FactionRobberyPolicy,
   type FactionRobberyPolicyMode,
 } from '../faction-internal-satisfaction.js';
+import { applyFactionBankDelta, applyPlayerCombatDeltas, applyPlayerResourceDeltas } from '../financial-updates.js';
 import { GameConfigService } from '../game-config.js';
 import { resolveDefaultFactionRobberyPolicy } from '../gameplay-config.js';
+import { LevelSystem } from '../../systems/LevelSystem.js';
 import type {
   FactionBankLedgerInsertInput,
   FactionBankLedgerRecord,
@@ -69,11 +71,10 @@ const DEFAULT_FACTION_ROBBERY_POLICY: FactionRobberyPolicy = {
   regions: {},
 };
 const gameConfigService = new GameConfigService();
-
-type DatabaseClient = typeof db;
+const factionLeadershipLevelSystem = new LevelSystem();
 
 export async function insertFactionBankLedgerEntry(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   input: FactionBankLedgerInsertInput,
 ): Promise<void> {
   await executor.insert(factionBankLedger).values({
@@ -238,7 +239,7 @@ export class DatabaseFactionRepository implements FactionRepository {
         })
         .where(eq(players.id, playerId));
 
-      return this.findFactionSummary(tx as unknown as DatabaseClient, playerId, createdFaction.id);
+      return this.findFactionSummary(tx, playerId, createdFaction.id);
     });
   }
 
@@ -510,27 +511,21 @@ export class DatabaseFactionRepository implements FactionRepository {
         return false;
       }
 
-      const nextPlayerMoney = roundCurrency(Number.parseFloat(String(player.money)) - input.amount);
-      const nextFactionBankMoney = roundCurrency(Number.parseFloat(String(faction.bankMoney)) + input.amount);
       const pointsDelta = calculateFactionPointsDelta(input.amount);
+      const playerMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -input.amount,
+      });
+      const factionMutation = await applyFactionBankDelta(tx, factionId, {
+        bankMoneyDelta: input.amount,
+        pointsDelta,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: nextPlayerMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (playerMutation.status !== 'updated' || factionMutation.status !== 'updated') {
+        return false;
+      }
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextFactionBankMoney.toFixed(2),
-          points: sql`${factions.points} + ${pointsDelta}`,
-        })
-        .where(eq(factions.id, factionId));
-
-      await insertFactionBankLedgerEntry(tx as unknown as DatabaseClient, {
-        balanceAfter: nextFactionBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.now,
         description: input.description,
@@ -779,45 +774,46 @@ export class DatabaseFactionRepository implements FactionRepository {
     successChancePercent: number;
   }): Promise<FactionLeadershipChallengeRecord> {
     return db.transaction(async (tx) => {
-      const [challenger] = await tx
-        .select({
-          conceito: players.conceito,
-          hp: players.hp,
-          cansaco: players.cansaco,
-        })
-        .from(players)
-        .where(eq(players.id, input.challengerPlayerId))
-        .limit(1);
+      const challengerMutation = await applyPlayerCombatDeltas(tx, input.challengerPlayerId, {
+        cansacoDelta: -input.cansacoCost,
+        conceitoDelta: input.challengerConceitoDelta,
+        hpDelta: input.challengerHpDelta,
+        hpMin: 1,
+      });
 
-      if (!challenger) {
+      if (challengerMutation.status !== 'updated') {
         throw new Error('Desafiante nao encontrado para registrar desafio de lideranca.');
       }
+
+      const challengerLevel = factionLeadershipLevelSystem.resolve(
+        challengerMutation.player.conceito,
+        challengerMutation.player.level,
+      ).level;
 
       await tx
         .update(players)
         .set({
-          conceito: Math.max(0, challenger.conceito + input.challengerConceitoDelta),
-          hp: Math.max(1, challenger.hp + input.challengerHpDelta),
-          cansaco: Math.max(0, challenger.cansaco - input.cansacoCost),
+          level: challengerLevel,
         })
         .where(eq(players.id, input.challengerPlayerId));
 
       if (input.defenderPlayerId) {
-        const [defender] = await tx
-          .select({
-            conceito: players.conceito,
-            hp: players.hp,
-          })
-          .from(players)
-          .where(eq(players.id, input.defenderPlayerId))
-          .limit(1);
+        const defenderMutation = await applyPlayerCombatDeltas(tx, input.defenderPlayerId, {
+          conceitoDelta: input.defenderConceitoDelta,
+          hpDelta: input.defenderHpDelta,
+          hpMin: 1,
+        });
 
-        if (defender) {
+        if (defenderMutation.status === 'updated') {
+          const defenderLevel = factionLeadershipLevelSystem.resolve(
+            defenderMutation.player.conceito,
+            defenderMutation.player.level,
+          ).level;
+
           await tx
             .update(players)
             .set({
-              conceito: Math.max(0, defender.conceito + input.defenderConceitoDelta),
-              hp: Math.max(1, defender.hp + input.defenderHpDelta),
+              level: defenderLevel,
             })
             .where(eq(players.id, input.defenderPlayerId));
         }
@@ -988,13 +984,13 @@ export class DatabaseFactionRepository implements FactionRepository {
         return null;
       }
 
-      const leaderId = await this.findFactionLeader(tx as unknown as DatabaseClient, factionId);
+      const leaderId = await this.findFactionLeader(tx, factionId);
 
       if (!leaderId) {
         return null;
       }
 
-      return this.findFactionSummary(tx as unknown as DatabaseClient, leaderId, factionId);
+      return this.findFactionSummary(tx, leaderId, factionId);
     });
   }
 
@@ -1020,7 +1016,7 @@ export class DatabaseFactionRepository implements FactionRepository {
         return null;
       }
 
-      return this.findFactionSummary(tx as unknown as DatabaseClient, playerId, factionId);
+      return this.findFactionSummary(tx, playerId, factionId);
     });
   }
 
@@ -1075,8 +1071,6 @@ export class DatabaseFactionRepository implements FactionRepository {
         return false;
       }
 
-      const nextBankMoney = roundCurrency(Number.parseFloat(String(faction.bankMoney)) - bankMoneyCost);
-
       await tx.insert(factionUpgrades).values({
         factionId,
         level: 1,
@@ -1084,15 +1078,16 @@ export class DatabaseFactionRepository implements FactionRepository {
         upgradeType,
       });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, factionId));
+      const factionMutation = await applyFactionBankDelta(tx, factionId, {
+        bankMoneyDelta: -bankMoneyCost,
+      });
 
-      await insertFactionBankLedgerEntry(tx as unknown as DatabaseClient, {
-        balanceAfter: nextBankMoney,
+      if (factionMutation.status !== 'updated') {
+        return false;
+      }
+
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: now,
         description: `Desbloqueio do upgrade ${getFactionUpgradeDefinition(upgradeType)?.label ?? upgradeType}.`,
@@ -1139,25 +1134,19 @@ export class DatabaseFactionRepository implements FactionRepository {
         return false;
       }
 
-      const nextPlayerMoney = roundCurrency(Number.parseFloat(String(player.money)) + input.amount);
-      const nextFactionBankMoney = roundCurrency(Number.parseFloat(String(faction.bankMoney)) - input.amount);
+      const playerMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: input.amount,
+      });
+      const factionMutation = await applyFactionBankDelta(tx, factionId, {
+        bankMoneyDelta: -input.amount,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: nextPlayerMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (playerMutation.status !== 'updated' || factionMutation.status !== 'updated') {
+        return false;
+      }
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextFactionBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, factionId));
-
-      await insertFactionBankLedgerEntry(tx as unknown as DatabaseClient, {
-        balanceAfter: nextFactionBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.now,
         description: input.description,
@@ -1173,10 +1162,7 @@ export class DatabaseFactionRepository implements FactionRepository {
     });
   }
 
-  private async findFactionLeader(
-    executor: DatabaseClient,
-    factionId: string,
-  ): Promise<string | null> {
+  private async findFactionLeader(executor: DatabaseExecutor, factionId: string): Promise<string | null> {
     const [faction] = await executor
       .select({
         leaderId: factions.leaderId,
@@ -1189,7 +1175,7 @@ export class DatabaseFactionRepository implements FactionRepository {
   }
 
   private async findFactionSummary(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     playerId: string,
     factionId: string,
   ): Promise<FactionSummary | null> {

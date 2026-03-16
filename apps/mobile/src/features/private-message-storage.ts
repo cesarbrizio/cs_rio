@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { parseStoredStringArray } from './storage';
+import { parseStoredStringArray, warnStorageFallback } from './storage';
 
 const MAX_STORED_KEYS = 120;
 const STORAGE_PREFIX = 'cs_rio_seen_private_messages:';
@@ -10,7 +10,8 @@ export async function loadSeenPrivateMessageIds(playerId: string): Promise<Set<s
     return new Set(
       parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
     );
-  } catch {
+  } catch (error) {
+    warnStorageFallback('private-message-storage', 'falha ao ler mensagens privadas vistas; resetando cache local', error);
     return new Set();
   }
 }

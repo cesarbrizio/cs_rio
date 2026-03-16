@@ -24,6 +24,10 @@ import { ServerConfigService } from './server-config.js';
 
 type SupportedInventoryItemType = Extract<InventoryItemType, 'component' | 'drug' | 'vest' | 'weapon'>;
 
+function toJsonRecord(value: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value));
+}
+
 export interface PlayerOpsSelector {
   email?: string;
   nickname?: string;
@@ -245,9 +249,9 @@ export class PlayerOpsService {
       const before = await this.snapshotPlayer(player.id);
       const summary = await this.applyOperation(player, command.operation);
       const after = await this.snapshotPlayer(player.id);
-      const beforeJson = before as unknown as Record<string, unknown>;
-      const afterJson = after as unknown as Record<string, unknown>;
-      const payloadJson = command.operation as unknown as Record<string, unknown>;
+      const beforeJson = toJsonRecord(before);
+      const afterJson = toJsonRecord(after);
+      const payloadJson = toJsonRecord(command.operation);
 
       await db.insert(playerOperationLogs).values({
         actor: command.actor ?? process.env.USER ?? 'local',

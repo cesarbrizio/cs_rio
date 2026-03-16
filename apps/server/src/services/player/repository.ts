@@ -1,4 +1,5 @@
 import {
+  VOCATION_CHANGE_COOLDOWN_HOURS,
   VOCATION_BASE_ATTRIBUTES,
   type DrugType,
   type InventoryEquipSlot,
@@ -25,6 +26,7 @@ import {
   vests,
   weapons,
 } from '../../db/schema.js';
+import { applyPlayerResourceDeltas } from '../financial-updates.js';
 import { ServerConfigService } from '../server-config.js';
 import type {
   DrugDefinitionRecord,
@@ -232,36 +234,35 @@ export class DatabasePlayerRepository implements PlayerRepository {
       nextVocation: VocationType;
     },
   ): Promise<PlayerProfileRecord | null> {
+    const cooldownWindowStartsAt = new Date(
+      input.changedAt.getTime() - VOCATION_CHANGE_COOLDOWN_HOURS * 60 * 60 * 1000,
+    );
+
     const changed = await db.transaction(async (tx) => {
-      const [player] = await tx
-        .select({
-          credits: players.credits,
-          id: players.id,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
-
-      if (!player) {
-        return null;
-      }
-
-      const nextCredits = player.credits - input.creditsCost;
-
-      if (nextCredits < 0) {
-        return null;
-      }
-
       const [updatedPlayer] = await tx
         .update(players)
         .set({
-          credits: nextCredits,
+          credits: sql`${players.credits} - ${input.creditsCost}`,
           vocation: input.nextVocation,
           vocationChangedAt: input.changedAt,
           vocationTarget: null,
           vocationTransitionEndsAt: null,
         })
-        .where(eq(players.id, playerId))
+        .where(
+          and(
+            eq(players.id, playerId),
+            sql`${players.credits} >= ${input.creditsCost}`,
+            sql`${players.vocation} <> ${input.nextVocation}`,
+            or(
+              isNull(players.vocationChangedAt),
+              sql`${players.vocationChangedAt} <= ${cooldownWindowStartsAt}`,
+            ),
+            or(
+              isNull(players.vocationTransitionEndsAt),
+              sql`${players.vocationTransitionEndsAt} <= ${input.changedAt}`,
+            ),
+          ),
+        )
         .returning({
           id: players.id,
         });
@@ -700,14 +701,13 @@ export class DatabasePlayerRepository implements PlayerRepository {
         return false;
       }
 
-      const nextMoney = Math.max(0, Number.parseFloat(player.money) - repairCost);
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -repairCost,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: nextMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status !== 'updated') {
+        return false;
+      }
 
       return true;
     });

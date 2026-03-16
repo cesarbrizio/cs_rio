@@ -31,6 +31,7 @@ import type {
 import type { KeyValueStore } from '../auth.js';
 import type { FactionContactSyncContract } from '../contact.js';
 import type { FactionRobberyPolicy, FactionRobberyPolicyMode } from '../faction-internal-satisfaction.js';
+import { DomainError, inferDomainErrorCategory } from '../../errors/domain-error.js';
 
 export interface FactionPlayerRecord {
   characterCreatedAt: Date | null;
@@ -400,12 +401,16 @@ type FactionErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class FactionError extends Error {
+export function factionError(code: FactionErrorCode, message: string): DomainError {
+  return new DomainError('faction', code, inferDomainErrorCategory(code), message);
+}
+
+export class FactionError extends DomainError {
   constructor(
-    public readonly code: FactionErrorCode,
+    code: FactionErrorCode,
     message: string,
   ) {
-    super(message);
+    super('faction', code, inferDomainErrorCategory(code), message);
     this.name = 'FactionError';
   }
 }

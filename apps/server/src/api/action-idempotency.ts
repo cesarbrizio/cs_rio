@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { type FastifyRequest } from 'fastify';
 
-import { type KeyValueStore } from '../services/auth.js';
+import type { ManagedKeyValueAtomic } from '../services/key-value-store.js';
 import { RouteHttpError } from './http-errors.js';
 
 const DEFAULT_COMPLETION_TTL_SECONDS = 5;
@@ -20,7 +20,7 @@ export interface ActionIdempotencyOptions {
 }
 
 export class ActionIdempotency {
-  constructor(private readonly keyValueStore: KeyValueStore) {}
+  constructor(private readonly keyValueStore: ManagedKeyValueAtomic) {}
 
   async run<T>(
     request: FastifyRequest,

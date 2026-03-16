@@ -21,7 +21,9 @@ import { createClient } from 'redis';
 import { ensureValidJwtSecrets, env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { players } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { createInfrastructureLogger, type InfrastructureLogger } from '../observability/logger.js';
+import type { KeyValueStore, ManagedKeyValueAtomic } from './key-value-store.js';
 import { ServerConfigService } from './server-config.js';
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -47,15 +49,6 @@ export interface AuthRepository {
   updateLastLogin(playerId: string, date: Date): Promise<void>;
 }
 
-export interface KeyValueStore {
-  close?(): Promise<void>;
-  delete?(key: string): Promise<void>;
-  get(key: string): Promise<string | null>;
-  increment(key: string, ttlSeconds: number): Promise<number>;
-  setIfAbsent?(key: string, value: string, ttlSeconds?: number): Promise<boolean>;
-  set(key: string, value: string, ttlSeconds?: number): Promise<void>;
-}
-
 export interface AuthTokens {
   accessToken: string;
   expiresIn: number;
@@ -70,7 +63,7 @@ export interface AuthTokens {
 export interface AuthServiceOptions {
   jwtRefreshSecret?: string;
   jwtSecret?: string;
-  keyValueStore?: KeyValueStore;
+  keyValueStore?: ManagedKeyValueAtomic;
   repository?: AuthRepository;
 }
 
@@ -101,12 +94,16 @@ type AuthErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class AuthError extends Error {
+export function authError(code: AuthErrorCode, message: string): DomainError {
+  return new DomainError('auth', code, inferDomainErrorCategory(code), message);
+}
+
+export class AuthError extends DomainError {
   constructor(
-    public readonly code: AuthErrorCode,
+    code: AuthErrorCode,
     message: string,
   ) {
-    super(message);
+    super('auth', code, inferDomainErrorCategory(code), message);
     this.name = 'AuthError';
   }
 }
@@ -304,7 +301,7 @@ export class AuthService {
 
   private readonly jwtSecret: string;
 
-  private readonly keyValueStore: KeyValueStore;
+  private readonly keyValueStore: ManagedKeyValueAtomic;
 
   private readonly repository: AuthRepository;
 
@@ -527,6 +524,17 @@ export class AuthService {
     }
   }
 }
+
+export type {
+  KeyValueAtomic,
+  KeyValueDelete,
+  KeyValueLifecycle,
+  KeyValueReader,
+  KeyValueStore,
+  KeyValueWriter,
+  ManagedKeyValueAtomic,
+  ManagedKeyValueWriter,
+} from './key-value-store.js';
 
 function buildLoginRateLimitKey(ipAddress: string): string {
   return `auth:login:attempts:${ipAddress}`;

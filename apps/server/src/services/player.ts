@@ -256,10 +256,22 @@ export class PlayerService {
     });
 
     if (!updatedProfile) {
-      throw new PlayerError(
-        'conflict',
-        'Nao foi possivel concluir a troca de vocacao. Confira cooldown e creditos antes de tentar novamente.',
-      );
+      const refreshedProfile = await this.loadRepositoryProfile(playerId);
+      ensureCharacterCreated(refreshedProfile, 'Crie seu personagem antes de gerenciar a vocacao.');
+      const refreshedCenter = buildPlayerVocationCenter(refreshedProfile, now);
+
+      if (refreshedCenter.status.currentVocation === nextVocation) {
+        throw new PlayerError('conflict', 'Essa ja e a vocacao atual do personagem.');
+      }
+
+      if (!refreshedCenter.availability.available) {
+        throw new PlayerError(
+          'conflict',
+          refreshedCenter.availability.reason ?? 'A troca de vocacao nao esta disponivel agora.',
+        );
+      }
+
+      throw new PlayerError('conflict', 'Nao foi possivel concluir a troca de vocacao. Tente novamente.');
     }
 
     const player = await this.refreshPlayerProfileCache(playerId, updatedProfile);

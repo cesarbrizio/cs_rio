@@ -22,6 +22,20 @@ import {
 } from '../src/services/game-event.js';
 import { type AuthService } from '../src/services/auth.js';
 
+type DocksSyncService = GameEventService & { syncDocks: (now: Date) => Promise<void> };
+type FacaNaCaveiraSyncService = GameEventService & { syncFacaNaCaveira: (now: Date) => Promise<void> };
+type SaidinhaNatalSyncService = GameEventService & { syncSaidinhaNatal: (now: Date) => Promise<void> };
+type SeasonalSyncService = GameEventService & { syncSeasonalEvents: (now: Date) => Promise<void> };
+type InMemoryGameEventRepositoryInternals = InMemoryGameEventRepository & {
+  activePrisonerIds: string[];
+  globalEvents: InMemoryGlobalEventRecord[];
+  seasonalEvents: InMemorySeasonalEventRecord[];
+};
+
+function castAuthService(value: Partial<AuthService>): AuthService {
+  return value as AuthService;
+}
+
 interface InMemoryDocksEventRecord {
   dataJson?: Record<string, unknown>;
   endsAt: Date;
@@ -625,7 +639,7 @@ describe('GameEventService', () => {
       repository: disabledRepository,
     });
 
-    await (disabledService as unknown as { syncDocks: (now: Date) => Promise<void> }).syncDocks(now);
+    await (disabledService as DocksSyncService).syncDocks(now);
     const disabledStatus = await disabledService.getDocksStatus(now);
 
     expect(disabledStatus).toMatchObject({
@@ -677,7 +691,7 @@ describe('GameEventService', () => {
       repository: customRepository,
     });
 
-    await (customService as unknown as { syncDocks: (now: Date) => Promise<void> }).syncDocks(now);
+    await (customService as DocksSyncService).syncDocks(now);
     const customStatus = await customService.getDocksStatus(now);
 
     expect(customStatus).toMatchObject({
@@ -841,11 +855,7 @@ describe('GameEventService', () => {
       repository,
     });
 
-    await (
-      service as unknown as {
-        syncFacaNaCaveira: (now: Date) => Promise<void>;
-      }
-    ).syncFacaNaCaveira(now);
+    await (service as FacaNaCaveiraSyncService).syncFacaNaCaveira(now);
 
     const policeStatus = await service.getPoliceStatus(now);
     const updatedRegions = await repository.listRegions();
@@ -938,28 +948,16 @@ describe('GameEventService', () => {
       repository,
     });
 
-    await (
-      service as unknown as {
-        syncSaidinhaNatal: (now: Date) => Promise<void>;
-      }
-    ).syncSaidinhaNatal(now);
+    await (service as SaidinhaNatalSyncService).syncSaidinhaNatal(now);
 
-    expect((repository as unknown as { activePrisonerIds: string[] }).activePrisonerIds).toEqual([]);
+    expect((repository as InMemoryGameEventRepositoryInternals).activePrisonerIds).toEqual([]);
     expect((await repository.listControlledFavelas())[0]?.banditsActive).toBe(20);
     expect((await repository.listControlledFavelas())[0]?.banditsArrested).toBe(4);
     expect(
-      (
-        repository as unknown as {
-          globalEvents: InMemoryGlobalEventRecord[];
-        }
-      ).globalEvents,
+      (repository as InMemoryGameEventRepositoryInternals).globalEvents,
     ).toHaveLength(1);
     expect(
-      (
-        repository as unknown as {
-          globalEvents: InMemoryGlobalEventRecord[];
-        }
-      ).globalEvents[0],
+      (repository as InMemoryGameEventRepositoryInternals).globalEvents[0],
     ).toMatchObject({
       dataJson: {
         headline:
@@ -999,11 +997,7 @@ describe('GameEventService', () => {
       repository,
     });
 
-    await (
-      service as unknown as {
-        syncSeasonalEvents: (now: Date) => Promise<void>;
-      }
-    ).syncSeasonalEvents(now);
+    await (service as SeasonalSyncService).syncSeasonalEvents(now);
 
     const seasonalStatus = await service.getSeasonalStatus(now);
 
@@ -1021,11 +1015,7 @@ describe('GameEventService', () => {
       policeMood: 'distracted',
     });
     expect(
-      (
-        repository as unknown as {
-          seasonalEvents: InMemorySeasonalEventRecord[];
-        }
-      ).seasonalEvents,
+      (repository as InMemoryGameEventRepositoryInternals).seasonalEvents,
     ).toHaveLength(5);
   });
 
@@ -1110,11 +1100,7 @@ describe('GameEventService', () => {
       repository,
     });
 
-    await (
-      service as unknown as {
-        syncSeasonalEvents: (now: Date) => Promise<void>;
-      }
-    ).syncSeasonalEvents(now);
+    await (service as SeasonalSyncService).syncSeasonalEvents(now);
 
     const seasonalStatus = await service.getSeasonalStatus(now);
 
@@ -1282,11 +1268,11 @@ describe('event routes', () => {
     getSeasonalStatus,
     syncScheduledEvents: vi.fn(),
   };
-  const authService = {
+  const authService = castAuthService({
     verifyAccessToken: vi.fn(() => ({
       playerId: 'player-1',
     })),
-  } as unknown as AuthService;
+  });
 
   beforeEach(async () => {
     app = Fastify();

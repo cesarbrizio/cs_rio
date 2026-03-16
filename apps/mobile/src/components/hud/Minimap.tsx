@@ -1,5 +1,5 @@
 import { type GridPoint } from '@engine/types';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -34,7 +34,7 @@ const COMPACT_PADDING = 8;
 const FULL_SURFACE = 280;
 const FULL_PADDING = 18;
 
-export function Minimap({
+function MinimapComponent({
   mapHeight,
   mapLabel,
   mapWidth,
@@ -223,7 +223,7 @@ export function Minimap({
   );
 }
 
-function GridBackdrop(): JSX.Element {
+const GridBackdrop = memo(function GridBackdrop(): JSX.Element {
   return (
     <>
       <View style={[styles.gridLine, styles.gridLineVertical, { left: '33%' }]} />
@@ -232,16 +232,27 @@ function GridBackdrop(): JSX.Element {
       <View style={[styles.gridLine, styles.gridLineHorizontal, { top: '66%' }]} />
     </>
   );
-}
+});
+GridBackdrop.displayName = 'GridBackdrop';
 
-function LegendItem({ color, label }: { color: string; label: string }): JSX.Element {
+const LegendItem = memo(function LegendItem({
+  color,
+  label,
+}: {
+  color: string;
+  label: string;
+}): JSX.Element {
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendSwatch, { backgroundColor: color }]} />
       <Text style={styles.legendLabel}>{label}</Text>
     </View>
   );
-}
+});
+LegendItem.displayName = 'LegendItem';
+
+export const Minimap = memo(MinimapComponent);
+Minimap.displayName = 'Minimap';
 
 const styles = StyleSheet.create({
   card: {

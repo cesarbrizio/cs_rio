@@ -27,7 +27,9 @@ import {
   players,
   properties,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { buildPropertySabotageStatusSummary } from './property.js';
 import {
@@ -170,12 +172,16 @@ type FactoryErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class FactoryError extends Error {
+export function factoryError(code: FactoryErrorCode, message: string): DomainError {
+  return new DomainError('factory', code, inferDomainErrorCategory(code), message);
+}
+
+export class FactoryError extends DomainError {
   constructor(
-    public readonly code: FactoryErrorCode,
+    code: FactoryErrorCode,
     message: string,
   ) {
-    super(message);
+    super('factory', code, inferDomainErrorCategory(code), message);
     this.name = 'FactoryError';
   }
 }
@@ -202,26 +208,13 @@ export class DatabaseFactoryRepository implements FactoryRepository {
       }
 
       if (input.moneySpent > 0) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: -input.moneySpent,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           return false;
         }
-
-        const nextMoney = Math.max(0, roundCurrency(Number.parseFloat(String(player.money)) - input.moneySpent));
-
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, playerId));
       }
 
       await tx

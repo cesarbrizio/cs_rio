@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../theme/colors';
@@ -12,7 +12,7 @@ interface HudToastProps {
   onDismiss?: () => void;
 }
 
-export function HudToast({
+function HudToastComponent({
   accent,
   autoDismissMs = 8000,
   ctaLabel,
@@ -98,6 +98,9 @@ export function HudToast({
     </Animated.View>
   );
 }
+
+export const HudToast = memo(HudToastComponent);
+HudToast.displayName = 'HudToast';
 
 const styles = StyleSheet.create({
   cta: {

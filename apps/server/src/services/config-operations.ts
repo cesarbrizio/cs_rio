@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { type GameConfigScope, type GameConfigStatus } from '@cs-rio/shared';
 import { desc, eq } from 'drizzle-orm';
 
-import { db } from '../db/client.js';
+import { db, type DatabaseExecutor } from '../db/client.js';
 import {
   configOperationLogs,
   configRuntimeState,
@@ -18,8 +18,6 @@ import { ConfigValidationService } from './config-validation.js';
 import { notifyServerConfigRuntimeChange } from './server-config.js';
 
 const CONFIG_RUNTIME_STATE_KEY = 'global';
-
-type DatabaseClient = typeof db;
 
 type ConfigOperationType =
   | 'activate_set'
@@ -166,18 +164,11 @@ export class ConfigOperationService {
       const pendingResults: Array<Omit<ConfigOperationResult, 'runtimeVersion'>> = [];
 
       for (const command of commands) {
-        pendingResults.push(
-          await this.applyCommandInTransaction(
-            tx as unknown as DatabaseClient,
-            command,
-            batchId,
-            now,
-          ),
-        );
+        pendingResults.push(await this.applyCommandInTransaction(tx, command, batchId, now));
       }
 
       const runtimeVersion = await touchConfigRuntimeState(
-        tx as unknown as DatabaseClient,
+        tx,
         pendingResults.at(-1)?.operationLogId ?? randomUUID(),
         now,
       );
@@ -193,7 +184,7 @@ export class ConfigOperationService {
   }
 
   private async applyCommandInTransaction(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: ConfigOperationCommand,
     batchId: string,
     now: Date,
@@ -215,7 +206,7 @@ export class ConfigOperationService {
   }
 
   private async activateSet(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: ActivateConfigSetCommand,
     batchId: string,
     now: Date,
@@ -286,7 +277,7 @@ export class ConfigOperationService {
   }
 
   private async upsertSetEntry(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: UpsertSetEntryCommand,
     batchId: string,
     now: Date,
@@ -370,7 +361,7 @@ export class ConfigOperationService {
   }
 
   private async upsertRoundOverride(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: UpsertRoundOverrideCommand,
     batchId: string,
     now: Date,
@@ -467,7 +458,7 @@ export class ConfigOperationService {
   }
 
   private async upsertFeatureFlag(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: UpsertFeatureFlagCommand,
     batchId: string,
     now: Date,
@@ -563,7 +554,7 @@ export class ConfigOperationService {
   }
 
   private async upsertRoundFeatureFlag(
-    executor: DatabaseClient,
+    executor: DatabaseExecutor,
     command: UpsertRoundFeatureFlagCommand,
     batchId: string,
     now: Date,
@@ -682,7 +673,7 @@ interface OperationLogInput {
 }
 
 async function logOperation(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   input: OperationLogInput,
 ): Promise<Omit<ConfigOperationResult, 'runtimeVersion'>> {
   const operationLogId = randomUUID();
@@ -722,7 +713,7 @@ async function logOperation(
 }
 
 async function resolveConfigSet(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   selector?: ConfigSetSelector,
 ): Promise<ResolvedConfigSet> {
   const mode = selector?.mode ?? (selector?.id ? 'id' : selector?.code ? 'code' : 'active');
@@ -774,7 +765,7 @@ async function resolveConfigSet(
 }
 
 async function resolveRound(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   selector?: RoundSelector,
 ): Promise<ResolvedRound> {
   const mode = selector?.mode ?? (selector?.id ? 'id' : typeof selector?.number === 'number' ? 'number' : 'active');
@@ -826,7 +817,7 @@ async function resolveRound(
 }
 
 async function getConfigSetSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   configSetId: string,
 ): Promise<Record<string, unknown> | null> {
   const [setRow] = await executor
@@ -853,7 +844,7 @@ async function getConfigSetSnapshot(
 }
 
 async function findSetEntrySnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   configSetId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -892,7 +883,7 @@ async function findSetEntrySnapshot(
 }
 
 async function requireSetEntrySnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   configSetId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -908,7 +899,7 @@ async function requireSetEntrySnapshot(
 }
 
 async function findRoundOverrideSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   roundId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -947,7 +938,7 @@ async function findRoundOverrideSnapshot(
 }
 
 async function requireRoundOverrideSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   roundId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -963,7 +954,7 @@ async function requireRoundOverrideSnapshot(
 }
 
 async function findFeatureFlagSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   configSetId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -1000,7 +991,7 @@ async function findFeatureFlagSnapshot(
 }
 
 async function requireFeatureFlagSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   configSetId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -1016,7 +1007,7 @@ async function requireFeatureFlagSnapshot(
 }
 
 async function findRoundFeatureFlagSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   roundId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -1053,7 +1044,7 @@ async function findRoundFeatureFlagSnapshot(
 }
 
 async function requireRoundFeatureFlagSnapshot(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   roundId: string,
   scope: GameConfigScope,
   targetKey: string,
@@ -1069,7 +1060,7 @@ async function requireRoundFeatureFlagSnapshot(
 }
 
 async function touchConfigRuntimeState(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   lastOperationId: string,
   now: Date,
 ): Promise<number> {

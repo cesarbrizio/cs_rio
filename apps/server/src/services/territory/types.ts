@@ -34,10 +34,11 @@ import type {
 } from '@cs-rio/shared';
 
 import type { LevelSystem } from '../../systems/LevelSystem.js';
-import { type KeyValueStore } from '../auth.js';
+import { DomainError, inferDomainErrorCategory } from '../../errors/domain-error.js';
 import { type BanditReturnFlavor } from '../favela-force.js';
 import { type FactionUpgradeEffectReaderContract } from '../faction.js';
 import type { GameConfigService } from '../game-config.js';
+import type { KeyValueWriter } from '../key-value-store.js';
 
 export type TerritorySatisfactionProfile = TerritoryFavelaSummary['satisfactionProfile'];
 export type TerritorySatisfactionFactorSummary = TerritorySatisfactionProfile['factors'][number];
@@ -271,7 +272,9 @@ export interface TerritoryParticipantRecord {
 }
 
 export interface TerritoryConquestParticipantPersistenceUpdate {
+  cansacoDelta: number;
   conceitoDelta: number;
+  disposicaoDelta: number;
   favelaName: string;
   hpDelta: number;
   logType: 'territory_conquest_failure' | 'territory_conquest_success';
@@ -507,7 +510,10 @@ export interface TerritoryFactionWarPreparePersistenceInput {
 }
 
 export interface TerritoryFactionWarParticipantPersistenceUpdate {
+  cansacoDelta: number;
   conceitoDelta: number;
+  disposicaoDelta: number;
+  hpDelta: number;
   nextLevel: number;
   nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
   playerId: string;
@@ -550,19 +556,23 @@ export interface TerritoryFavelaServiceUpgradePersistenceInput {
   serviceType: FavelaServiceType;
 }
 
-export interface TerritoryRepository {
-  applyX9Incursion(input: TerritoryApplyX9IncursionInput): Promise<TerritoryX9EventRecord | null>;
-  createFactionWar(input: TerritoryFactionWarCreateInput): Promise<TerritoryFactionWarRecord>;
-  createX9Warning(input: TerritoryCreateX9WarningInput): Promise<TerritoryX9EventRecord>;
+export interface TerritoryCoreReadRepository {
+  getFavela(favelaId: string): Promise<TerritoryFavelaRecord | null>;
+  getFaction(factionId: string): Promise<TerritoryFactionRecord | null>;
+  getPlayer(playerId: string): Promise<TerritoryPlayerRecord | null>;
+  getRegion(regionId: RegionId): Promise<TerritoryRegionRecord | null>;
+  listFactionParticipants(factionId: string): Promise<TerritoryParticipantRecord[]>;
+  listFactionsByIds(factionIds: string[]): Promise<TerritoryFactionRecord[]>;
+  listFavelaServices(favelaId: string): Promise<TerritoryFavelaServiceRecord[]>;
+  listFavelas(): Promise<TerritoryFavelaRecord[]>;
+}
+
+export interface TerritoryOverviewReadRepository {
   findLatestFactionWarBetweenFactions(
     attackerFactionId: string,
     defenderFactionId: string,
   ): Promise<TerritoryFactionWarRecord | null>;
-  getFavela(favelaId: string): Promise<TerritoryFavelaRecord | null>;
-  getFaction(factionId: string): Promise<TerritoryFactionRecord | null>;
   getFavelaX9Exposure(favelaId: string): Promise<TerritoryFavelaX9Exposure>;
-  getPlayer(playerId: string): Promise<TerritoryPlayerRecord | null>;
-  getRegion(regionId: RegionId): Promise<TerritoryRegionRecord | null>;
   listActiveSatisfactionEvents(
     regionIds: RegionId[],
     favelaIds: string[],
@@ -571,38 +581,76 @@ export interface TerritoryRepository {
   listAllFavelaServices(favelaIds: string[]): Promise<TerritoryFavelaServiceRecord[]>;
   listFavelaBanditReturns(favelaIds: string[]): Promise<TerritoryFavelaBanditReturnRecord[]>;
   listFactionWars(favelaIds: string[]): Promise<TerritoryFactionWarRecord[]>;
-  listLatestBailes(favelaIds: string[]): Promise<TerritoryFavelaBaileRecord[]>;
-  listFactionParticipants(factionId: string): Promise<TerritoryParticipantRecord[]>;
-  listFactionsByIds(factionIds: string[]): Promise<TerritoryFactionRecord[]>;
   listFavelaPropertyStats(favelaIds: string[]): Promise<TerritoryFavelaPropertyStatsRecord[]>;
-  listFavelaServices(favelaId: string): Promise<TerritoryFavelaServiceRecord[]>;
-  listFavelas(): Promise<TerritoryFavelaRecord[]>;
+  listLatestBailes(favelaIds: string[]): Promise<TerritoryFavelaBaileRecord[]>;
   listX9Events(favelaIds: string[]): Promise<TerritoryX9EventRecord[]>;
-  installFavelaService(input: TerritoryFavelaServiceInstallPersistenceInput): Promise<void>;
-  organizeFavelaBaile(input: TerritoryFavelaBailePersistenceInput): Promise<TerritoryFavelaBaileRecord>;
-  prepareFactionWar(input: TerritoryFactionWarPreparePersistenceInput): Promise<TerritoryFactionWarRecord | null>;
-  negotiateFavelaPropina(input: TerritoryFavelaPropinaNegotiationInput): Promise<boolean>;
-  payFavelaPropina(input: TerritoryFavelaPropinaPaymentInput): Promise<boolean>;
+}
+
+export interface TerritoryConquestRepository {
   persistConquestAttempt(input: TerritoryConquestPersistenceInput): Promise<void>;
-  persistFactionWarRound(input: TerritoryFactionWarRoundPersistenceInput): Promise<TerritoryFactionWarRecord | null>;
   persistFavelaBanditSync(input: {
     releasedReturnIds: string[];
     updates: TerritoryFavelaBanditSyncUpdate[];
   }): Promise<void>;
-  persistFavelaPropinaSync(updates: TerritoryFavelaPropinaSyncUpdate[]): Promise<void>;
   persistFavelaSatisfactionSync(updates: TerritoryFavelaSatisfactionSyncUpdate[]): Promise<void>;
+  updateFavelaState(favelaId: string, input: TerritoryFavelaStateUpdateInput): Promise<boolean>;
+}
+
+export interface TerritoryFavelaServiceRepository {
+  installFavelaService(input: TerritoryFavelaServiceInstallPersistenceInput): Promise<void>;
   persistFavelaServiceSync(input: TerritoryFavelaServiceSyncPersistenceInput): Promise<void>;
-  persistFavelaX9RollSync(updates: TerritoryFavelaX9RollSyncUpdate[]): Promise<void>;
-  releaseX9Soldiers(eventId: string, releasedAt: Date): Promise<TerritoryX9EventRecord | null>;
-  resolveX9Desenrolo(input: TerritoryResolveX9DesenroloInput): Promise<TerritoryX9EventRecord | null>;
+  upgradeFavelaService(input: TerritoryFavelaServiceUpgradePersistenceInput): Promise<void>;
+}
+
+export interface TerritoryWarRepository {
+  createFactionWar(input: TerritoryFactionWarCreateInput): Promise<TerritoryFactionWarRecord>;
+  persistFactionWarRound(input: TerritoryFactionWarRoundPersistenceInput): Promise<TerritoryFactionWarRecord | null>;
+  prepareFactionWar(input: TerritoryFactionWarPreparePersistenceInput): Promise<TerritoryFactionWarRecord | null>;
   updateFactionWarStatus(
     warId: string,
     nextStatus: FactionWarStatus,
     nextRoundAt: Date | null,
   ): Promise<TerritoryFactionWarRecord | null>;
-  upgradeFavelaService(input: TerritoryFavelaServiceUpgradePersistenceInput): Promise<void>;
-  updateFavelaState(favelaId: string, input: TerritoryFavelaStateUpdateInput): Promise<boolean>;
 }
+
+export interface TerritoryPropinaRepository {
+  negotiateFavelaPropina(input: TerritoryFavelaPropinaNegotiationInput): Promise<boolean>;
+  payFavelaPropina(input: TerritoryFavelaPropinaPaymentInput): Promise<boolean>;
+  persistFavelaPropinaSync(updates: TerritoryFavelaPropinaSyncUpdate[]): Promise<void>;
+}
+
+export interface TerritoryX9Repository {
+  applyX9Incursion(input: TerritoryApplyX9IncursionInput): Promise<TerritoryX9EventRecord | null>;
+  createX9Warning(input: TerritoryCreateX9WarningInput): Promise<TerritoryX9EventRecord>;
+  persistFavelaX9RollSync(updates: TerritoryFavelaX9RollSyncUpdate[]): Promise<void>;
+  releaseX9Soldiers(eventId: string, releasedAt: Date): Promise<TerritoryX9EventRecord | null>;
+  resolveX9Desenrolo(input: TerritoryResolveX9DesenroloInput): Promise<TerritoryX9EventRecord | null>;
+}
+
+export interface TerritoryBaileRepository {
+  organizeFavelaBaile(input: TerritoryFavelaBailePersistenceInput): Promise<TerritoryFavelaBaileRecord>;
+}
+
+export type TerritoryReadRepository = TerritoryCoreReadRepository & TerritoryOverviewReadRepository;
+export type TerritoryFactionWarRepository =
+  TerritoryCoreReadRepository &
+  TerritoryOverviewReadRepository &
+  TerritoryWarRepository;
+export type TerritoryPropinaDomainRepository = TerritoryConquestRepository & TerritoryPropinaRepository;
+export type TerritoryX9DomainRepository =
+  TerritoryCoreReadRepository &
+  TerritoryOverviewReadRepository &
+  TerritoryX9Repository;
+export type TerritoryBaileDomainRepository = TerritoryOverviewReadRepository & TerritoryBaileRepository;
+export type TerritoryRepository =
+  TerritoryCoreReadRepository &
+  TerritoryOverviewReadRepository &
+  TerritoryConquestRepository &
+  TerritoryFavelaServiceRepository &
+  TerritoryWarRepository &
+  TerritoryPropinaRepository &
+  TerritoryX9Repository &
+  TerritoryBaileRepository;
 
 export interface TerritoryServiceContract {
   advanceFactionWarRound(playerId: string, favelaId: string): Promise<FactionWarRoundResponse>;
@@ -650,7 +698,7 @@ export interface TerritoryServiceContract {
 export interface TerritoryServiceOptions {
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
   gameConfigService?: GameConfigService;
-  keyValueStore?: KeyValueStore;
+  keyValueStore?: KeyValueWriter;
   levelSystem?: LevelSystem;
   now?: () => Date;
   random?: () => number;
@@ -665,12 +713,16 @@ export type TerritoryErrorCode =
   | 'not_found'
   | 'validation';
 
-export class TerritoryError extends Error {
+export function territoryError(code: TerritoryErrorCode, message: string): DomainError {
+  return new DomainError('territory', code, inferDomainErrorCategory(code), message);
+}
+
+export class TerritoryError extends DomainError {
   constructor(
-    public readonly code: TerritoryErrorCode,
+    code: TerritoryErrorCode,
     message: string,
   ) {
-    super(message);
+    super('territory', code, inferDomainErrorCategory(code), message);
     this.name = 'TerritoryError';
   }
 }

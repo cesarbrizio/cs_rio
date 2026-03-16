@@ -1,273 +1,255 @@
-import { type EventFeedSnapshot, type EventNotificationItem } from '../features/events';
-import { type NotificationPermissionState } from '../features/notifications';
-import { type TutorialStepId } from '../features/tutorial';
 import {
   type EventResultListResponse,
   type GameEventResultSummary,
   type PrivateMessageThreadListResponse,
   type PrivateMessageThreadSummary,
 } from '@cs-rio/shared';
-import { create } from 'zustand';
+import { useMemo } from 'react';
 
-interface AppStore {
+import { type EventFeedSnapshot, type EventNotificationItem } from '../features/events';
+import { type NotificationPermissionState } from '../features/notifications';
+import { type TutorialStepId } from '../features/tutorial';
+import {
+  type AudioSettingsState,
+  useAudioStore,
+} from './audioStore';
+import { useEventFeedStore } from './eventFeedStore';
+import {
+  type NotificationSettingsState,
+  useNotificationStore,
+} from './notificationStore';
+import { type TutorialState, useTutorialStore } from './tutorialStore';
+import { type MapReturnCue, useUIStore } from './uiStore';
+
+export interface AppStore {
   activeEventToast: EventNotificationItem | null;
-  audioSettings: {
-    musicEnabled: boolean;
-    musicVolume: number;
-    sfxEnabled: boolean;
-    sfxVolume: number;
-  };
+  audioSettings: AudioSettingsState;
   bootstrapStatus: string;
   dismissedEventIds: string[];
   eventBanner: EventNotificationItem | null;
   eventNotifications: EventNotificationItem[];
   eventResultHistory: GameEventResultSummary[];
-  lastEventSyncAt: string | null;
   lastEventResultSyncAt: string | null;
-  mapReturnCue: {
-    accent?: string;
-    message: string;
-  } | null;
-  privateMessageThreads: PrivateMessageThreadSummary[];
+  lastEventSyncAt: string | null;
   lastPrivateMessageSyncAt: string | null;
-  notificationSettings: {
-    enabled: boolean;
-    permissionStatus: NotificationPermissionState;
-  };
-  tutorial: {
-    completedStepIds: TutorialStepId[];
-    dismissed: boolean;
-    playerId: string | null;
-    startedAt: string | null;
-  };
+  mapReturnCue: MapReturnCue | null;
+  notificationSettings: NotificationSettingsState;
+  privateMessageThreads: PrivateMessageThreadSummary[];
+  tutorial: TutorialState;
   bootstrapTutorial: (playerId: string) => void;
   completeTutorialStep: (stepId: TutorialStepId) => void;
-  consumeMapReturnCue: () => {
-    accent?: string;
-    message: string;
-  } | null;
+  consumeMapReturnCue: () => MapReturnCue | null;
   dismissEventBanner: (eventId: string) => void;
   dismissEventToast: () => void;
   dismissTutorial: () => void;
-  queueMapReturnCue: (cue: {
-    accent?: string;
-    message: string;
-  }) => void;
-  resetForLogout: () => void;
+  queueMapReturnCue: (cue: MapReturnCue) => void;
   resetEventFeed: () => void;
+  resetForLogout: () => void;
   resetPrivateMessageFeed: () => void;
-  setNotificationPermissionStatus: (status: NotificationPermissionState) => void;
-  setNotificationsEnabled: (enabled: boolean) => void;
-  setMusicEnabled: (enabled: boolean) => void;
-  setMusicVolume: (volume: number) => void;
-  setSfxEnabled: (enabled: boolean) => void;
-  setSfxVolume: (volume: number) => void;
   setBootstrapStatus: (status: string) => void;
   setEventFeed: (feed: EventFeedSnapshot) => void;
   setEventResultFeed: (feed: EventResultListResponse) => void;
+  setMusicEnabled: (enabled: boolean) => void;
+  setMusicVolume: (volume: number) => void;
+  setNotificationPermissionStatus: (status: NotificationPermissionState) => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
   setPrivateMessageFeed: (feed: PrivateMessageThreadListResponse) => void;
+  setSfxEnabled: (enabled: boolean) => void;
+  setSfxVolume: (volume: number) => void;
   showEventToast: (notification: EventNotificationItem) => void;
 }
 
-const DEFAULT_BOOTSTRAP_STATUS =
-  'Você entrou no mapa. Toque no chão para andar ou abra Ações rápidas para escolher o próximo passo.';
+type AppStoreHook = (<T>(selector: (state: AppStore) => T) => T) & {
+  getState: () => AppStore;
+  setState: (partial: Partial<AppStore>) => void;
+};
 
-const DEFAULT_AUDIO_SETTINGS = {
-  musicEnabled: true,
-  musicVolume: 70,
-  sfxEnabled: true,
-  sfxVolume: 80,
-} as const;
+function buildAppStoreSnapshot(): AppStore {
+  const audioState = useAudioStore.getState();
+  const eventFeedState = useEventFeedStore.getState();
+  const notificationState = useNotificationStore.getState();
+  const tutorialState = useTutorialStore.getState();
+  const uiState = useUIStore.getState();
 
-const DEFAULT_NOTIFICATION_SETTINGS = {
-  enabled: true,
-  permissionStatus: 'undetermined' as NotificationPermissionState,
-} as const;
-
-function createMutableAppState() {
   return {
-    activeEventToast: null,
-    audioSettings: {
-      ...DEFAULT_AUDIO_SETTINGS,
-    },
-    bootstrapStatus: DEFAULT_BOOTSTRAP_STATUS,
-    dismissedEventIds: [],
-    eventBanner: null,
-    eventNotifications: [],
-    eventResultHistory: [],
-    lastEventSyncAt: null,
-    lastEventResultSyncAt: null,
-    lastPrivateMessageSyncAt: null,
-    mapReturnCue: null,
-    notificationSettings: {
-      ...DEFAULT_NOTIFICATION_SETTINGS,
-    },
-    privateMessageThreads: [],
-    tutorial: {
-      completedStepIds: [],
-      dismissed: false,
-      playerId: null,
-      startedAt: null,
-    },
+    activeEventToast: eventFeedState.activeEventToast,
+    audioSettings: audioState.audioSettings,
+    bootstrapStatus: uiState.bootstrapStatus,
+    bootstrapTutorial: tutorialState.bootstrapTutorial,
+    completeTutorialStep: tutorialState.completeTutorialStep,
+    consumeMapReturnCue: uiState.consumeMapReturnCue,
+    dismissEventBanner: eventFeedState.dismissEventBanner,
+    dismissEventToast: eventFeedState.dismissEventToast,
+    dismissTutorial: tutorialState.dismissTutorial,
+    dismissedEventIds: eventFeedState.dismissedEventIds,
+    eventBanner: eventFeedState.eventBanner,
+    eventNotifications: eventFeedState.eventNotifications,
+    eventResultHistory: eventFeedState.eventResultHistory,
+    lastEventResultSyncAt: eventFeedState.lastEventResultSyncAt,
+    lastEventSyncAt: eventFeedState.lastEventSyncAt,
+    lastPrivateMessageSyncAt: eventFeedState.lastPrivateMessageSyncAt,
+    mapReturnCue: uiState.mapReturnCue,
+    notificationSettings: notificationState.notificationSettings,
+    privateMessageThreads: eventFeedState.privateMessageThreads,
+    queueMapReturnCue: uiState.queueMapReturnCue,
+    resetEventFeed: eventFeedState.resetEventFeed,
+    resetForLogout: resetAppStoreForLogout,
+    resetPrivateMessageFeed: eventFeedState.resetPrivateMessageFeed,
+    setBootstrapStatus: uiState.setBootstrapStatus,
+    setEventFeed: eventFeedState.setEventFeed,
+    setEventResultFeed: eventFeedState.setEventResultFeed,
+    setMusicEnabled: audioState.setMusicEnabled,
+    setMusicVolume: audioState.setMusicVolume,
+    setNotificationPermissionStatus: notificationState.setNotificationPermissionStatus,
+    setNotificationsEnabled: notificationState.setNotificationsEnabled,
+    setPrivateMessageFeed: eventFeedState.setPrivateMessageFeed,
+    setSfxEnabled: audioState.setSfxEnabled,
+    setSfxVolume: audioState.setSfxVolume,
+    showEventToast: eventFeedState.showEventToast,
+    tutorial: tutorialState.tutorial,
   };
 }
 
-export const useAppStore = create<AppStore>((set) => ({
-  ...createMutableAppState(),
-  bootstrapTutorial: (playerId) =>
-    set((state) => {
-      if (state.tutorial.playerId === playerId && state.tutorial.startedAt) {
-        return state;
-      }
+function applyAppStorePartial(partial: Partial<AppStore>): void {
+  const nextAudioSettings: Partial<AudioSettingsState> = {};
+  const nextEventFeedState: Record<string, unknown> = {};
+  const nextNotificationSettings: Partial<NotificationSettingsState> = {};
+  const nextTutorialState: Partial<TutorialState> = {};
+  const nextUIState: Record<string, unknown> = {};
 
-      return {
-        tutorial: {
-          completedStepIds: [],
-          dismissed: false,
-          playerId,
-          startedAt: new Date().toISOString(),
-        },
-      };
-    }),
-  completeTutorialStep: (stepId) =>
-    set((state) => {
-      if (state.tutorial.completedStepIds.includes(stepId)) {
-        return state;
-      }
+  if (partial.audioSettings) {
+    Object.assign(nextAudioSettings, partial.audioSettings);
+  }
 
-      return {
-        tutorial: {
-          ...state.tutorial,
-          completedStepIds: [...state.tutorial.completedStepIds, stepId],
-          dismissed: false,
-        },
-      };
-    }),
-  consumeMapReturnCue: () => {
-    let nextCue: {
-      accent?: string;
-      message: string;
-    } | null = null;
+  if (partial.notificationSettings) {
+    Object.assign(nextNotificationSettings, partial.notificationSettings);
+  }
 
-    set((state) => {
-      nextCue = state.mapReturnCue;
-      return {
-        mapReturnCue: null,
-      };
-    });
+  if (partial.tutorial) {
+    Object.assign(nextTutorialState, partial.tutorial);
+  }
 
-    return nextCue;
-  },
-  dismissEventBanner: (eventId) =>
-    set((state) => {
-      const dismissedEventIds = state.dismissedEventIds.includes(eventId)
-        ? state.dismissedEventIds
-        : [...state.dismissedEventIds, eventId];
+  const eventFeedKeys: Array<keyof AppStore> = [
+    'activeEventToast',
+    'dismissedEventIds',
+    'eventBanner',
+    'eventNotifications',
+    'eventResultHistory',
+    'lastEventResultSyncAt',
+    'lastEventSyncAt',
+    'lastPrivateMessageSyncAt',
+    'privateMessageThreads',
+  ];
+  for (const key of eventFeedKeys) {
+    if (key in partial) {
+      nextEventFeedState[key] = partial[key];
+    }
+  }
 
-      return {
-        dismissedEventIds,
-        eventBanner:
-          state.eventNotifications.find((notification) => !dismissedEventIds.includes(notification.id)) ??
-          null,
-      };
-    }),
-  dismissEventToast: () => set({ activeEventToast: null }),
-  dismissTutorial: () =>
-    set((state) => ({
+  const uiKeys: Array<keyof AppStore> = ['bootstrapStatus', 'mapReturnCue'];
+  for (const key of uiKeys) {
+    if (key in partial) {
+      nextUIState[key] = partial[key];
+    }
+  }
+
+  if (Object.keys(nextAudioSettings).length > 0) {
+    useAudioStore.setState((state) => ({
+      audioSettings: {
+        ...state.audioSettings,
+        ...nextAudioSettings,
+      },
+    }));
+  }
+
+  if (Object.keys(nextEventFeedState).length > 0) {
+    useEventFeedStore.setState(nextEventFeedState);
+  }
+
+  if (Object.keys(nextNotificationSettings).length > 0) {
+    useNotificationStore.setState((state) => ({
+      notificationSettings: {
+        ...state.notificationSettings,
+        ...nextNotificationSettings,
+      },
+    }));
+  }
+
+  if (Object.keys(nextTutorialState).length > 0) {
+    useTutorialStore.setState((state) => ({
       tutorial: {
         ...state.tutorial,
-        dismissed: true,
+        ...nextTutorialState,
       },
-    })),
-  queueMapReturnCue: (cue) => set({ mapReturnCue: cue }),
-  resetForLogout: () =>
-    set((state) => ({
-      ...createMutableAppState(),
-      notificationSettings: {
-        ...DEFAULT_NOTIFICATION_SETTINGS,
-        permissionStatus: state.notificationSettings.permissionStatus,
-      },
-    })),
-  resetEventFeed: () =>
-    set({
-      activeEventToast: null,
-      dismissedEventIds: [],
-      eventBanner: null,
-      eventNotifications: [],
-      eventResultHistory: [],
-      lastEventSyncAt: null,
-      lastEventResultSyncAt: null,
-      mapReturnCue: null,
-    }),
-  resetPrivateMessageFeed: () =>
-    set({
-      lastPrivateMessageSyncAt: null,
-      privateMessageThreads: [],
-    }),
-  setNotificationPermissionStatus: (permissionStatus) =>
-    set((state) => ({
-      notificationSettings: {
-        ...state.notificationSettings,
-        permissionStatus,
-      },
-    })),
-  setNotificationsEnabled: (enabled) =>
-    set((state) => ({
-      notificationSettings: {
-        ...state.notificationSettings,
-        enabled,
-      },
-    })),
-  setMusicEnabled: (enabled) =>
-    set((state) => ({
-      audioSettings: {
-        ...state.audioSettings,
-        musicEnabled: enabled,
-      },
-    })),
-  setMusicVolume: (volume) =>
-    set((state) => ({
-      audioSettings: {
-        ...state.audioSettings,
-        musicVolume: clampAudioVolume(volume),
-      },
-    })),
-  setSfxEnabled: (enabled) =>
-    set((state) => ({
-      audioSettings: {
-        ...state.audioSettings,
-        sfxEnabled: enabled,
-      },
-    })),
-  setSfxVolume: (volume) =>
-    set((state) => ({
-      audioSettings: {
-        ...state.audioSettings,
-        sfxVolume: clampAudioVolume(volume),
-      },
-    })),
-  setBootstrapStatus: (bootstrapStatus) => set({ bootstrapStatus }),
-  setEventFeed: (feed) =>
-    set((state) => ({
-      eventBanner:
-        feed.notifications.find((notification) => !state.dismissedEventIds.includes(notification.id)) ??
-        null,
-      eventNotifications: feed.notifications,
-      lastEventSyncAt: feed.generatedAt,
-    })),
-  setEventResultFeed: (feed) =>
-    set({
-      eventResultHistory: feed.results,
-      lastEventResultSyncAt: feed.generatedAt,
-    }),
-  setPrivateMessageFeed: (feed) =>
-    set({
-      lastPrivateMessageSyncAt: feed.generatedAt,
-      privateMessageThreads: feed.threads,
-    }),
-  showEventToast: (notification) => set({ activeEventToast: notification }),
-}));
+    }));
+  }
 
-function clampAudioVolume(value: number): number {
-  return Math.min(100, Math.max(0, Math.round(value)));
+  if (Object.keys(nextUIState).length > 0) {
+    useUIStore.setState(nextUIState);
+  }
 }
+
+export function resetAppStoreForLogout(): void {
+  const permissionStatus = useNotificationStore.getState().notificationSettings.permissionStatus;
+  useAudioStore.getState().resetAudioSettings();
+  useEventFeedStore.getState().resetEventFeedStore();
+  useNotificationStore.getState().resetNotificationSettings(permissionStatus);
+  useTutorialStore.getState().resetTutorial();
+  useUIStore.getState().resetUIState();
+}
+
+export const useAppStore = ((
+  selector: (state: AppStore) => unknown,
+) => {
+  const audioState = useAudioStore();
+  const eventFeedState = useEventFeedStore();
+  const notificationState = useNotificationStore();
+  const tutorialState = useTutorialStore();
+  const uiState = useUIStore();
+
+  const snapshot = useMemo<AppStore>(
+    () => ({
+      activeEventToast: eventFeedState.activeEventToast,
+      audioSettings: audioState.audioSettings,
+      bootstrapStatus: uiState.bootstrapStatus,
+      bootstrapTutorial: tutorialState.bootstrapTutorial,
+      completeTutorialStep: tutorialState.completeTutorialStep,
+      consumeMapReturnCue: uiState.consumeMapReturnCue,
+      dismissEventBanner: eventFeedState.dismissEventBanner,
+      dismissEventToast: eventFeedState.dismissEventToast,
+      dismissTutorial: tutorialState.dismissTutorial,
+      dismissedEventIds: eventFeedState.dismissedEventIds,
+      eventBanner: eventFeedState.eventBanner,
+      eventNotifications: eventFeedState.eventNotifications,
+      eventResultHistory: eventFeedState.eventResultHistory,
+      lastEventResultSyncAt: eventFeedState.lastEventResultSyncAt,
+      lastEventSyncAt: eventFeedState.lastEventSyncAt,
+      lastPrivateMessageSyncAt: eventFeedState.lastPrivateMessageSyncAt,
+      mapReturnCue: uiState.mapReturnCue,
+      notificationSettings: notificationState.notificationSettings,
+      privateMessageThreads: eventFeedState.privateMessageThreads,
+      queueMapReturnCue: uiState.queueMapReturnCue,
+      resetEventFeed: eventFeedState.resetEventFeed,
+      resetForLogout: resetAppStoreForLogout,
+      resetPrivateMessageFeed: eventFeedState.resetPrivateMessageFeed,
+      setBootstrapStatus: uiState.setBootstrapStatus,
+      setEventFeed: eventFeedState.setEventFeed,
+      setEventResultFeed: eventFeedState.setEventResultFeed,
+      setMusicEnabled: audioState.setMusicEnabled,
+      setMusicVolume: audioState.setMusicVolume,
+      setNotificationPermissionStatus: notificationState.setNotificationPermissionStatus,
+      setNotificationsEnabled: notificationState.setNotificationsEnabled,
+      setPrivateMessageFeed: eventFeedState.setPrivateMessageFeed,
+      setSfxEnabled: audioState.setSfxEnabled,
+      setSfxVolume: audioState.setSfxVolume,
+      showEventToast: eventFeedState.showEventToast,
+      tutorial: tutorialState.tutorial,
+    }),
+    [audioState, eventFeedState, notificationState, tutorialState, uiState],
+  );
+
+  return selector(snapshot);
+}) as AppStoreHook;
+
+useAppStore.getState = buildAppStoreSnapshot;
+useAppStore.setState = applyAppStorePartial;

@@ -1,30 +1,8 @@
 import { type FastifyInstance, type FastifyRequest } from 'fastify';
 
-import { AuthError } from '../services/auth.js';
-import { BankError } from '../services/bank.js';
-import { BichoError } from '../services/bicho.js';
-import { BocaError } from '../services/boca.js';
-import { CrimeError } from '../systems/CrimeSystem.js';
-import { ContactError } from '../services/contact.js';
-import { DrugSaleError } from '../services/drug-sale.js';
-import { FactionError } from '../services/faction.js';
-import { FactoryError } from '../services/factory.js';
-import { FrontStoreError } from '../services/front-store.js';
-import { HospitalError } from '../services/hospital.js';
-import { MarketError } from '../services/market.js';
-import { PlayerError } from '../services/player.js';
-import { PrisonError } from '../services/prison.js';
-import { PropertyError } from '../services/property.js';
-import { PuteiroError } from '../services/puteiro.js';
-import { PvpError } from '../services/pvp.js';
-import { PrivateMessageError } from '../services/private-message.js';
-import { RaveError } from '../services/rave.js';
-import { RobberyError } from '../services/robbery.js';
-import { SlotMachineError } from '../services/slot-machine.js';
-import { TerritoryError } from '../services/territory.js';
-import { TrainingError } from '../services/training.js';
-import { TribunalError } from '../services/tribunal.js';
-import { UniversityError } from '../services/university.js';
+import { DomainError } from '../errors/domain-error.js';
+import { registerDefaultHttpErrorMappers } from './http-error-mappers.js';
+import { resolveDomainErrorStatus } from './http-error-registry.js';
 
 export type HttpErrorCategory =
   | 'auth'
@@ -45,12 +23,7 @@ export interface HttpErrorResponseBody {
 export class RouteHttpError extends Error {
   declare cause: unknown;
 
-  constructor(
-    public readonly statusCode: number,
-    public readonly category: HttpErrorCategory,
-    message: string,
-    cause?: unknown,
-  ) {
+  constructor(public readonly statusCode: number, public readonly category: HttpErrorCategory, message: string, cause?: unknown) {
     super(message);
     this.name = 'RouteHttpError';
     this.cause = cause;
@@ -62,6 +35,8 @@ export function throwRouteHttpError(error: unknown, fallbackMessage: string): ne
 }
 
 export function installGlobalHttpErrorHandler(app: FastifyInstance): void {
+  registerDefaultHttpErrorMappers();
+
   app.setErrorHandler((error, request, reply) => {
     const normalized = normalizeHttpError(error);
     const log = request.contextLog ?? request.log;
@@ -90,11 +65,7 @@ export function buildHttpErrorResponse(
   request: FastifyRequest,
   error: RouteHttpError,
 ): HttpErrorResponseBody {
-  return {
-    category: error.category,
-    message: error.message,
-    requestId: request.id,
-  };
+  return { category: error.category, message: error.message, requestId: request.id };
 }
 
 export function normalizeHttpError(
@@ -133,336 +104,10 @@ export function normalizeHttpError(
 }
 
 function normalizeKnownDomainError(error: unknown): RouteHttpError | null {
-  if (error instanceof AuthError) {
-    return createMappedError(
-      error,
-      {
-        conflict: 409,
-        invalid_credentials: 401,
-        rate_limited: 429,
-        unauthorized: 401,
-        validation: 400,
-      },
-      401,
-    );
+  if (!(error instanceof DomainError)) {
+    return null;
   }
-
-  if (error instanceof PlayerError) {
-    return createMappedError(
-      error,
-      {
-        conflict: 409,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      401,
-    );
-  }
-
-  if (error instanceof BankError) {
-    return createMappedError(
-      error,
-      {
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof BichoError) {
-    return createMappedError(
-      error,
-      {
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof BocaError) {
-    return createMappedError(
-      error,
-      {
-        invalid_stock: 400,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof CrimeError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof ContactError) {
-    return createMappedError(
-      error,
-      {
-        conflict: 409,
-        forbidden: 403,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof DrugSaleError) {
-    return createMappedError(
-      error,
-      {
-        conflict: 409,
-        not_found: 404,
-      },
-      400,
-    );
-  }
-
-  if (error instanceof PrivateMessageError) {
-    return createMappedError(
-      error,
-      {
-        conflict: 409,
-        forbidden: 403,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof FactionError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof FactoryError) {
-    return createMappedError(
-      error,
-      {
-        invalid_component: 400,
-        invalid_recipe: 400,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof FrontStoreError) {
-    return createMappedError(
-      error,
-      {
-        insufficient_funds: 422,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof HospitalError) {
-    return createMappedError(
-      error,
-      {
-        insufficient_resources: 402,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof MarketError) {
-    return createMappedError(
-      error,
-      {
-        auction_own_bid: 403,
-        auction_closed: 409,
-        bid_too_low: 409,
-        character_not_ready: 409,
-        insufficient_funds: 409,
-        not_found: 404,
-        ownership_required: 403,
-      },
-      400,
-    );
-  }
-
-  if (error instanceof PrisonError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof PropertyError) {
-    return createMappedError(
-      error,
-      {
-        invalid_favela: 400,
-        invalid_property: 400,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof PuteiroError) {
-    return createMappedError(
-      error,
-      {
-        insufficient_funds: 422,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof PvpError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof RaveError) {
-    return createMappedError(
-      error,
-      {
-        invalid_lineup: 400,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof RobberyError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof SlotMachineError) {
-    return createMappedError(
-      error,
-      {
-        insufficient_funds: 422,
-        not_found: 404,
-        unauthorized: 401,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof TerritoryError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        invalid_transition: 400,
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof TrainingError) {
-    return createMappedError(
-      error,
-      {
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof TribunalError) {
-    return createMappedError(
-      error,
-      {
-        forbidden: 403,
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  if (error instanceof UniversityError) {
-    return createMappedError(
-      error,
-      {
-        not_found: 404,
-        validation: 400,
-      },
-      409,
-    );
-  }
-
-  return null;
-}
-
-function createMappedError(
-  error: Error & { code: string },
-  statusByCode: Partial<Record<string, number>>,
-  defaultStatusCode: number,
-): RouteHttpError {
-  const statusCode = statusByCode[error.code] ?? defaultStatusCode;
+  const statusCode = resolveDomainErrorStatus(error);
   return new RouteHttpError(statusCode, mapStatusCodeToCategory(statusCode), error.message, error);
 }
 
@@ -485,11 +130,7 @@ function extractFastifyStatusCode(error: unknown): number | null {
 }
 
 function extractErrorMessage(error: unknown, fallbackMessage: string): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallbackMessage;
+  return error instanceof Error && error.message.trim() ? error.message : fallbackMessage;
 }
 
 function mapStatusCodeToCategory(statusCode: number): HttpErrorCategory {
@@ -542,16 +183,11 @@ function isInfrastructureError(error: unknown): boolean {
   ) {
     return true;
   }
-
-  return (
-    code === 'ECONNREFUSED' ||
-    code === 'ECONNRESET' ||
-    code === 'ETIMEDOUT' ||
-    code === 'EPIPE'
-  );
+  return code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'EPIPE';
 }
 
 function readErrorCode(error: Error): string | null {
-  const maybeCode = (error as Error & { code?: unknown }).code;
-  return typeof maybeCode === 'string' ? maybeCode : null;
+  return typeof (error as Error & { code?: unknown }).code === 'string'
+    ? (error as Error & { code?: string }).code ?? null
+    : null;
 }

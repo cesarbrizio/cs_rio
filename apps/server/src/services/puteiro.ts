@@ -21,7 +21,6 @@ import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import {
   factionMembers,
-  factions,
   favelas,
   gameEvents,
   players,
@@ -32,6 +31,7 @@ import {
   soldiers,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import {
   resolveEconomyPropertyDefinition,
@@ -39,6 +39,7 @@ import {
   resolveRegionalEventMultiplier,
   type PropertyEventProfile,
 } from './economy-config.js';
+import { applyFactionBankDelta, applyPlayerResourceDeltas } from './financial-updates.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
@@ -220,12 +221,16 @@ type PuteiroErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class PuteiroError extends Error {
+export function puteiroError(code: PuteiroErrorCode, message: string): DomainError {
+  return new DomainError('puteiro', code, inferDomainErrorCategory(code), message);
+}
+
+export class PuteiroError extends DomainError {
   constructor(
-    public readonly code: PuteiroErrorCode,
+    code: PuteiroErrorCode,
     message: string,
   ) {
-    super(message);
+    super('puteiro', code, inferDomainErrorCategory(code), message);
     this.name = 'PuteiroError';
   }
 }
@@ -252,55 +257,25 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
       }
 
       if (input.playerMoneySpentOnMaintenance > 0) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: -input.playerMoneySpentOnMaintenance,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           return false;
         }
-
-        const nextMoney = roundCurrency(
-          Number.parseFloat(String(player.money)) - input.playerMoneySpentOnMaintenance,
-        );
-
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, playerId));
       }
 
       if (input.factionCommissionDelta > 0 && input.factionId) {
-        const [faction] = await tx
-          .select({
-            bankMoney: factions.bankMoney,
-          })
-          .from(factions)
-          .where(eq(factions.id, input.factionId))
-          .limit(1);
+        const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
+        const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+          bankMoneyDelta: input.factionCommissionDelta,
+          pointsDelta,
+        });
 
-        if (faction) {
-          const nextBankMoney = roundCurrency(
-            Number.parseFloat(String(faction.bankMoney)) + input.factionCommissionDelta,
-          );
-          const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
-
-          await tx
-            .update(factions)
-            .set({
-              bankMoney: nextBankMoney.toFixed(2),
-              points: sql`${factions.points} + ${pointsDelta}`,
-            })
-            .where(eq(factions.id, input.factionId));
-
-          await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-            balanceAfter: nextBankMoney,
+        if (factionMutation.status === 'updated') {
+          await insertFactionBankLedgerEntry(tx, {
+            balanceAfter: factionMutation.faction.bankMoney,
             commissionAmount: input.factionCommissionDelta,
             createdAt: input.lastRevenueAt,
             description: 'Comissao automatica recebida de um puteiro de membro.',
@@ -380,54 +355,59 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
 
   async collectCash(playerId: string, propertyId: string): Promise<PuteiroCollectRecord | null> {
     return db.transaction(async (tx) => {
-      const [operation] = await tx
+      const [property] = await tx
         .select({
-          cashBalance: puteiroOperations.cashBalance,
+          id: properties.id,
         })
-        .from(puteiroOperations)
-        .innerJoin(properties, eq(properties.id, puteiroOperations.propertyId))
+        .from(properties)
         .where(
           and(
-            eq(puteiroOperations.propertyId, propertyId),
+            eq(properties.id, propertyId),
             eq(properties.playerId, playerId),
             eq(properties.type, 'puteiro'),
           ),
         )
         .limit(1);
-      const [player] = await tx
-        .select({
-          money: players.money,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
 
-      if (!operation || !player) {
+      if (!property) {
         return null;
       }
 
-      const collectedAmount = roundCurrency(Number.parseFloat(String(operation.cashBalance)));
+      const lockedOperation = await tx.execute(sql<{ cashBalance: string }>`
+        select ${puteiroOperations.cashBalance} as "cashBalance"
+        from ${puteiroOperations}
+        where ${puteiroOperations.propertyId} = ${propertyId}
+        for update
+      `);
+      const drainedOperation = lockedOperation.rows[0];
+
+      if (!drainedOperation) {
+        return null;
+      }
+
+      const collectedAmount = roundCurrency(Number.parseFloat(String(drainedOperation.cashBalance)));
 
       if (collectedAmount <= 0) {
         return null;
       }
 
-      const playerMoneyAfterCollect = roundCurrency(Number.parseFloat(String(player.money)) + collectedAmount);
-
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterCollect.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      const collectedAt = new Date();
 
       await tx
         .update(puteiroOperations)
         .set({
           cashBalance: '0.00',
-          lastCollectedAt: new Date(),
+          lastCollectedAt: collectedAt,
         })
         .where(eq(puteiroOperations.propertyId, propertyId));
+
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: collectedAmount,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       await tx.insert(transactions).values({
         amount: collectedAmount.toFixed(2),
@@ -438,7 +418,7 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
 
       return {
         collectedAmount,
-        playerMoneyAfterCollect,
+        playerMoneyAfterCollect: balanceMutation.player.money,
       };
     });
   }
@@ -532,16 +512,13 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
       }
 
       const totalPurchaseCost = roundCurrency(template.purchasePrice * quantity);
-      const playerMoneyAfterPurchase = roundCurrency(
-        Number.parseFloat(String(player.money)) - totalPurchaseCost,
-      );
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -totalPurchaseCost,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterPurchase.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const insertedWorkers = await tx
         .insert(puteiroGps)
@@ -583,7 +560,7 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
           status: worker.status,
           type: worker.type,
         })),
-        playerMoneyAfterPurchase,
+        playerMoneyAfterPurchase: balanceMutation.player.money,
         totalPurchaseCost,
       };
     });

@@ -22,7 +22,9 @@ import {
   regions,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 
 type PropertyChannelType = 'boca' | 'rave';
@@ -126,12 +128,16 @@ export interface DrugSaleServiceOptions {
   repository?: DrugSaleRepository;
 }
 
-export class DrugSaleError extends Error {
+export function drugSaleError(code: DrugSaleErrorCode, message: string): DomainError {
+  return new DomainError('drug-sale', code, inferDomainErrorCategory(code), message);
+}
+
+export class DrugSaleError extends DomainError {
   constructor(
-    public readonly code: DrugSaleErrorCode,
+    code: DrugSaleErrorCode,
     message: string,
   ) {
-    super(message);
+    super('drug-sale', code, inferDomainErrorCategory(code), message);
     this.name = 'DrugSaleError';
   }
 }
@@ -370,16 +376,14 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
           );
       }
 
-      const updatedMoney = roundCurrency(Number.parseFloat(player.money) + input.netRevenue);
-      const updatedCansaco = player.cansaco - input.cansacoCost;
+      const balanceMutation = await applyPlayerResourceDeltas(tx, input.playerId, {
+        cansacoDelta: -input.cansacoCost,
+        moneyDelta: input.netRevenue,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: updatedMoney.toFixed(2),
-          cansaco: updatedCansaco,
-        })
-        .where(eq(players.id, input.playerId));
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       await tx.insert(transactions).values({
         amount: input.netRevenue.toFixed(2),
@@ -392,8 +396,8 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
       });
 
       return {
-        playerMoneyAfterSale: updatedMoney,
-        playerCansacoAfterSale: updatedCansaco,
+        playerMoneyAfterSale: balanceMutation.player.money,
+        playerCansacoAfterSale: balanceMutation.player.cansaco,
         remainingQuantity,
         soldAt: new Date(),
       };

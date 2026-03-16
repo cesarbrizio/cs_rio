@@ -45,6 +45,138 @@
 - `JOGO.md` deve manter linguagem explícita quando um bloco estiver `aprovado para MVP`, mas ainda não estiver implementado.
 - `PRODUCT_STATUS.md` segue como árbitro de verdade entre visão futura e escopo efetivamente jogável.
 
+## Backlog Imediato de Hardening e Decomposição
+
+> Achados `MEDIUM` e `LOW` da auditoria de `2026-03-16` já foram corrigidos no código:
+> - persistência atômica de `conceito` / `hp` / `cansaco` / `disposicao` nos pontos críticos de combate
+> - corrida de `collectCash` nas operações de `Boca`, `Puteiro`, `Rave`, `Front Store` e `Maquininha`
+> - bug de `cansacoDelta` do assassinato no `PvP`
+>
+> O bloco abaixo cobre o próximo tier de governança técnica e refactor estrutural revelado pela mesma auditoria.
+
+### H.1 — Expandir cobertura de `ActionIdempotency` em rotas mutáveis críticas
+
+> **Status atual**
+>
+> - a proteção já cobre hospital, prisão, território, crimes, market e `properties`
+> - os fluxos sem idempotência seguem financeiramente seguros por SQL atômico e guards
+> - ainda falta a camada de UX/anti double-click/defesa em profundidade em várias rotas de ação
+
+- [ ] **H.1.1** Mapear e priorizar as rotas mutáveis ainda sem `ActionIdempotency`
+  - prioridade inicial:
+    - `bank`
+    - `training-center`
+    - `pvp`
+    - `robberies`
+    - `drug-sales`
+    - `factories`
+    - `university`
+    - rotas de `collectCash` de operações/propriedades
+
+- [ ] **H.1.2** Aplicar chaves de idempotência consistentes por intenção de ação
+  - criar chaves por:
+    - jogador
+    - alvo/entidade
+    - tipo de mutação
+    - janela temporal adequada ao endpoint
+
+- [ ] **H.1.3** Cobrir com regressão os fluxos mais suscetíveis a duplo clique
+  - banco
+  - claim de treino/universidade
+  - coletas de caixa
+  - tentativas de `PvP` / roubo
+
+- [ ] **H.1.4** Critério final do bloco
+  - toda rota mutável de alto risco ou alto volume tem proteção de idempotência ou justificativa explícita documentada
+
+### H.2 — Próximo tier de decomposição estrutural do server
+
+> **Status atual**
+>
+> - o primeiro pacote de fatiamento já derrubou os maiores ofensores do plano original
+> - a auditoria apontou um novo tier de serviços ainda monolíticos, fora do escopo anterior
+
+- [ ] **H.2.1** Fatiar `game-event.ts` (`2563` linhas)
+  - separar por famílias:
+    - runtime de evento
+    - resolução de resultado
+    - serialização / feed
+    - tipos específicos de evento
+
+- [ ] **H.2.2** Fatiar `tribunal.ts` (`2435` linhas)
+  - separar por:
+    - geração de caso
+    - julgamento / deadline
+    - fallback NPC
+    - cues / histórico / resultado
+
+- [ ] **H.2.3** Fatiar `property.ts` (`2265` linhas)
+  - separar por:
+    - compra e catálogo
+    - manutenção / utilidade
+    - sabotagem
+    - serialização / overview / risco
+
+- [ ] **H.2.4** Fatiar `territory/repository.ts` (`2277` linhas)
+  - separar writes por:
+    - conquista
+    - guerra faccional
+    - perda territorial
+    - snapshots e overview
+
+- [ ] **H.2.5** Fatiar `pvp.ts` (`2169` linhas)
+  - separar por:
+    - catálogo / mural de contratos
+    - assassinato por contrato
+    - assalto
+    - emboscada
+    - persistência/serialização
+
+- [ ] **H.2.6** Critério final do bloco
+  - nenhum novo serviço core ultrapassa a faixa crítica sem plano de split
+  - os cinco ofensores atuais caem para módulos especializados e com testes preservados
+
+### H.3 — Próximo tier de decomposição estrutural do mobile
+
+> **Status atual**
+>
+> - `App.tsx`, `HomeScreen` e `GameView` já foram reduzidos no pacote estrutural anterior
+> - ainda restam telas/hook centrais acima da faixa aceitável para evolução segura
+
+- [ ] **H.3.1** Fatiar `FactionScreen.tsx` (`2353` linhas)
+  - separar:
+    - chat
+    - tesouraria
+    - liderança / promoções
+    - guerra / histórico
+
+- [ ] **H.3.2** Fatiar `OperationsScreen.tsx` (`2151` linhas)
+  - separar:
+    - operações lucrativas
+    - base e logística
+    - ativos específicos (`Maquininha`, `Puteiro`, etc.)
+    - modais e formulários filhos
+
+- [ ] **H.3.3** Fatiar `TerritoryScreen.tsx` (`1999` linhas)
+  - separar:
+    - overview territorial
+    - favela detalhada
+    - guerra / perdas / modais
+
+- [ ] **H.3.4** Fatiar `MarketScreen.tsx` (`1517` linhas)
+  - separar tabs, listas e formulários do mercado
+
+- [ ] **H.3.5** Fatiar `useHomeHudController.ts` (`1549` linhas)
+  - separar:
+    - quick actions
+    - tutorial
+    - feedback / toasts
+    - contexto / menus
+
+- [ ] **H.3.6** Critério final do bloco
+  - nenhuma tela principal ou hook de orquestração continua crescendo como ponto único de acoplamento do app
+  - componentes filhos passam a absorver responsabilidades claras e testáveis
+
 ## Backlog Imediato de Produto — Playtest
 
 > Ajustes de produto identificados em playtest real depois do fechamento do mapa.

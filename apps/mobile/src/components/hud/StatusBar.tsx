@@ -1,5 +1,5 @@
 import { REGIONS, type PlayerProfile } from '@cs-rio/shared';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type RealtimeConnectionStatus } from '../../services/colyseus';
@@ -15,7 +15,7 @@ interface StatusBarProps {
   } | null;
 }
 
-export function StatusBar({
+function StatusBarComponent({
   connectionStatus,
   onOpenProfile,
   player,
@@ -48,6 +48,9 @@ export function StatusBar({
     </Pressable>
   );
 }
+
+export const StatusBar = memo(StatusBarComponent);
+StatusBar.displayName = 'StatusBar';
 
 function formatMoney(value: number): string {
   if (value >= 1_000_000) {

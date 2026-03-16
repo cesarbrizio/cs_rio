@@ -1,22 +1,18 @@
 import { AnimationController } from '@engine/animation';
-import { Camera } from '@engine/camera';
-import { cartToIso, roundGridPoint } from '@engine/coordinates';
+import { cartToIso } from '@engine/coordinates';
 import { GameLoop } from '@engine/game-loop';
-import { InputHandler, type InputRect } from '@engine/input-handler';
 import { MovementController } from '@engine/movement';
-import { findPath } from '@engine/pathfinding';
 import { SpriteSheet } from '@engine/spritesheet';
 import { parseTilemap } from '@engine/tilemap-parser';
-import { type CameraMode, type CameraState, type GridPoint, type ScreenPoint } from '@engine/types';
+import type { InputRect } from '@engine/input-handler';
+import { type CameraMode, type GridPoint } from '@engine/types';
 import { useImage, useRSXformBuffer, useRectBuffer } from '@shopify/react-native-skia';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import playerBaseSpriteSource from '../../assets/sprites/player_base.png';
 import { useAudio } from '../audio/AudioProvider';
-import { shouldPlayWalkSfx } from '../audio/audioFeedback';
 import { playerBaseSpriteSheetData } from '../data/playerBaseSpriteSheet';
 import { useMapStructureSvgCatalog } from '../data/mapStructureSvgCatalog';
 import {
@@ -29,9 +25,6 @@ import { recordPerformanceFpsSample } from '../features/mobile-observability';
 import { colors } from '../theme/colors';
 import {
   clampOverlayPosition,
-  createCameraMatrix,
-  getMapWorldBounds,
-  getSceneWorldBounds,
   hasCameraChanged,
   isOverlayVisible,
   mapDirectionToSprite,
@@ -39,7 +32,6 @@ import {
   scalePolygonPoints,
 } from './game-view/geometry';
 import {
-  type DebugState,
   type GameEntity,
   type GameEntityWorldPoint,
   type GameStructure,
@@ -51,6 +43,8 @@ import {
 } from './game-view/types';
 import { GameCanvasScene } from './game-view/GameCanvasScene';
 import { GameOverlayLayer } from './game-view/GameOverlayLayer';
+import { useGameCamera } from './game-view/useGameCamera';
+import { useGameInput } from './game-view/useGameInput';
 
 export interface GameViewPlayerState {
   animation: string;
@@ -64,6 +58,8 @@ interface GameViewProps {
     type: 'follow' | 'free' | 'recenter';
   } | null;
   entities?: GameEntity[];
+  groundPatches?: MapGroundPatch[];
+  landmarks?: MapLandmark[];
   mapData: Record<string, unknown>;
   onCameraModeChange?: (mode: CameraMode) => void;
   onEntityTap?: (entityId: string) => void;
@@ -73,8 +69,6 @@ interface GameViewProps {
   playerState?: {
     position: GridPoint;
   };
-  groundPatches?: MapGroundPatch[];
-  landmarks?: MapLandmark[];
   selectedZoneId?: string | null;
   showControlsOverlay?: boolean;
   showDebugOverlay?: boolean;
@@ -84,7 +78,6 @@ interface GameViewProps {
   zones?: GameZone[];
 }
 
-const INITIAL_VIEWPORT_SIZE = 1;
 const SPRITE_IDLE_FALLBACK = 'idle_s';
 
 export function GameView({
@@ -109,8 +102,8 @@ export function GameView({
   const map = useMemo(() => parseTilemap(mapData), [mapData]);
   const tileSize = useMemo(
     () => ({
-      width: map.tileWidth,
       height: map.tileHeight,
+      width: map.tileWidth,
     }),
     [map.tileHeight, map.tileWidth],
   );
@@ -139,87 +132,63 @@ export function GameView({
       y: Math.floor(map.height / 2),
     };
   }, [map.height, map.spawnPoints, map.width, playerState?.position]);
-  const initialWorldPosition = useMemo(() => cartToIso(spawnTile, tileSize), [spawnTile, tileSize]);
-  const initialCameraState = useMemo<CameraState>(
-    () => ({
-      x: initialWorldPosition.x,
-      y: initialWorldPosition.y,
-      zoom: 1.72,
-      viewportWidth: INITIAL_VIEWPORT_SIZE,
-      viewportHeight: INITIAL_VIEWPORT_SIZE,
-      mode: 'follow',
-      deadZoneWidth: 220,
-      deadZoneHeight: 120,
-    }),
-    [initialWorldPosition.x, initialWorldPosition.y],
-  );
-  const mapBounds = useMemo(
-    () =>
-      getSceneWorldBounds({
-        entities,
-        fallbackBounds: getMapWorldBounds(map.width, map.height, tileSize),
-        spawnTile,
-        structures,
-        tileSize,
-      }),
-    [entities, map.height, map.width, spawnTile, structures, tileSize],
-  );
   const initialFrame = useMemo(
-    () => spriteSheet.getFrame('idle_s_0') ?? spriteSheet.getFrameIds().map((id) => spriteSheet.getFrame(id)).find(Boolean),
+    () =>
+      spriteSheet.getFrame('idle_s_0') ??
+      spriteSheet.getFrameIds().map((id) => spriteSheet.getFrame(id)).find(Boolean) ??
+      null,
     [spriteSheet],
   );
-  const cameraRef = useRef<Camera>(new Camera(initialCameraState, mapBounds));
   const movementRef = useRef<MovementController>(new MovementController(spawnTile, 3));
-  const animationRef = useRef<AnimationController>(new AnimationController(spriteSheet, SPRITE_IDLE_FALLBACK));
-  const inputHandlerRef = useRef(
-    new InputHandler({
-      cameraProvider: () => cameraRef.current.getState(),
-      tileSize,
-    }),
+  const animationRef = useRef<AnimationController>(
+    new AnimationController(spriteSheet, SPRITE_IDLE_FALLBACK),
   );
   const facingDirectionRef = useRef('s');
   const fpsTimestampRef = useRef(0);
   const fpsTelemetryTimestampRef = useRef(0);
-  const inertiaVelocityRef = useRef<ScreenPoint>({ x: 0, y: 0 });
-  const lastWalkSfxAtRef = useRef(0);
-  const isPanningRef = useRef(false);
-  const panOriginRef = useRef<ScreenPoint>({ x: 0, y: 0 });
-  const panStartRef = useRef<CameraState>(initialCameraState);
-  const pinchStartZoomRef = useRef(initialCameraState.zoom);
-  const debugPanelRectRef = useRef<InputRect | null>(null);
-  const controlsRectRef = useRef<InputRect | null>(null);
-  const debugCameraRef = useRef(initialCameraState);
-  const debugPathLengthRef = useRef(0);
-  const lastCameraCommandTokenRef = useRef<number | null>(null);
-  const onCameraModeChangeRef = useRef(onCameraModeChange);
   const onPlayerStateChangeRef = useRef(onPlayerStateChange);
-  const cameraMatrixValue = useSharedValue<number[]>(createCameraMatrix(initialCameraState));
-  const playerWorldXValue = useSharedValue(initialWorldPosition.x);
-  const playerWorldYValue = useSharedValue(initialWorldPosition.y);
-  const playerHaloYValue = useSharedValue(initialWorldPosition.y - 10);
-  const playerBeaconYValue = useSharedValue(initialWorldPosition.y - 34);
-  const playerMarkerYValue = useSharedValue(initialWorldPosition.y - 8);
-  const playerFrameValue = useSharedValue({
-    x: initialFrame?.x ?? 0,
-    y: initialFrame?.y ?? 0,
-    width: initialFrame?.width ?? 48,
-    height: initialFrame?.height ?? 64,
-  });
   const [selectedTile, setSelectedTile] = useState<GridPoint | null>(spawnTile);
   const [playerPath, setPlayerPath] = useState<GridPoint[]>([]);
-  const [debugState, setDebugState] = useState<DebugState>({
-    camera: initialCameraState,
-    clipName: SPRITE_IDLE_FALLBACK,
-    fps: 0,
-    playerPosition: spawnTile,
+  const camera = useGameCamera({
+    cameraCommand,
+    entities,
+    initialFrame,
+    mapHeight: map.height,
+    mapWidth: map.width,
+    movementRef,
+    onCameraModeChange,
+    spawnTile,
+    structures,
+    tileSize,
+  });
+  const { cameraRef, syncCameraDebug } = camera;
+  const input = useGameInput({
+    cameraRef,
+    debugPathLengthRef: camera.debugPathLengthRef,
+    entities,
+    isPanningRef: camera.isPanningRef,
+    inertiaVelocityRef: camera.inertiaVelocityRef,
+    map,
+    movementRef,
+    onCameraModeChangeRef: camera.onCameraModeChangeRef,
+    onEntityTap,
+    onTileTap,
+    playSfx,
+    setPlayerPath,
+    setSelectedTile,
+    showControlsOverlay,
+    showDebugOverlay,
+    syncCameraDebug: camera.syncCameraDebug,
+    tileSize,
+    uiRects,
   });
   const playerSpriteBuffer = useRectBuffer(1, (rect) => {
     'worklet';
     rect.setXYWH(
-      playerFrameValue.value.x,
-      playerFrameValue.value.y,
-      playerFrameValue.value.width,
-      playerFrameValue.value.height,
+      camera.playerFrameValue.value.x,
+      camera.playerFrameValue.value.y,
+      camera.playerFrameValue.value.width,
+      camera.playerFrameValue.value.height,
     );
   });
   const playerTransformBuffer = useRSXformBuffer(1, (transform) => {
@@ -227,201 +196,23 @@ export function GameView({
     transform.set(
       1,
       0,
-      playerWorldXValue.value - playerFrameValue.value.width / 2,
-      playerWorldYValue.value - playerFrameValue.value.height + 6,
+      camera.playerWorldXValue.value - camera.playerFrameValue.value.width / 2,
+      camera.playerWorldYValue.value - camera.playerFrameValue.value.height + 6,
     );
   });
-
-  useEffect(() => {
-    onCameraModeChangeRef.current = onCameraModeChange;
-  }, [onCameraModeChange]);
 
   useEffect(() => {
     onPlayerStateChangeRef.current = onPlayerStateChange;
   }, [onPlayerStateChange]);
 
-  const syncCameraDebug = useCallback((cameraState: CameraState) => {
-    debugCameraRef.current = cameraState;
-    cameraMatrixValue.value = createCameraMatrix(cameraState);
-  }, [cameraMatrixValue]);
-
   useEffect(() => {
-    cameraRef.current = new Camera(initialCameraState);
     movementRef.current = new MovementController(spawnTile, 3);
     animationRef.current = new AnimationController(spriteSheet, SPRITE_IDLE_FALLBACK);
-    inputHandlerRef.current = new InputHandler({
-      cameraProvider: () => cameraRef.current.getState(),
-      tileSize,
-    });
     facingDirectionRef.current = 's';
-    inertiaVelocityRef.current = { x: 0, y: 0 };
-    isPanningRef.current = false;
     fpsTelemetryTimestampRef.current = 0;
-    debugCameraRef.current = cameraRef.current.getState();
-    debugPathLengthRef.current = 0;
-    cameraMatrixValue.value = createCameraMatrix(debugCameraRef.current);
-    playerWorldXValue.value = initialWorldPosition.x;
-    playerWorldYValue.value = initialWorldPosition.y;
-    playerHaloYValue.value = initialWorldPosition.y - 10;
-    playerBeaconYValue.value = initialWorldPosition.y - 34;
-    playerMarkerYValue.value = initialWorldPosition.y - 8;
-    playerFrameValue.value = {
-      x: initialFrame?.x ?? 0,
-      y: initialFrame?.y ?? 0,
-      width: initialFrame?.width ?? 48,
-      height: initialFrame?.height ?? 64,
-    };
     setSelectedTile(spawnTile);
     setPlayerPath([]);
-    setDebugState({
-      camera: debugCameraRef.current,
-      clipName: SPRITE_IDLE_FALLBACK,
-      fps: 0,
-      playerPosition: spawnTile,
-    });
-    lastCameraCommandTokenRef.current = null;
-    onCameraModeChangeRef.current?.(initialCameraState.mode ?? 'follow');
-  }, [
-    cameraMatrixValue,
-    initialCameraState,
-    initialFrame,
-    initialWorldPosition.x,
-    initialWorldPosition.y,
-    playerFrameValue,
-    playerHaloYValue,
-    playerBeaconYValue,
-    playerMarkerYValue,
-    playerWorldXValue,
-    playerWorldYValue,
-    spawnTile,
-    spriteSheet,
-    tileSize,
-  ]);
-
-  useEffect(() => {
-    syncCameraDebug(cameraRef.current.setBounds(mapBounds));
-  }, [mapBounds, syncCameraDebug]);
-
-  useEffect(() => {
-    if (!cameraCommand) {
-      return;
-    }
-
-    if (lastCameraCommandTokenRef.current === cameraCommand.token) {
-      return;
-    }
-
-    lastCameraCommandTokenRef.current = cameraCommand.token;
-
-    if (cameraCommand.type === 'free') {
-      syncCameraDebug(cameraRef.current.setMode('free'));
-      onCameraModeChangeRef.current?.('free');
-      return;
-    }
-
-    const currentPlayerPosition = movementRef.current.getState().position;
-    const worldPoint = cartToIso(currentPlayerPosition, tileSize);
-
-    if (cameraCommand.type === 'recenter') {
-      syncCameraDebug(cameraRef.current.panTo(worldPoint));
-      onCameraModeChangeRef.current?.(cameraRef.current.getState().mode ?? 'free');
-      return;
-    }
-
-    syncCameraDebug(cameraRef.current.setMode('follow'));
-    syncCameraDebug(cameraRef.current.panTo(worldPoint));
-    onCameraModeChangeRef.current?.('follow');
-  }, [cameraCommand, syncCameraDebug, tileSize]);
-
-  const resolveDestination = useCallback(
-    (tile: GridPoint) => {
-      if (tile.x < 0 || tile.y < 0 || tile.x >= map.width || tile.y >= map.height) {
-        return;
-      }
-
-      setSelectedTile(tile);
-      onTileTap?.(tile);
-
-      const tappedEntity = entities.find((entity) => {
-        const entityTile = roundGridPoint(entity.position);
-        return entityTile.x === tile.x && entityTile.y === tile.y;
-      });
-
-      if (tappedEntity) {
-        onEntityTap?.(tappedEntity.id);
-      }
-
-      if (map.collisionSet.has(`${tile.x}:${tile.y}`)) {
-        movementRef.current.cancelPath();
-        debugPathLengthRef.current = 0;
-        setPlayerPath([]);
-        return;
-      }
-
-      const path = findPath(
-        roundGridPoint(movementRef.current.getState().position),
-        tile,
-        map.collisionNodes,
-      );
-
-      if (path.length === 0) {
-        return;
-      }
-
-      syncCameraDebug(cameraRef.current.setMode('follow'));
-      onCameraModeChangeRef.current?.('follow');
-      const nextMovementState = movementRef.current.setPath(path);
-      debugPathLengthRef.current = nextMovementState.path.length;
-      setPlayerPath(nextMovementState.path);
-
-      const nowMs = Date.now();
-
-      if (shouldPlayWalkSfx(lastWalkSfxAtRef.current, nowMs)) {
-        lastWalkSfxAtRef.current = nowMs;
-        void playSfx('walk');
-      }
-    },
-    [entities, map, onEntityTap, onTileTap, playSfx, syncCameraDebug],
-  );
-
-  const handlePan = useCallback((delta: ScreenPoint) => {
-    const startState = panStartRef.current;
-    syncCameraDebug(
-      cameraRef.current.panTo({
-        x: startState.x - delta.x / startState.zoom,
-        y: startState.y - delta.y / startState.zoom,
-      }),
-    );
-  }, [syncCameraDebug]);
-
-  const handlePinch = useCallback((scale: number, anchor: ScreenPoint) => {
-    syncCameraDebug(cameraRef.current.zoomTo(pinchStartZoomRef.current * scale, anchor));
-  }, [syncCameraDebug]);
-
-  useEffect(() => {
-    const nextUiRects = [
-      ...uiRects,
-      showDebugOverlay ? debugPanelRectRef.current : null,
-      showControlsOverlay ? controlsRectRef.current : null,
-    ].flatMap((rect) => (rect ? [rect] : []));
-
-    inputHandlerRef.current.setTileSize(tileSize);
-    inputHandlerRef.current.setUiRects(nextUiRects);
-    inputHandlerRef.current.setCallbacks({
-      onLongPress: (tile) => {
-        setSelectedTile(tile);
-      },
-      onPan: (delta) => {
-        handlePan(delta);
-      },
-      onPinch: (scale, anchor) => {
-        handlePinch(scale, anchor);
-      },
-      onTap: (tile) => {
-        resolveDestination(tile);
-      },
-    });
-  }, [handlePan, handlePinch, resolveDestination, showControlsOverlay, showDebugOverlay, tileSize, uiRects]);
+  }, [spawnTile, spriteSheet]);
 
   useEffect(() => {
     const loop = new GameLoop();
@@ -444,38 +235,41 @@ export function GameView({
       const nextFrameId = animationRef.current.update(deltaMs);
       const nextFrame = nextFrameId ? spriteSheet.getFrame(nextFrameId) : undefined;
       const nextWorldPosition = cartToIso(nextMovementState.position, tileSize);
-      let nextCameraState = cameraRef.current.updateFollowTarget(nextWorldPosition);
+      let nextCameraState = camera.cameraRef.current.updateFollowTarget(nextWorldPosition);
 
       if (
-        !isPanningRef.current &&
-        Math.abs(inertiaVelocityRef.current.x) + Math.abs(inertiaVelocityRef.current.y) > 0 &&
-        cameraRef.current.getState().mode === 'free'
+        !camera.isPanningRef.current &&
+        Math.abs(camera.inertiaVelocityRef.current.x) + Math.abs(camera.inertiaVelocityRef.current.y) > 0 &&
+        camera.cameraRef.current.getState().mode === 'free'
       ) {
-        inertiaVelocityRef.current = cameraRef.current.applyInertia(inertiaVelocityRef.current, deltaMs);
-        nextCameraState = cameraRef.current.getState();
+        camera.inertiaVelocityRef.current = camera.cameraRef.current.applyInertia(
+          camera.inertiaVelocityRef.current,
+          deltaMs,
+        );
+        nextCameraState = camera.cameraRef.current.getState();
       }
 
-      if (hasCameraChanged(debugCameraRef.current, nextCameraState)) {
-        syncCameraDebug(nextCameraState);
+      if (hasCameraChanged(camera.debugCameraRef.current, nextCameraState)) {
+        camera.syncCameraDebug(nextCameraState);
       }
 
-      playerWorldXValue.value = nextWorldPosition.x;
-      playerWorldYValue.value = nextWorldPosition.y;
-      playerHaloYValue.value = nextWorldPosition.y - 10;
-      playerBeaconYValue.value = nextWorldPosition.y - 34;
-      playerMarkerYValue.value = nextWorldPosition.y - 8;
+      camera.playerWorldXValue.value = nextWorldPosition.x;
+      camera.playerWorldYValue.value = nextWorldPosition.y;
+      camera.playerHaloYValue.value = nextWorldPosition.y - 10;
+      camera.playerBeaconYValue.value = nextWorldPosition.y - 34;
+      camera.playerMarkerYValue.value = nextWorldPosition.y - 8;
 
       if (nextFrame) {
-        playerFrameValue.value = {
+        camera.playerFrameValue.value = {
+          height: nextFrame.height,
+          width: nextFrame.width,
           x: nextFrame.x,
           y: nextFrame.y,
-          width: nextFrame.width,
-          height: nextFrame.height,
         };
       }
 
-      if (nextMovementState.path.length !== debugPathLengthRef.current) {
-        debugPathLengthRef.current = nextMovementState.path.length;
+      if (nextMovementState.path.length !== camera.debugPathLengthRef.current) {
+        camera.debugPathLengthRef.current = nextMovementState.path.length;
         setPlayerPath(nextMovementState.path.map((point) => ({ ...point })));
       }
 
@@ -490,8 +284,8 @@ export function GameView({
 
       if (performance.now() - fpsTimestampRef.current > 250) {
         fpsTimestampRef.current = performance.now();
-        setDebugState({
-          camera: debugCameraRef.current,
+        camera.setDebugState({
+          camera: camera.debugCameraRef.current,
           clipName: animationRef.current.getState().clipName,
           fps: Math.round(nextFps),
           playerPosition: {
@@ -501,10 +295,7 @@ export function GameView({
         });
       }
 
-      if (
-        performance.now() - fpsTelemetryTimestampRef.current > 2_500 ||
-        Math.round(nextFps) < 35
-      ) {
+      if (performance.now() - fpsTelemetryTimestampRef.current > 2_500 || Math.round(nextFps) < 35) {
         fpsTelemetryTimestampRef.current = performance.now();
         recordPerformanceFpsSample(Math.round(nextFps));
       }
@@ -514,14 +305,8 @@ export function GameView({
       loop.stop();
     };
   }, [
-    playerBeaconYValue,
-    playerFrameValue,
-    playerHaloYValue,
-    playerMarkerYValue,
-    playerWorldXValue,
-    playerWorldYValue,
+    camera,
     spriteSheet,
-    syncCameraDebug,
     tileSize,
   ]);
 
@@ -534,24 +319,31 @@ export function GameView({
       return null;
     }
 
-    const screenPoint = projectWorldToScreen(debugState.camera, {
+    const screenPoint = projectWorldToScreen(camera.debugState.camera, {
       x: selectedTileWorldPoint.x,
       y: selectedTileWorldPoint.y - 30,
     });
 
-    if (!isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight, 16)) {
+    if (
+      !isOverlayVisible(
+        screenPoint,
+        camera.debugState.camera.viewportWidth,
+        camera.debugState.camera.viewportHeight,
+        16,
+      )
+    ) {
       return null;
     }
 
     return clampOverlayPosition(
-      debugState.camera.viewportWidth,
-      debugState.camera.viewportHeight,
+      camera.debugState.camera.viewportWidth,
+      camera.debugState.camera.viewportHeight,
       screenPoint.x - 42,
       screenPoint.y - 14,
       84,
       24,
     );
-  }, [debugState.camera, selectedTileWorldPoint]);
+  }, [camera.debugState.camera, selectedTileWorldPoint]);
   const pathWorldPoints = useMemo(
     () => playerPath.map((point) => cartToIso(point, tileSize)),
     [playerPath, tileSize],
@@ -599,7 +391,7 @@ export function GameView({
             { x: structure.position.x, y: structure.position.y + structure.footprint.h },
             tileSize,
           );
-          const basePoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint] = [nw, ne, se, sw];
+          const basePoints: [typeof nw, typeof ne, typeof se, typeof sw] = [nw, ne, se, sw];
           const baseCenter = {
             x: (nw.x + se.x) / 2,
             y: (nw.y + se.y) / 2,
@@ -616,8 +408,13 @@ export function GameView({
             x: baseCenter.x + baseWidth * definition.placement.lot.offsetX,
             y: baseCenter.y + baseHeight * definition.placement.lot.offsetY,
           };
-          const lotPoints = scalePolygonPoints(basePoints, lotCenter, definition.placement.lot.scaleX, definition.placement.lot.scaleY);
-          const topPoints: [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint] = [
+          const lotPoints = scalePolygonPoints(
+            basePoints,
+            lotCenter,
+            definition.placement.lot.scaleX,
+            definition.placement.lot.scaleY,
+          );
+          const topPoints: [typeof nw, typeof ne, typeof se, typeof sw] = [
             { x: nw.x, y: nw.y - height },
             { x: ne.x, y: ne.y - height },
             { x: se.x, y: se.y - height },
@@ -671,21 +468,26 @@ export function GameView({
         continue;
       }
 
-      const screenPoint = projectWorldToScreen(debugState.camera, {
+      const screenPoint = projectWorldToScreen(camera.debugState.camera, {
         x: entity.worldPoint.x,
         y: entity.worldPoint.y - 24,
       });
 
       if (
-        isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight, 0) &&
+        isOverlayVisible(
+          screenPoint,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
+          0,
+        ) &&
         screenPoint.x > 56 &&
         screenPoint.y > 36 &&
-        screenPoint.x < debugState.camera.viewportWidth - 96 &&
-        screenPoint.y < debugState.camera.viewportHeight - 52
+        screenPoint.x < camera.debugState.camera.viewportWidth - 96 &&
+        screenPoint.y < camera.debugState.camera.viewportHeight - 52
       ) {
         const clampedPosition = clampOverlayPosition(
-          debugState.camera.viewportWidth,
-          debugState.camera.viewportHeight,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
           screenPoint.x + 10,
           screenPoint.y - 18,
           124,
@@ -713,21 +515,26 @@ export function GameView({
         x: (structure.topPoints[0].x + structure.topPoints[2].x) / 2,
         y: (structure.topPoints[0].y + structure.topPoints[2].y) / 2,
       };
-      const screenPoint = projectWorldToScreen(debugState.camera, {
+      const screenPoint = projectWorldToScreen(camera.debugState.camera, {
         x: roofCenter.x,
         y: roofCenter.y - 10,
       });
 
       if (
-        isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight, 0) &&
+        isOverlayVisible(
+          screenPoint,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
+          0,
+        ) &&
         screenPoint.x > 56 &&
         screenPoint.y > 32 &&
-        screenPoint.x < debugState.camera.viewportWidth - 112 &&
-        screenPoint.y < debugState.camera.viewportHeight - 44
+        screenPoint.x < camera.debugState.camera.viewportWidth - 112 &&
+        screenPoint.y < camera.debugState.camera.viewportHeight - 44
       ) {
         const clampedPosition = clampOverlayPosition(
-          debugState.camera.viewportWidth,
-          debugState.camera.viewportHeight,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
           screenPoint.x - 56,
           screenPoint.y - (structure.ownerLabel ? 42 : 22),
           132,
@@ -753,21 +560,25 @@ export function GameView({
     }
 
     for (const landmark of landmarkWorldOverlays) {
-      const screenPoint = projectWorldToScreen(debugState.camera, {
+      const screenPoint = projectWorldToScreen(camera.debugState.camera, {
         x: landmark.positionWorldPoint.x,
         y: landmark.positionWorldPoint.y - 18,
       });
 
       if (
-        isOverlayVisible(screenPoint, debugState.camera.viewportWidth, debugState.camera.viewportHeight) &&
+        isOverlayVisible(
+          screenPoint,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
+        ) &&
         screenPoint.x > 48 &&
         screenPoint.y > 32 &&
-        screenPoint.x < debugState.camera.viewportWidth - 112 &&
-        screenPoint.y < debugState.camera.viewportHeight - 44
+        screenPoint.x < camera.debugState.camera.viewportWidth - 112 &&
+        screenPoint.y < camera.debugState.camera.viewportHeight - 44
       ) {
         const clampedPosition = clampOverlayPosition(
-          debugState.camera.viewportWidth,
-          debugState.camera.viewportHeight,
+          camera.debugState.camera.viewportWidth,
+          camera.debugState.camera.viewportHeight,
           screenPoint.x - 44,
           screenPoint.y - 16,
           118,
@@ -785,139 +596,28 @@ export function GameView({
     }
 
     return labels;
-  }, [debugState.camera, entityWorldPoints, landmarkWorldOverlays, structureWorldOverlays]);
-
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-
-    if (width <= 0 || height <= 0) {
-      return;
-    }
-
-    syncCameraDebug(cameraRef.current.setViewport({ width, height }));
-  }, [syncCameraDebug]);
-
-  const handlePanelLayout = useCallback((key: 'controls' | 'debug', event: LayoutChangeEvent) => {
-    const { x, y, width, height } = event.nativeEvent.layout;
-    const rect = { x, y, width, height };
-
-    if (key === 'debug') {
-      debugPanelRectRef.current = rect;
-    } else {
-      controlsRectRef.current = rect;
-    }
-
-    inputHandlerRef.current.setUiRects(
-      [
-        ...uiRects,
-        showDebugOverlay ? debugPanelRectRef.current : null,
-        showControlsOverlay ? controlsRectRef.current : null,
-      ].flatMap((item) => (item ? [item] : [])),
-    );
-  }, [showControlsOverlay, showDebugOverlay, uiRects]);
-
-  const tapGesture = useMemo(
-    () =>
-      Gesture.Tap()
-        .runOnJS(true)
-        .maxDuration(250)
-        .maxDistance(12)
-        .onEnd((event, success) => {
-          if (!success) {
-            return;
-          }
-
-          inputHandlerRef.current.handleTap({ x: event.x, y: event.y });
-        }),
-    [],
-  );
-
-  const longPressGesture = useMemo(
-    () =>
-      Gesture.LongPress()
-        .runOnJS(true)
-        .minDuration(350)
-        .onStart((event) => {
-          inputHandlerRef.current.handleLongPress({ x: event.x, y: event.y });
-        }),
-    [],
-  );
-
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .runOnJS(true)
-        .minDistance(4)
-        .onStart((event) => {
-          panOriginRef.current = { x: event.x, y: event.y };
-          panStartRef.current = cameraRef.current.getState();
-          inertiaVelocityRef.current = { x: 0, y: 0 };
-          isPanningRef.current = true;
-          syncCameraDebug(cameraRef.current.setMode('free'));
-          onCameraModeChangeRef.current?.('free');
-        })
-        .onUpdate((event) => {
-          inputHandlerRef.current.handlePan(panOriginRef.current, {
-            x: event.translationX,
-            y: event.translationY,
-          });
-          inertiaVelocityRef.current = {
-            x: event.velocityX,
-            y: event.velocityY,
-          };
-        })
-        .onEnd((event) => {
-          isPanningRef.current = false;
-          inertiaVelocityRef.current = {
-            x: event.velocityX,
-            y: event.velocityY,
-          };
-        }),
-    [syncCameraDebug],
-  );
-
-  const pinchGesture = useMemo(
-    () =>
-      Gesture.Pinch()
-        .runOnJS(true)
-        .onStart(() => {
-          pinchStartZoomRef.current = cameraRef.current.getState().zoom;
-        })
-        .onUpdate((event) => {
-          inputHandlerRef.current.handlePinch(event.scale, {
-            x: event.focalX,
-            y: event.focalY,
-          });
-        }),
-    [],
-  );
-
-  const composedGesture = useMemo(
-    () =>
-      Gesture.Simultaneous(
-        pinchGesture,
-        Gesture.Race(panGesture, Gesture.Exclusive(longPressGesture, tapGesture)),
-      ),
-    [longPressGesture, panGesture, pinchGesture, tapGesture],
-  );
+  }, [camera.debugState.camera, entityWorldPoints, landmarkWorldOverlays, structureWorldOverlays]);
+  const handleFollowPress = useCallback(() => {
+    syncCameraDebug(cameraRef.current.setMode('follow'));
+  }, [cameraRef, syncCameraDebug]);
 
   return (
-    <View onLayout={handleLayout} style={styles.wrapper}>
-      <GestureDetector gesture={composedGesture}>
+    <View onLayout={camera.handleViewportLayout} style={styles.wrapper}>
+      <GestureDetector gesture={input.composedGesture}>
         <View style={styles.canvasFrame}>
           <GameCanvasScene
-            cameraMatrixValue={cameraMatrixValue}
+            cameraMatrixValue={camera.cameraMatrixValue}
             entityWorldPoints={entityWorldPoints}
             landmarkWorldOverlays={landmarkWorldOverlays}
             pathWorldPoints={pathWorldPoints}
-            playerBeaconYValue={playerBeaconYValue}
-            playerHaloYValue={playerHaloYValue}
+            playerBeaconYValue={camera.playerBeaconYValue}
+            playerHaloYValue={camera.playerHaloYValue}
             playerImage={playerImage}
-            playerMarkerYValue={playerMarkerYValue}
+            playerMarkerYValue={camera.playerMarkerYValue}
             playerSpriteBuffer={playerSpriteBuffer}
             playerTransformBuffer={playerTransformBuffer}
-            playerWorldXValue={playerWorldXValue}
-            playerWorldYValue={playerWorldYValue}
+            playerWorldXValue={camera.playerWorldXValue}
+            playerWorldYValue={camera.playerWorldYValue}
             selectedTileWorldPoint={selectedTileWorldPoint}
             structureSvgCatalog={structureSvgCatalog}
             structureWorldOverlays={structureWorldOverlays}
@@ -927,15 +627,13 @@ export function GameView({
       </GestureDetector>
 
       <GameOverlayLayer
-        debugState={debugState}
+        debugState={camera.debugState}
         destinationOverlay={destinationOverlay}
         mapHeight={map.height}
         mapWidth={map.width}
         onEntityTap={onEntityTap}
-        onFollowPress={() => {
-          syncCameraDebug(cameraRef.current.setMode('follow'));
-        }}
-        onPanelLayout={handlePanelLayout}
+        onFollowPress={handleFollowPress}
+        onPanelLayout={input.handlePanelLayout}
         onZoneTap={onZoneTap}
         selectedTileLabel={selectedTile ? `${selectedTile.x},${selectedTile.y}` : '--'}
         showControlsOverlay={showControlsOverlay}
@@ -947,14 +645,14 @@ export function GameView({
 }
 
 const styles = StyleSheet.create({
+  canvasFrame: {
+    flex: 1,
+  },
   wrapper: {
     backgroundColor: '#263127',
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
     position: 'relative',
-  },
-  canvasFrame: {
-    flex: 1,
   },
 });

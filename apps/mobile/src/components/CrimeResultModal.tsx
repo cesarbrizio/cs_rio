@@ -1,5 +1,5 @@
 import { type CrimeAttemptResponse } from '@cs-rio/shared';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import {
   Animated,
   Modal,
@@ -28,7 +28,7 @@ interface CrimeResultModalProps {
   visible: boolean;
 }
 
-export function CrimeResultModal({
+function CrimeResultModalComponent({
   onClose,
   onPrisonAction,
   result,
@@ -182,7 +182,7 @@ export function CrimeResultModal({
   );
 }
 
-function MetricCard({
+const MetricCard = memo(function MetricCard({
   label,
   tone,
   value,
@@ -197,7 +197,11 @@ function MetricCard({
       <Text style={[styles.metricValue, { color: tone }]}>{value}</Text>
     </View>
   );
-}
+});
+MetricCard.displayName = 'CrimeResultMetricCard';
+
+export const CrimeResultModal = memo(CrimeResultModalComponent);
+CrimeResultModal.displayName = 'CrimeResultModal';
 
 const toneStyles = {
   danger: {

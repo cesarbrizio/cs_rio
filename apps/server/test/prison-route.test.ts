@@ -16,6 +16,10 @@ import { type PlayerService } from '../src/services/player.js';
 import { type TrainingServiceContract } from '../src/services/training.js';
 import { type PrisonSystemContract } from '../src/systems/PrisonSystem.js';
 
+function castService<T>(value: Partial<T>): T {
+  return value as T;
+}
+
 function buildProfile(prison: PlayerPrisonStatus): PlayerProfile {
   return {
     appearance: DEFAULT_CHARACTER_APPEARANCE,
@@ -72,13 +76,13 @@ describe('prison action lock middleware', () => {
 
   beforeEach(async () => {
     app = await createApp({
-      authService: {
+      authService: castService<AuthService>({
         verifyAccessToken,
-      } as unknown as AuthService,
-      playerService: {
+      }),
+      playerService: castService<PlayerService>({
         createCharacter: vi.fn(),
         getPlayerProfile,
-      } as unknown as PlayerService,
+      }),
       prisonSystem: {
         getStatus: vi.fn(async () => DEFAULT_PLAYER_PRISON_STATUS),
       } as PrisonSystemContract,
@@ -137,13 +141,13 @@ describe('prison action lock middleware', () => {
 
     await app.close();
     app = await createApp({
-      authService: {
+      authService: castService<AuthService>({
         verifyAccessToken,
-      } as unknown as AuthService,
-      playerService: {
+      }),
+      playerService: castService<PlayerService>({
         createCharacter: vi.fn(),
         getPlayerProfile,
-      } as unknown as PlayerService,
+      }),
       prisonSystem,
       trainingService,
     });

@@ -75,6 +75,10 @@ type RoundOpsOperation =
   | { type: 'reseed-system-market' }
   | { type: 'rebuild-world-state' };
 
+function toJsonRecord(value: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value));
+}
+
 export interface RoundOpsSelector {
   favelaCode?: string;
   favelaId?: string;
@@ -232,14 +236,14 @@ export class RoundOpsService {
 
       await db.insert(roundOperationLogs).values({
         actor: command.actor ?? process.env.USER ?? 'local',
-        afterJson: after as unknown as Record<string, unknown>,
+        afterJson: toJsonRecord(after),
         batchId,
-        beforeJson: before as unknown as Record<string, unknown>,
+        beforeJson: toJsonRecord(before),
         eventType: extractEventType(command.operation),
         favelaId: await this.resolveFavelaId(selector, extractFavelaSelector(command.operation)),
         operationType: command.operation.type,
         origin: command.origin ?? 'ops:round',
-        payloadJson: command.operation as unknown as Record<string, unknown>,
+        payloadJson: toJsonRecord(command.operation),
         regionId: extractRegionId(selector, command.operation) ?? null,
         roundId: activeRound?.id ?? null,
         summary,
@@ -783,7 +787,7 @@ export class RoundOpsService {
         leaderId: null,
         name: factionSeed.name,
         points: 0,
-        robberyPolicyJson: defaultRobberyPolicy as unknown as Record<string, unknown>,
+        robberyPolicyJson: toJsonRecord(defaultRobberyPolicy),
         sortOrder: factionSeed.sortOrder,
         templateCode: factionSeed.templateCode,
         thematicBonus: factionSeed.thematicBonus,
@@ -875,7 +879,7 @@ export class RoundOpsService {
           bankMoney: '0',
           internalSatisfaction: defaultInternalSatisfaction,
           points: 0,
-          robberyPolicyJson: defaultRobberyPolicy as unknown as Record<string, unknown>,
+          robberyPolicyJson: toJsonRecord(defaultRobberyPolicy),
         })
         .where(eq(factions.isFixed, true));
 

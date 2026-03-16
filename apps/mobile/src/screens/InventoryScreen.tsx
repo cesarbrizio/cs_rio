@@ -15,6 +15,7 @@ import {
 import { formatApiError } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
+import { useInventoryStore } from '../stores/inventoryStore';
 import { colors } from '../theme/colors';
 
 interface InventoryResultState {
@@ -26,11 +27,11 @@ interface InventoryResultState {
 export function InventoryScreen(): JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const player = useAuthStore((state) => state.player);
-  const equipInventoryItem = useAuthStore((state) => state.equipInventoryItem);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
-  const repairInventoryItem = useAuthStore((state) => state.repairInventoryItem);
-  const unequipInventoryItem = useAuthStore((state) => state.unequipInventoryItem);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
+  const equipInventoryItem = useInventoryStore((state) => state.equipInventoryItem);
+  const repairInventoryItem = useInventoryStore((state) => state.repairInventoryItem);
+  const unequipInventoryItem = useInventoryStore((state) => state.unequipInventoryItem);
   const items = useMemo(() => player?.inventory ?? [], [player?.inventory]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [submittingItemId, setSubmittingItemId] = useState<string | null>(null);

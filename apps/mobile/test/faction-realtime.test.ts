@@ -1,4 +1,6 @@
 import {
+  FACTION_REALTIME_MAX_LABEL_LENGTH,
+  FACTION_REALTIME_MAX_MESSAGE_LENGTH,
   FACTION_REALTIME_ROOM_NAME,
   REALTIME_MESSAGE_FACTION_CHAT,
   REALTIME_MESSAGE_FACTION_COORDINATION,
@@ -153,5 +155,26 @@ describe('faction realtime service', () => {
       kind: 'attack',
       label: 'Morro do lado',
     });
+  });
+
+  it('blocks outgoing faction messages that exceed the shared realtime limits', async () => {
+    const joinedRoom = new FakeFactionRoom('faction-room-1', 'faction-1');
+    const service = new FactionRealtimeService(() => ({
+      joinOrCreate: vi.fn(async () => joinedRoom),
+      reconnect: vi.fn(),
+    }));
+
+    await service.connectToFactionRoom({
+      accessToken: 'access-token',
+      factionId: 'faction-1',
+    });
+
+    service.sendChatMessage('x'.repeat(FACTION_REALTIME_MAX_MESSAGE_LENGTH + 1));
+    service.sendCoordinationMessage({
+      kind: 'attack',
+      label: 'y'.repeat(FACTION_REALTIME_MAX_LABEL_LENGTH + 1),
+    });
+
+    expect(joinedRoom.send).not.toHaveBeenCalled();
   });
 });

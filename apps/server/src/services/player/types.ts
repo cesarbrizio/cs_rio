@@ -20,6 +20,7 @@ import type { DisposicaoSystem } from '../../systems/DisposicaoSystem.js';
 import type { OverdoseSystem } from '../../systems/OverdoseSystem.js';
 import type { PrisonSystemContract } from '../../systems/PrisonSystem.js';
 import type { CansacoSystem } from '../../systems/CansacoSystem.js';
+import { DomainError, inferDomainErrorCategory } from '../../errors/domain-error.js';
 import type { KeyValueStore } from '../auth.js';
 import type { AuthPlayerRecord } from '../auth.js';
 import type { FactionUpgradeEffectReaderContract } from '../faction/types.js';
@@ -156,12 +157,16 @@ export interface PlayerServiceOptions {
 
 type PlayerErrorCode = 'conflict' | 'not_found' | 'unauthorized' | 'validation';
 
-export class PlayerError extends Error {
+export function playerError(code: PlayerErrorCode, message: string): DomainError {
+  return new DomainError('player', code, inferDomainErrorCategory(code), message);
+}
+
+export class PlayerError extends DomainError {
   constructor(
-    public readonly code: PlayerErrorCode,
+    code: PlayerErrorCode,
     message: string,
   ) {
-    super(message);
+    super('player', code, inferDomainErrorCategory(code), message);
     this.name = 'PlayerError';
   }
 }

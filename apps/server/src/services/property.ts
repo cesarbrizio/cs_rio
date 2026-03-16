@@ -50,8 +50,10 @@ import {
   soldiers,
   soldierTemplates,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { assertPlayerActionUnlocked, type PrisonStatusReaderContract } from './action-readiness.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { type FactionUpgradeEffectReaderContract } from './faction.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { PoliceHeatSystem } from '../systems/PoliceHeatSystem.js';
@@ -283,12 +285,16 @@ type PropertyErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class PropertyError extends Error {
+export function propertyError(code: PropertyErrorCode, message: string): DomainError {
+  return new DomainError('property', code, inferDomainErrorCategory(code), message);
+}
+
+export class PropertyError extends DomainError {
   constructor(
-    public readonly code: PropertyErrorCode,
+    code: PropertyErrorCode,
     message: string,
   ) {
-    super(message);
+    super('property', code, inferDomainErrorCategory(code), message);
     this.name = 'PropertyError';
   }
 }
@@ -320,24 +326,13 @@ export class DatabasePropertyRepository implements PropertyRepository {
         .where(eq(properties.id, input.propertyId));
 
       if (input.moneySpent > 0) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: -input.moneySpent,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           return false;
         }
-
-        await tx
-          .update(players)
-          .set({
-            money: roundCurrency(Number.parseFloat(String(player.money)) - input.moneySpent).toFixed(2),
-          })
-          .where(eq(players.id, playerId));
       }
 
       return true;
@@ -370,12 +365,13 @@ export class DatabasePropertyRepository implements PropertyRepository {
         return null;
       }
 
-      await tx
-        .update(players)
-        .set({
-          money: roundCurrency(Number.parseFloat(String(player.money)) - definition.basePrice).toFixed(2),
-        })
-        .where(eq(players.id, input.playerId));
+      const balanceMutation = await applyPlayerResourceDeltas(tx, input.playerId, {
+        moneyDelta: -definition.basePrice,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const [createdProperty] = await tx
         .insert(properties)
@@ -598,12 +594,13 @@ export class DatabasePropertyRepository implements PropertyRepository {
         return null;
       }
 
-      await tx
-        .update(players)
-        .set({
-          money: roundCurrency(Number.parseFloat(String(player.money)) - totalCost).toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -totalCost,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const now = new Date();
       await tx.insert(soldiers).values(
@@ -856,18 +853,13 @@ export class DatabasePropertyRepository implements PropertyRepository {
         return false;
       }
 
-      const nextMoney = roundCurrency(Number.parseFloat(String(player.money)) - recoveryCost);
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -recoveryCost,
+      });
 
-      if (nextMoney < 0) {
+      if (balanceMutation.status !== 'updated') {
         return false;
       }
-
-      await tx
-        .update(players)
-        .set({
-          money: nextMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
       await tx
         .update(properties)
         .set({
@@ -913,13 +905,14 @@ export class DatabasePropertyRepository implements PropertyRepository {
         return false;
       }
 
-      await tx
-        .update(players)
-        .set({
-          cansaco: input.nextAttackerCansaco,
-          disposicao: input.nextAttackerDisposicao,
-        })
-        .where(eq(players.id, input.attackerPlayerId));
+      const balanceMutation = await applyPlayerResourceDeltas(tx, input.attackerPlayerId, {
+        cansacoDelta: -PROPERTY_SABOTAGE_CANSACO_COST,
+        disposicaoDelta: -PROPERTY_SABOTAGE_DISPOSICAO_COST,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return false;
+      }
 
       if (input.sabotageState !== 'normal') {
         await tx
@@ -995,12 +988,13 @@ export class DatabasePropertyRepository implements PropertyRepository {
         return false;
       }
 
-      await tx
-        .update(players)
-        .set({
-          money: roundCurrency(Number.parseFloat(String(player.money)) - upgradeCost).toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -upgradeCost,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return false;
+      }
 
       await tx
         .update(properties)

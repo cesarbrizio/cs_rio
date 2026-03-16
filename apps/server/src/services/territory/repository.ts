@@ -35,7 +35,9 @@ import {
   weapons,
   x9Events,
 } from '../../db/schema.js';
+import { LevelSystem } from '../../systems/LevelSystem.js';
 import type { BanditReturnFlavor } from '../favela-force.js';
+import { applyFactionBankDelta, applyPlayerCombatDeltas } from '../financial-updates.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from '../faction.js';
 import {
   buildTerritoryConquestLogDescription,
@@ -89,6 +91,7 @@ import {
 
 const FACTION_WAR_DECLARATION_COST = 50000;
 const FACTION_WAR_TOTAL_ROUNDS = 3;
+const territoryPersistenceLevelSystem = new LevelSystem();
 
 export class DatabaseTerritoryRepository implements TerritoryRepository {
   async getFavela(favelaId: string): Promise<TerritoryFavelaRecord | null> {
@@ -891,17 +894,16 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para instalar esse servico.');
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - definition.installCost);
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: -definition.installCost,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, input.factionId));
+      if (factionMutation.status !== 'updated') {
+        throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para instalar esse servico.');
+      }
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.installedAt,
         description: `Instalacao do servico ${definition.label} em ${input.favelaName}.`,
@@ -949,17 +951,19 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         );
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - FACTION_WAR_DECLARATION_COST);
+      const factionMutation = await applyFactionBankDelta(tx, input.attackerFactionId, {
+        bankMoneyDelta: -FACTION_WAR_DECLARATION_COST,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, input.attackerFactionId));
+      if (factionMutation.status !== 'updated') {
+        throw new TerritoryError(
+          'conflict',
+          `O banco da facção não tem saldo para declarar a guerra. Custo: R$ ${FACTION_WAR_DECLARATION_COST.toLocaleString('pt-BR')} · saldo atual: R$ ${currentBankMoney.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+        );
+      }
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.declaredAt,
         description: `Declaracao de guerra por ${input.favelaName}.`,
@@ -1060,18 +1064,17 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para bancar o baile.');
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - input.budget);
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: -input.budget,
+        pointsDelta: input.factionPointsDelta,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-          points: faction.points + input.factionPointsDelta,
-        })
-        .where(eq(factions.id, input.factionId));
+      if (factionMutation.status !== 'updated') {
+        throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para bancar o baile.');
+      }
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.organizedAt,
         description: `Organizacao de baile em ${input.favelaName}.`,
@@ -1217,7 +1220,6 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para a preparacao da guerra.');
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - input.budget);
       const preparationJson = serializeTerritoryFactionWarPreparation({
         budget: input.budget,
         powerBonus: input.powerBonus,
@@ -1229,15 +1231,16 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
       });
 
       if (input.budget > 0) {
-        await tx
-          .update(factions)
-          .set({
-            bankMoney: nextBankMoney.toFixed(2),
-          })
-          .where(eq(factions.id, input.factionId));
+        const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+          bankMoneyDelta: -input.budget,
+        });
 
-        await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-          balanceAfter: nextBankMoney,
+        if (factionMutation.status !== 'updated') {
+          throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para a preparacao da guerra.');
+        }
+
+        await insertFactionBankLedgerEntry(tx, {
+          balanceAfter: factionMutation.faction.bankMoney,
           commissionAmount: 0,
           createdAt: input.preparedAt,
           description: `Preparacao de guerra por ${input.favelaName}.`,
@@ -1296,14 +1299,26 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
   async persistConquestAttempt(input: TerritoryConquestPersistenceInput): Promise<void> {
     await db.transaction(async (tx) => {
       for (const update of input.participantUpdates) {
+        const playerMutation = await applyPlayerCombatDeltas(tx, update.playerId, {
+          cansacoDelta: update.cansacoDelta,
+          conceitoDelta: update.conceitoDelta,
+          disposicaoDelta: update.disposicaoDelta,
+          hpDelta: update.hpDelta,
+        });
+
+        if (playerMutation.status !== 'updated') {
+          throw new TerritoryError('not_found', 'Participante da conquista nao encontrado para persistencia.');
+        }
+
+        const nextLevel = territoryPersistenceLevelSystem.resolve(
+          playerMutation.player.conceito,
+          playerMutation.player.level,
+        ).level;
+
         await tx
           .update(players)
           .set({
-            conceito: update.nextResources.conceito,
-            hp: update.nextResources.hp,
-            level: update.nextLevel,
-            disposicao: update.nextResources.disposicao,
-            cansaco: update.nextResources.cansaco,
+            level: nextLevel,
           })
           .where(eq(players.id, update.playerId));
 
@@ -1377,20 +1392,18 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         return;
       }
 
-      const currentBankMoney = Number.parseFloat(String(faction.bankMoney));
-      const nextBankMoney = roundCurrency(currentBankMoney + input.revenueDelta);
       const pointsDelta = calculateFactionPointsDelta(input.revenueDelta);
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: input.revenueDelta,
+        pointsDelta,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-          points: sql`${factions.points} + ${pointsDelta}`,
-        })
-        .where(eq(factions.id, input.factionId));
+      if (factionMutation.status !== 'updated') {
+        return;
+      }
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.now,
         description: `Receita automatica de servicos de favela em ${input.favelaName}.`,
@@ -1508,14 +1521,13 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         return false;
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - input.amount);
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: -input.amount,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, input.factionId));
+      if (factionMutation.status !== 'updated') {
+        return false;
+      }
 
       await tx
         .update(favelas)
@@ -1537,8 +1549,8 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         paidAt: input.now,
       });
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.now,
         description: 'Pagamento automatico de propina (arrego) territorial.',
@@ -1801,24 +1813,23 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         throw new TerritoryError('not_found', 'Faccao nao encontrada para desenrolo.');
       }
 
-      const currentBankMoney = Number.parseFloat(String(faction.bankMoney));
-      const nextBankMoney = roundCurrency(currentBankMoney - input.moneySpent);
       const nextPoints = faction.points - input.pointsSpent;
 
-      if (nextBankMoney < 0 || nextPoints < 0) {
+      if (nextPoints < 0) {
         throw new TerritoryError('conflict', 'Recursos insuficientes para concluir o desenrolo.');
       }
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-          points: nextPoints,
-        })
-        .where(eq(factions.id, input.factionId));
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: -input.moneySpent,
+        pointsDelta: -input.pointsSpent,
+      });
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      if (factionMutation.status !== 'updated') {
+        throw new TerritoryError('conflict', 'Recursos insuficientes para concluir o desenrolo.');
+      }
+
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.attemptedAt,
         description: 'Pagamento de desenrolo apos incursao policial de X9.',
@@ -2000,29 +2011,38 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
       }
 
       for (const participant of input.participantUpdates) {
+        const playerMutation = await applyPlayerCombatDeltas(tx, participant.playerId, {
+          cansacoDelta: participant.cansacoDelta,
+          conceitoDelta: participant.conceitoDelta,
+          disposicaoDelta: participant.disposicaoDelta,
+          hpDelta: participant.hpDelta,
+        });
+
+        if (playerMutation.status !== 'updated') {
+          throw new TerritoryError('not_found', 'Participante da guerra nao encontrado para persistencia.');
+        }
+
+        const nextLevel = territoryPersistenceLevelSystem.resolve(
+          playerMutation.player.conceito,
+          playerMutation.player.level,
+        ).level;
+
         await tx
           .update(players)
           .set({
-            conceito: participant.nextResources.conceito,
-            hp: participant.nextResources.hp,
-            level: participant.nextLevel,
-            disposicao: participant.nextResources.disposicao,
-            cansaco: participant.nextResources.cansaco,
+            level: nextLevel,
           })
           .where(eq(players.id, participant.playerId));
       }
 
-      const attackerNextBankMoney = roundCurrency(
-        Number.parseFloat(String(attackerFaction.bankMoney)) + input.attackerRewardMoney,
-      );
+      const attackerFactionMutation = await applyFactionBankDelta(tx, input.attackerFactionId, {
+        bankMoneyDelta: input.attackerRewardMoney,
+        pointsDelta: input.attackerPointsDelta,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: attackerNextBankMoney.toFixed(2),
-          points: Math.max(0, attackerFaction.points + input.attackerPointsDelta),
-        })
-        .where(eq(factions.id, input.attackerFactionId));
+      if (attackerFactionMutation.status !== 'updated') {
+        throw new TerritoryError('conflict', 'Falha ao atualizar a faccao atacante apos a rodada.');
+      }
 
       await tx
         .update(factions)
@@ -2032,8 +2052,8 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         .where(eq(factions.id, input.defenderFactionId));
 
       if (input.attackerRewardMoney > 0) {
-        await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-          balanceAfter: attackerNextBankMoney,
+        await insertFactionBankLedgerEntry(tx, {
+          balanceAfter: attackerFactionMutation.faction.bankMoney,
           commissionAmount: 0,
           createdAt: input.now,
           description: `Espolio de guerra conquistado em ${input.favelaName}.`,
@@ -2181,17 +2201,16 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para melhorar esse servico.');
       }
 
-      const nextBankMoney = roundCurrency(currentBankMoney - upgradeCost);
+      const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+        bankMoneyDelta: -upgradeCost,
+      });
 
-      await tx
-        .update(factions)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-        })
-        .where(eq(factions.id, input.factionId));
+      if (factionMutation.status !== 'updated') {
+        throw new TerritoryError('conflict', 'O banco da faccao nao tem saldo para melhorar esse servico.');
+      }
 
-      await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-        balanceAfter: nextBankMoney,
+      await insertFactionBankLedgerEntry(tx, {
+        balanceAfter: factionMutation.faction.bankMoney,
         commissionAmount: 0,
         createdAt: input.now,
         description: `Upgrade do servico ${definition.label} em ${input.favelaName} para nivel ${input.nextLevel}.`,

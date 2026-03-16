@@ -10,3 +10,5 @@ const pool = new Pool({
 export const db = drizzle(pool);
 export { pool };
 export type DatabaseClient = typeof db;
+export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DatabaseExecutor = DatabaseClient | DatabaseTransaction;

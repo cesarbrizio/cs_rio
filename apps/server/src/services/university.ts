@@ -18,6 +18,7 @@ import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { players, trainingSessions, universityEnrollments } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import {
   AuthError,
   type AuthPlayerRecord,
@@ -36,6 +37,7 @@ import {
   type NpcInflationProfile,
   type NpcInflationReaderContract,
 } from './npc-inflation.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { PrisonSystem, type PrisonSystemContract } from '../systems/PrisonSystem.js';
@@ -89,12 +91,16 @@ type UniversityErrorCode =
   | 'not_found'
   | 'validation';
 
-export class UniversityError extends Error {
+export function universityError(code: UniversityErrorCode, message: string): DomainError {
+  return new DomainError('university', code, inferDomainErrorCategory(code), message);
+}
+
+export class UniversityError extends DomainError {
   constructor(
-    public readonly code: UniversityErrorCode,
+    code: UniversityErrorCode,
     message: string,
   ) {
-    super(message);
+    super('university', code, inferDomainErrorCategory(code), message);
     this.name = 'UniversityError';
   }
 }
@@ -155,14 +161,15 @@ export class DatabaseUniversityRepository implements UniversityRepository {
         return null;
       }
 
-      const nextMoney = roundMoney(Number.parseFloat(player.money) - input.costMoney);
-      const [updatedPlayer] = await tx
-        .update(players)
-        .set({
-          money: nextMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId))
-        .returning();
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -input.costMoney,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
+
+      const [updatedPlayer] = await tx.select().from(players).where(eq(players.id, playerId)).limit(1);
 
       const [enrollment] = await tx
         .insert(universityEnrollments)
@@ -786,10 +793,6 @@ function resolveStaticCourseLockReason(
   }
 
   return null;
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function roundPassive(value: number): number {

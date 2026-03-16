@@ -29,7 +29,6 @@ import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import {
   factionMembers,
-  factions,
   favelas,
   gameEvents,
   players,
@@ -39,6 +38,7 @@ import {
   soldiers,
   transactions,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import {
   resolveEconomyPropertyDefinition,
@@ -46,6 +46,7 @@ import {
   resolveRegionalEventMultiplier,
   type PropertyEventProfile,
 } from './economy-config.js';
+import { applyFactionBankDelta, applyPlayerResourceDeltas } from './financial-updates.js';
 import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './faction.js';
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
@@ -225,12 +226,16 @@ type SlotMachineErrorCode =
   | 'unauthorized'
   | 'validation';
 
-export class SlotMachineError extends Error {
+export function slotMachineError(code: SlotMachineErrorCode, message: string): DomainError {
+  return new DomainError('slot-machine', code, inferDomainErrorCategory(code), message);
+}
+
+export class SlotMachineError extends DomainError {
   constructor(
-    public readonly code: SlotMachineErrorCode,
+    code: SlotMachineErrorCode,
     message: string,
   ) {
-    super(message);
+    super('slot-machine', code, inferDomainErrorCategory(code), message);
     this.name = 'SlotMachineError';
   }
 }
@@ -257,55 +262,25 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
       }
 
       if (input.playerMoneySpentOnMaintenance > 0) {
-        const [player] = await tx
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, playerId))
-          .limit(1);
+        const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+          moneyDelta: -input.playerMoneySpentOnMaintenance,
+        });
 
-        if (!player) {
+        if (balanceMutation.status !== 'updated') {
           return false;
         }
-
-        const nextMoney = roundCurrency(
-          Number.parseFloat(String(player.money)) - input.playerMoneySpentOnMaintenance,
-        );
-
-        await tx
-          .update(players)
-          .set({
-            money: nextMoney.toFixed(2),
-          })
-          .where(eq(players.id, playerId));
       }
 
       if (input.factionCommissionDelta > 0 && input.factionId) {
-        const [faction] = await tx
-          .select({
-            bankMoney: factions.bankMoney,
-          })
-          .from(factions)
-          .where(eq(factions.id, input.factionId))
-          .limit(1);
+        const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
+        const factionMutation = await applyFactionBankDelta(tx, input.factionId, {
+          bankMoneyDelta: input.factionCommissionDelta,
+          pointsDelta,
+        });
 
-        if (faction) {
-          const nextBankMoney = roundCurrency(
-            Number.parseFloat(String(faction.bankMoney)) + input.factionCommissionDelta,
-          );
-          const pointsDelta = calculateFactionPointsDelta(input.factionCommissionDelta);
-
-          await tx
-            .update(factions)
-            .set({
-              bankMoney: nextBankMoney.toFixed(2),
-              points: sql`${factions.points} + ${pointsDelta}`,
-            })
-            .where(eq(factions.id, input.factionId));
-
-          await insertFactionBankLedgerEntry(tx as unknown as typeof db, {
-            balanceAfter: nextBankMoney,
+        if (factionMutation.status === 'updated') {
+          await insertFactionBankLedgerEntry(tx, {
+            balanceAfter: factionMutation.faction.bankMoney,
             commissionAmount: input.factionCommissionDelta,
             createdAt: input.lastPlayAt,
             description: 'Comissao automatica recebida de maquininhas de membro.',
@@ -372,56 +347,59 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
 
   async collectCash(playerId: string, propertyId: string): Promise<SlotMachineCollectRecord | null> {
     return db.transaction(async (tx) => {
-      const [operation] = await tx
+      const [property] = await tx
         .select({
-          cashBalance: slotMachineOperations.cashBalance,
+          id: properties.id,
         })
-        .from(slotMachineOperations)
-        .innerJoin(properties, eq(properties.id, slotMachineOperations.propertyId))
+        .from(properties)
         .where(
           and(
-            eq(slotMachineOperations.propertyId, propertyId),
+            eq(properties.id, propertyId),
             eq(properties.playerId, playerId),
             eq(properties.type, 'slot_machine'),
           ),
         )
         .limit(1);
-      const [player] = await tx
-        .select({
-          money: players.money,
-        })
-        .from(players)
-        .where(eq(players.id, playerId))
-        .limit(1);
 
-      if (!operation || !player) {
+      if (!property) {
         return null;
       }
 
-      const collectedAmount = roundCurrency(Number.parseFloat(String(operation.cashBalance)));
+      const lockedOperation = await tx.execute(sql<{ cashBalance: string }>`
+        select ${slotMachineOperations.cashBalance} as "cashBalance"
+        from ${slotMachineOperations}
+        where ${slotMachineOperations.propertyId} = ${propertyId}
+        for update
+      `);
+      const drainedOperation = lockedOperation.rows[0];
+
+      if (!drainedOperation) {
+        return null;
+      }
+
+      const collectedAmount = roundCurrency(Number.parseFloat(String(drainedOperation.cashBalance)));
 
       if (collectedAmount <= 0) {
         return null;
       }
 
-      const playerMoneyAfterCollect = roundCurrency(
-        Number.parseFloat(String(player.money)) + collectedAmount,
-      );
-
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterCollect.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      const collectedAt = new Date();
 
       await tx
         .update(slotMachineOperations)
         .set({
           cashBalance: '0.00',
-          lastCollectedAt: new Date(),
+          lastCollectedAt: collectedAt,
         })
         .where(eq(slotMachineOperations.propertyId, propertyId));
+
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: collectedAmount,
+      });
+
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       await tx.insert(transactions).values({
         amount: collectedAmount.toFixed(2),
@@ -432,7 +410,7 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
 
       return {
         collectedAmount,
-        playerMoneyAfterCollect,
+        playerMoneyAfterCollect: balanceMutation.player.money,
       };
     });
   }
@@ -588,16 +566,13 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
         return null;
       }
 
-      const playerMoneyAfterInstall = roundCurrency(
-        Number.parseFloat(String(player.money)) - input.totalInstallCost,
-      );
+      const balanceMutation = await applyPlayerResourceDeltas(tx, playerId, {
+        moneyDelta: -input.totalInstallCost,
+      });
 
-      await tx
-        .update(players)
-        .set({
-          money: playerMoneyAfterInstall.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status !== 'updated') {
+        return null;
+      }
 
       const [operation] = await tx
         .select({
@@ -631,7 +606,7 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
 
       return {
         installedQuantity: input.quantity,
-        playerMoneyAfterInstall,
+        playerMoneyAfterInstall: balanceMutation.player.money,
       };
     });
   }

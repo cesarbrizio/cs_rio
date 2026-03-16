@@ -626,7 +626,7 @@ describe('auth routes', () => {
       url: '/api/players/create',
     });
 
-    const repositoryState = repository as unknown as {
+    const repositoryState = repository as {
       players: Map<string, AuthPlayerRecord>;
     };
     const firstPlayer = repositoryState.players.get(firstSession.player.id);

@@ -6,7 +6,6 @@ type AuthStoreModule = {
     getState: () => {
       isAuthenticated: boolean;
       isHydrated: boolean;
-      equipInventoryItem: (inventoryItemId: string) => Promise<unknown>;
       loadStoredAuth: () => Promise<void>;
       logout: () => Promise<void>;
       player: {
@@ -35,6 +34,15 @@ type AuthStoreModule = {
         password: string;
       }) => Promise<void>;
       token: string | null;
+    };
+  };
+};
+
+type InventoryStoreModule = {
+  useInventoryStore: {
+    getState: () => {
+      equipInventoryItem: (inventoryItemId: string) => Promise<unknown>;
+      repairInventoryItem: (inventoryItemId: string) => Promise<unknown>;
       unequipInventoryItem: (inventoryItemId: string) => Promise<unknown>;
     };
   };
@@ -49,7 +57,6 @@ type AppStoreModule = {
         permissionStatus: 'denied' | 'granted' | 'undetermined';
       };
       privateMessageThreads: Array<unknown>;
-      resetForLogout: () => void;
     };
     setState: (input: Record<string, unknown>) => void;
   };
@@ -128,9 +135,6 @@ describe('auth store', () => {
     installAuthInterceptors.mockClear();
 
     vi.resetModules();
-
-    const { useAppStore } = await vi.importActual<AppStoreModule>('../src/stores/appStore');
-    useAppStore.getState().resetForLogout();
   });
 
   it('registers, stores tokens and hydrates the player profile', async () => {
@@ -395,7 +399,9 @@ describe('auth store', () => {
       },
     });
 
-    await useAuthStore.getState().equipInventoryItem('inventory-weapon');
+    const { useInventoryStore } = await vi.importActual<InventoryStoreModule>('../src/stores/inventoryStore');
+
+    await useInventoryStore.getState().equipInventoryItem('inventory-weapon');
 
     expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
       equipSlot: 'weapon',
@@ -460,7 +466,7 @@ describe('auth store', () => {
       },
     });
 
-    await useAuthStore.getState().repairInventoryItem('inventory-weapon');
+    await useInventoryStore.getState().repairInventoryItem('inventory-weapon');
 
     expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
       durability: 100,
@@ -503,7 +509,7 @@ describe('auth store', () => {
       },
     });
 
-    await useAuthStore.getState().unequipInventoryItem('inventory-weapon');
+    await useInventoryStore.getState().unequipInventoryItem('inventory-weapon');
 
     expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
       equipSlot: null,

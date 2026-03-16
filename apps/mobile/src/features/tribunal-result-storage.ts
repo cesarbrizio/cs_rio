@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { parseStoredStringArray } from './storage';
+import { parseStoredStringArray, warnStorageFallback } from './storage';
 
 const MAX_STORED_KEYS = 80;
 const STORAGE_PREFIX = 'cs_rio_seen_tribunal_cues:';
@@ -10,7 +10,8 @@ export async function loadSeenTribunalCueKeys(playerId: string): Promise<Set<str
     return new Set(
       parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
     );
-  } catch {
+  } catch (error) {
+    warnStorageFallback('tribunal-result-storage', 'falha ao ler cues de tribunal vistos; resetando cache local', error);
     return new Set();
   }
 }

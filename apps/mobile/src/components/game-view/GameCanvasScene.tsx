@@ -9,6 +9,7 @@ import {
 import type { useRSXformBuffer, useRectBuffer } from '@shopify/react-native-skia';
 import { type ScreenPoint } from '@engine/types';
 import { type SharedValue } from 'react-native-reanimated';
+import { memo } from 'react';
 
 import { colors } from '../../theme/colors';
 import { type MapStructureSvgCatalog } from '../../data/mapStructureSvgCatalog';
@@ -42,7 +43,7 @@ interface GameCanvasSceneProps {
   };
 }
 
-export function GameCanvasScene({
+function GameCanvasSceneComponent({
   cameraMatrixValue,
   entityWorldPoints,
   landmarkWorldOverlays,
@@ -178,6 +179,9 @@ export function GameCanvasScene({
     </Canvas>
   );
 }
+
+export const GameCanvasScene = memo(GameCanvasSceneComponent);
+GameCanvasScene.displayName = 'GameCanvasScene';
 
 const styles = {
   canvas: {

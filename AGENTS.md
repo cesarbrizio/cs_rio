@@ -10,6 +10,54 @@ Siga primeiro o guia global em `/home/cesar/projects/mcp/AGENTS.md`.
 - Antes de tratar `JOGO.md` como contrato funcional, consulte `PRODUCT_STATUS.md`.
 - Se uma entrega mudar o status real de um sistema do jogo, atualize `PRODUCT_STATUS.md` junto com `JOGO.md` e `TODO.md` quando necessario.
 
+## Guardrails de arquitetura e manutencao
+
+- Clean Code e SOLID nao sao opcionais neste projeto. Toda entrega nova deve privilegiar:
+  - responsabilidade unica por modulo, classe, hook e funcao
+  - baixo acoplamento e contratos explicitos entre camadas
+  - composicao sobre concentracao de regras em arquivos gigantes
+  - centralizacao de logica transversal em helpers/servicos reutilizaveis, nao em copias espalhadas
+- Antes de adicionar mais codigo a um arquivo grande, avalie primeiro se o comportamento pertence a:
+  - um modulo novo
+  - um helper dedicado
+  - uma subfeature isolada
+  - um repositorio/servico mais especializado
+- Nao e aceitavel continuar criando ou expandindo arquivos de 1000~2000+ linhas como caminho padrao. Isso e tratado como risco de manutencao e deve ser evitado ativamente.
+- Os principios SOLID precisam aparecer no desenho do codigo, nao so no discurso:
+  - `S` (`Single Responsibility`): um modulo nao deve concentrar validacao, regra de negocio, persistencia, serializacao e notificacao ao mesmo tempo
+  - `O` (`Open/Closed`): extensoes devem preferir registro, composicao e factories, evitando cadeias de `if/else` ou `switch` centrais que exigem edicao recorrente
+  - `L` (`Liskov Substitution`): contratos e interfaces devem manter comportamento coerente; mocks e adapters nao podem quebrar invariantes do fluxo real
+  - `I` (`Interface Segregation`): dependencias devem enxergar apenas o subconjunto de metodos que realmente usam
+  - `D` (`Dependency Inversion`): regras de dominio nao devem depender de detalhes concretos de infra quando um contrato pequeno resolver
+- Limites praticos obrigatorios para codigo novo ou refactorado:
+  - services/server: alvo de ate `800` linhas; acima disso, split obrigatorio
+  - repositories/server: alvo de ate `800` linhas; acima disso, split obrigatorio
+  - telas mobile/web: alvo de ate `700` linhas; acima disso, split obrigatorio
+  - hooks e controllers de tela: alvo de ate `500` linhas; acima disso, split obrigatorio
+  - componentes UI: alvo de ate `400` linhas; acima disso, split obrigatorio
+  - documentos tecnicos e roadmaps: alvo de ate `800` linhas por assunto; quando um documento misturar dominios demais, criar indice + subdocs tematicos
+  - arquivos acima de `1200` linhas sao considerados estado critico e nao devem receber novas responsabilidades sem decomposicao previa
+- Se uma alteracao fizer um arquivo crescer sem reduzir coesao, pare e reorganize. Crescimento linear de responsabilidades e considerado falha de desenho.
+- Evite funcoes com multiplos motivos de mudanca. Se a funcao mistura validacao, persistencia, regra de negocio, serializacao e notificacao, ela precisa ser fatiada.
+- Evite `god objects`, `god screens`, `god services` e `god repositories`. Se um modulo conhece detalhes demais de subsistemas vizinhos, extraia portas/contratos.
+- Regras sistemicas repetidas em 3 ou mais lugares devem virar helper compartilhado, servico especializado ou camada de infraestrutura.
+- Todo fluxo mutavel sensivel deve preferir:
+  - persistencia atomica
+  - helpers de delta/mutacao reutilizaveis
+  - contratos que retornem estado real pos-operacao
+  em vez de `SELECT -> compute -> UPDATE` ou `SET` absoluto espalhado.
+- Refactors estruturais devem preservar comportamento e vir com teste de regressao quando removerem um pattern perigoso ou duplicado.
+- Antes de aceitar um arquivo novo ou expandido, passe por este checklist:
+  - este arquivo tem um unico motivo dominante de mudanca?
+  - existe um contrato menor que reduziria o acoplamento?
+  - parte dessa logica pertence a um helper/servico/componente filho?
+  - a feature pode crescer no proximo sprint sem empurrar o arquivo para a faixa critica?
+  - existe teste cobrindo o risco estrutural que motivou o refactor?
+- Documentacao tambem precisa obedecer separacao de responsabilidade:
+  - `JOGO.md` nao deve virar changelog tecnico
+  - `TODO.md` nao deve absorver especificacao completa de subdominios quando um documento proprio fizer mais sentido
+  - planos grandes devem apontar para anexos tematicos em vez de concentrar tudo em um unico arquivo monolitico
+
 ## Guardrails de UX e nomenclatura
 
 - `Brisa` e um recurso central do jogador e deve aparecer no `Perfil`, dentro de `Recursos`, ao lado de `Cansaco`, `Disposicao`, `HP`, `Conceito`, `Vicio` e `Caixa`.

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { parseStoredStringArray } from './storage';
+import { parseStoredStringArray, warnStorageFallback } from './storage';
 
 const MAX_STORED_KEYS = 100;
 const STORAGE_PREFIX = 'cs_rio_seen_sabotage_cues:';
@@ -10,7 +10,8 @@ export async function loadSeenSabotageCueKeys(playerId: string): Promise<Set<str
     return new Set(
       parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
     );
-  } catch {
+  } catch (error) {
+    warnStorageFallback('sabotage-storage', 'falha ao ler cues de sabotagem vistos; resetando cache local', error);
     return new Set();
   }
 }

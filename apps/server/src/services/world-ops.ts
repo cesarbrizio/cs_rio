@@ -36,6 +36,10 @@ const BUSINESS_PROPERTY_TYPES = new Set<PropertyType>([
   'slot_machine',
 ]);
 
+function toJsonRecord(value: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value));
+}
+
 type WorldFactionRecord = {
   abbreviation: string;
   bankMoney: string;
@@ -250,14 +254,14 @@ export class WorldOpsService {
 
       await db.insert(worldOperationLogs).values({
         actor: command.actor ?? process.env.USER ?? 'local',
-        afterJson: after as unknown as Record<string, unknown>,
+        afterJson: toJsonRecord(after),
         batchId,
-        beforeJson: before as unknown as Record<string, unknown>,
+        beforeJson: toJsonRecord(before),
         factionId: context.factionId,
         favelaId: context.favelaId,
         operationType: command.operation.type,
         origin: command.origin ?? 'ops:world',
-        payloadJson: command.operation as unknown as Record<string, unknown>,
+        payloadJson: toJsonRecord(command.operation),
         playerId: context.playerId,
         propertyId: context.propertyId,
         summary,

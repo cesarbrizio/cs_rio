@@ -10,9 +10,11 @@ import {
 import { and, desc, eq } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
-import { db } from '../db/client.js';
+import { db, type DatabaseExecutor } from '../db/client.js';
 import { playerBankDailyDeposits, playerBankLedger, players } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 
 const BANK_DAILY_DEPOSIT_LIMIT_BASE = 500_000;
@@ -21,8 +23,6 @@ const BANK_DAILY_INTEREST_RATE = 0.01;
 const BANK_LEDGER_LIMIT = 50;
 const BANK_TIME_ZONE = 'America/Sao_Paulo';
 const BANK_WITHDRAW_FEE_RATE = 0.005;
-
-type DatabaseClient = typeof db;
 
 interface BankPlayerRecord {
   bankInterestSyncedAt: Date;
@@ -59,12 +59,16 @@ export interface BankServiceContract {
 
 type BankErrorCode = 'conflict' | 'not_found' | 'unauthorized' | 'validation';
 
-export class BankError extends Error {
+export function bankError(code: BankErrorCode, message: string): DomainError {
+  return new DomainError('bank', code, inferDomainErrorCategory(code), message);
+}
+
+export class BankError extends DomainError {
   constructor(
-    public readonly code: BankErrorCode,
+    code: BankErrorCode,
     message: string,
   ) {
-    super(message);
+    super('bank', code, inferDomainErrorCategory(code), message);
     this.name = 'BankError';
   }
 }
@@ -92,7 +96,7 @@ export class BankService implements BankServiceContract {
     const now = this.now();
 
     await db.transaction(async (tx) => {
-      await syncBankInterest(tx as unknown as DatabaseClient, playerId, now);
+      await syncBankInterest(tx, playerId, now);
     });
 
     return this.buildCenterResponse(playerId, now);
@@ -105,7 +109,7 @@ export class BankService implements BankServiceContract {
     let interestApplied = 0;
 
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor = tx;
       const syncResult = await syncBankInterest(executor, playerId, now);
       const player = syncResult.player;
       interestApplied = syncResult.interestApplied;
@@ -127,16 +131,18 @@ export class BankService implements BankServiceContract {
         );
       }
 
-      const nextPocketMoney = roundCurrency(player.money - amount);
-      const nextBankMoney = roundCurrency(player.bankMoney + amount);
+      const balanceMutation = await applyPlayerResourceDeltas(executor, playerId, {
+        bankMoneyDelta: amount,
+        moneyDelta: -amount,
+      });
 
-      await executor
-        .update(players)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-          money: nextPocketMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status === 'not_found') {
+        throw new BankError('unauthorized', 'Jogador nao encontrado.');
+      }
+
+      if (balanceMutation.status !== 'updated') {
+        throw new BankError('conflict', 'Dinheiro insuficiente no bolso para deposito.');
+      }
 
       await executor
         .insert(playerBankDailyDeposits)
@@ -155,7 +161,7 @@ export class BankService implements BankServiceContract {
         });
 
       await insertPlayerBankLedgerEntry(executor, {
-        balanceAfter: nextBankMoney,
+        balanceAfter: balanceMutation.player.bankMoney,
         createdAt: now,
         description: 'Deposito realizado no banco.',
         entryType: 'deposit',
@@ -183,7 +189,7 @@ export class BankService implements BankServiceContract {
     let netWithdraw = 0;
 
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor = tx;
       const syncResult = await syncBankInterest(executor, playerId, now);
       const player = syncResult.player;
       interestApplied = syncResult.interestApplied;
@@ -197,19 +203,21 @@ export class BankService implements BankServiceContract {
       feePaid = roundCurrency(amount * BANK_WITHDRAW_FEE_RATE);
       netWithdraw = roundCurrency(amount - feePaid);
 
-      const nextPocketMoney = roundCurrency(player.money + netWithdraw);
-      const nextBankMoney = roundCurrency(player.bankMoney - amount);
+      const balanceMutation = await applyPlayerResourceDeltas(executor, playerId, {
+        bankMoneyDelta: -amount,
+        moneyDelta: netWithdraw,
+      });
 
-      await executor
-        .update(players)
-        .set({
-          bankMoney: nextBankMoney.toFixed(2),
-          money: nextPocketMoney.toFixed(2),
-        })
-        .where(eq(players.id, playerId));
+      if (balanceMutation.status === 'not_found') {
+        throw new BankError('unauthorized', 'Jogador nao encontrado.');
+      }
+
+      if (balanceMutation.status !== 'updated') {
+        throw new BankError('conflict', 'Saldo insuficiente no banco para saque.');
+      }
 
       await insertPlayerBankLedgerEntry(executor, {
-        balanceAfter: nextBankMoney,
+        balanceAfter: balanceMutation.player.bankMoney,
         createdAt: now,
         description: 'Saque realizado no banco.',
         entryType: 'withdrawal',
@@ -294,7 +302,7 @@ export class BankService implements BankServiceContract {
 }
 
 async function getBankPlayerOrThrow(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   playerId: string,
 ): Promise<BankPlayerRecord> {
   const [player] = await executor
@@ -327,7 +335,7 @@ async function getBankPlayerOrThrow(
 }
 
 async function getDepositedAmountForCycle(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   playerId: string,
   cycleKey: string,
 ): Promise<number> {
@@ -348,7 +356,7 @@ async function getDepositedAmountForCycle(
 }
 
 async function insertPlayerBankLedgerEntry(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   input: {
     balanceAfter: number;
     createdAt: Date;
@@ -373,7 +381,7 @@ async function insertPlayerBankLedgerEntry(
 }
 
 async function listPlayerBankLedger(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   playerId: string,
   limit: number,
 ): Promise<BankLedgerRecord[]> {
@@ -440,7 +448,7 @@ function resolveDailyDepositLimit(level: number): number {
 }
 
 async function syncBankInterest(
-  executor: DatabaseClient,
+  executor: DatabaseExecutor,
   playerId: string,
   now: Date,
 ): Promise<{
@@ -468,11 +476,22 @@ async function syncBankInterest(
     nextBankMoney = roundCurrency(nextBankMoney + dailyInterest);
   }
 
+  if (interestApplied > 0) {
+    const balanceMutation = await applyPlayerResourceDeltas(executor, playerId, {
+      bankMoneyDelta: interestApplied,
+    });
+
+    if (balanceMutation.status !== 'updated') {
+      throw new BankError('unauthorized', 'Jogador nao encontrado.');
+    }
+
+    nextBankMoney = balanceMutation.player.bankMoney;
+  }
+
   await executor
     .update(players)
     .set({
       bankInterestSyncedAt: now,
-      bankMoney: nextBankMoney.toFixed(2),
     })
     .where(eq(players.id, playerId));
 

@@ -143,7 +143,7 @@ describe('realtime rooms', () => {
     const client = {
       auth,
       sessionId: 'session-1',
-    } as unknown as Client;
+    } as Client;
 
     room.onJoin(client as never);
 
@@ -161,7 +161,7 @@ describe('realtime rooms', () => {
         lastAcceptedMoveAt: 1_000,
         playerId: baseProfile.id,
       },
-    } as unknown as Client<{
+    } as Client<{
       userData: {
         lastAcceptedMoveAt: number;
         playerId: string;
@@ -323,7 +323,7 @@ describe('realtime rooms', () => {
     const client = {
       auth,
       sessionId: 'faction-session-1',
-    } as unknown as Client;
+    } as Client;
 
     room.onJoin(client as never);
 

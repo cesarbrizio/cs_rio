@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { factionMembers, factions, favelas, players, tribunalCases } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { LevelSystem } from '../systems/LevelSystem.js';
 import {
   AuthError,
@@ -601,12 +602,16 @@ interface TribunalApplyJudgmentResult {
 
 type TribunalErrorCode = 'character_not_ready' | 'forbidden' | 'not_found' | 'validation';
 
-export class TribunalError extends Error {
+export function tribunalError(code: TribunalErrorCode, message: string): DomainError {
+  return new DomainError('tribunal', code, inferDomainErrorCategory(code), message);
+}
+
+export class TribunalError extends DomainError {
   constructor(
-    public readonly code: TribunalErrorCode,
+    code: TribunalErrorCode,
     message: string,
   ) {
-    super(message);
+    super('tribunal', code, inferDomainErrorCategory(code), message);
     this.name = 'TribunalError';
   }
 }

@@ -1,4 +1,4 @@
-import { type KeyValueStore } from '../services/auth.js';
+import type { KeyValueReader, KeyValueWriter } from '../services/key-value-store.js';
 
 const RESOURCE_STATE_TTL_SECONDS = 90 * 24 * 60 * 60;
 
@@ -12,7 +12,7 @@ export function buildTimedResourceKey(resource: string, playerId: string): strin
 }
 
 export async function readTimedResourceState(
-  keyValueStore: KeyValueStore,
+  keyValueStore: KeyValueReader,
   key: string,
 ): Promise<TimedResourceState | null> {
   const rawValue = await keyValueStore.get(key);
@@ -41,7 +41,7 @@ export async function readTimedResourceState(
 }
 
 export async function writeTimedResourceState(
-  keyValueStore: KeyValueStore,
+  keyValueStore: KeyValueWriter,
   key: string,
   state: TimedResourceState,
 ): Promise<void> {

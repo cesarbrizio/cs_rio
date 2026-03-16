@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -13,7 +14,7 @@ interface ContextMenuProps {
   target: HudContextTarget | null;
 }
 
-export function ContextMenu({
+function ContextMenuComponent({
   onActionPress,
   onClose,
   target,
@@ -60,6 +61,9 @@ export function ContextMenu({
     </View>
   );
 }
+
+export const ContextMenu = memo(ContextMenuComponent);
+ContextMenu.displayName = 'ContextMenu';
 
 const styles = StyleSheet.create({
   overlay: {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -27,7 +27,7 @@ interface ActionBarProps {
   onPress: (buttonId: string) => void;
 }
 
-export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
+function ActionBarComponent({ buttons, onPress }: ActionBarProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const { width } = useWindowDimensions();
   const singleColumn = width < 390;
@@ -191,6 +191,9 @@ export function ActionBar({ buttons, onPress }: ActionBarProps): JSX.Element {
     </>
   );
 }
+
+export const ActionBar = memo(ActionBarComponent);
+ActionBar.displayName = 'ActionBar';
 
 const styles = StyleSheet.create({
   wrapper: {

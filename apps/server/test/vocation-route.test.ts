@@ -7,7 +7,7 @@ import {
   VocationType,
 } from '@cs-rio/shared';
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../src/app.js';
 import { db } from '../src/db/client.js';
@@ -31,6 +31,7 @@ describe('vocation routes', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await app.close();
     if (playerService) {
       await playerService.close();
@@ -217,6 +218,48 @@ describe('vocation routes', () => {
       message: 'Creditos insuficientes para mudar de vocacao.',
     });
   });
+
+  it('rejects vocation change when credits disappear between pre-check and update', async () => {
+    const player = await registerAndCreateCharacter(app, VocationType.Cria);
+    await updatePlayerState(player.id, {
+      credits: VOCATION_CHANGE_CREDITS_COST,
+    });
+
+    await spendCreditsBeforeNextTransaction(player.id, 0);
+
+    const response = await app.inject({
+      headers: {
+        authorization: `Bearer ${player.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        vocation: VocationType.Empreendedor,
+      },
+      url: '/api/players/vocation/change',
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      category: 'domain',
+      message: 'Creditos insuficientes para mudar de vocacao.',
+    });
+
+    const [playerRow] = await db
+      .select({
+        credits: players.credits,
+        vocation: players.vocation,
+        vocationChangedAt: players.vocationChangedAt,
+      })
+      .from(players)
+      .where(eq(players.id, player.id))
+      .limit(1);
+
+    expect(playerRow).toMatchObject({
+      credits: 0,
+      vocation: VocationType.Cria,
+      vocationChangedAt: null,
+    });
+  });
 });
 
 async function registerAndCreateCharacter(
@@ -265,4 +308,21 @@ async function updatePlayerState(
   }>,
 ): Promise<void> {
   await db.update(players).set(input).where(eq(players.id, playerId));
+}
+
+async function spendCreditsBeforeNextTransaction(playerId: string, nextCredits: number): Promise<void> {
+  const originalTransaction = db.transaction.bind(db);
+  const spy = vi.spyOn(db, 'transaction');
+
+  spy.mockImplementationOnce(async (...args) => {
+    const [callback] = args;
+    await db
+      .update(players)
+      .set({
+        credits: nextCredits,
+      })
+      .where(eq(players.id, playerId));
+
+    return originalTransaction(callback);
+  });
 }

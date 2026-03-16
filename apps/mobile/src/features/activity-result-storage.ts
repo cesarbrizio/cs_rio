@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { parseStoredStringArray } from './storage';
+import { parseStoredStringArray, warnStorageFallback } from './storage';
 
 const MAX_STORED_KEYS = 80;
 const STORAGE_PREFIX = 'cs_rio_seen_activity_results:';
@@ -10,7 +10,8 @@ export async function loadSeenActivityResultKeys(playerId: string): Promise<Set<
     return new Set(
       parseStoredStringArray(await SecureStore.getItemAsync(`${STORAGE_PREFIX}${playerId}`)),
     );
-  } catch {
+  } catch (error) {
+    warnStorageFallback('activity-result-storage', 'falha ao ler resultados de atividade vistos; resetando cache local', error);
     return new Set();
   }
 }

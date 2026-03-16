@@ -1,4 +1,6 @@
 import {
+  FACTION_REALTIME_MAX_LABEL_LENGTH,
+  FACTION_REALTIME_MAX_MESSAGE_LENGTH,
   FACTION_REALTIME_ROOM_NAME,
   REALTIME_MESSAGE_FACTION_CHAT,
   REALTIME_MESSAGE_FACTION_COORDINATION,
@@ -178,6 +180,10 @@ export class FactionRealtimeService extends BaseRealtimeRoomService<
       return;
     }
 
+    if (normalizedMessage.length > FACTION_REALTIME_MAX_MESSAGE_LENGTH) {
+      return;
+    }
+
     this.currentRoom.send(REALTIME_MESSAGE_FACTION_CHAT, {
       message: normalizedMessage,
     } satisfies FactionChatSendMessage);
@@ -191,6 +197,10 @@ export class FactionRealtimeService extends BaseRealtimeRoomService<
     const normalizedLabel = message.label.trim();
 
     if (!normalizedLabel) {
+      return;
+    }
+
+    if (normalizedLabel.length > FACTION_REALTIME_MAX_LABEL_LENGTH) {
       return;
     }
 

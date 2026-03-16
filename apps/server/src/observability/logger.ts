@@ -13,5 +13,5 @@ const baseLogger = pino({
 });
 
 export function createInfrastructureLogger(bindings: Record<string, unknown> = {}): InfrastructureLogger {
-  return baseLogger.child(bindings) as unknown as InfrastructureLogger;
+  return baseLogger.child(bindings) as InfrastructureLogger;
 }

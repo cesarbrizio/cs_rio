@@ -8,11 +8,12 @@ import {
   refreshBodySchema,
   registerBodySchema,
 } from '../schemas.js';
-import { type AuthService, type KeyValueStore } from '../../services/auth.js';
+import { type AuthService } from '../../services/auth.js';
+import type { KeyValueAtomic } from '../../services/key-value-store.js';
 
 interface AuthRouteDependencies {
   authService: AuthService;
-  keyValueStore: KeyValueStore;
+  keyValueStore: KeyValueAtomic;
 }
 
 interface LoginBody {

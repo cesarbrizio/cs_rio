@@ -1,6 +1,6 @@
 import { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 
-import { type KeyValueStore } from '../services/auth.js';
+import type { KeyValueAtomic } from '../services/key-value-store.js';
 import { RouteHttpError } from './http-errors.js';
 
 const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -33,7 +33,7 @@ interface RateLimitWindowState {
 }
 
 interface CreateHttpRateLimitHookOptions {
-  keyValueStore?: KeyValueStore;
+  keyValueStore?: KeyValueAtomic;
 }
 
 class InMemoryHttpRateLimitStore implements HttpRateLimitStore {
@@ -88,7 +88,7 @@ class InMemoryHttpRateLimitStore implements HttpRateLimitStore {
 }
 
 class KeyValueStoreHttpRateLimitStore implements HttpRateLimitStore {
-  constructor(private readonly keyValueStore: KeyValueStore) {}
+  constructor(private readonly keyValueStore: KeyValueAtomic) {}
 
   async consume(key: string, maxRequests: number, windowMs: number) {
     const ttlSeconds = Math.max(1, Math.ceil(windowMs / 1000));

@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { type FactionContactSyncContract } from '../src/services/contact.js';
 import { FactionService, type FactionRepository } from '../src/services/faction.js';
 
+function castRepository<T>(value: Partial<T>): T {
+  return value as T;
+}
+
 describe('FactionService contact sync integration', () => {
   it('syncs partner contacts after joining a fixed faction', async () => {
     const contactSync: FactionContactSyncContract = {
@@ -14,7 +18,7 @@ describe('FactionService contact sync integration', () => {
         removedPartners: 0,
       })),
     };
-    const repository = {
+    const repository = castRepository<FactionRepository>({
       addMember: vi.fn(async () => true),
       findFactionById: vi
         .fn()
@@ -27,7 +31,7 @@ describe('FactionService contact sync integration', () => {
         money: 0,
         nickname: 'player_01',
       })),
-    } as unknown as FactionRepository;
+    });
     const service = new FactionService({
       contactSync,
       repository,
@@ -48,7 +52,7 @@ describe('FactionService contact sync integration', () => {
         removedPartners: 1,
       })),
     };
-    const repository = {
+    const repository = castRepository<FactionRepository>({
       findFactionById: vi.fn(async () => buildFactionSummary({ isPlayerMember: true })),
       getPlayer: vi.fn(async () => ({
         characterCreatedAt: new Date('2026-03-16T14:00:00.000Z'),
@@ -69,7 +73,7 @@ describe('FactionService contact sync integration', () => {
         },
       ]),
       removeMember: vi.fn(async () => true),
-    } as unknown as FactionRepository;
+    });
     const service = new FactionService({
       contactSync,
       repository,

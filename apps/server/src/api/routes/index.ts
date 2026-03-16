@@ -4,7 +4,8 @@ import { type ActionIdempotency } from '../action-idempotency.js';
 import { createHttpRateLimitHook } from '../http-hardening.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createPrisonActionLockMiddleware } from '../middleware/prison.js';
-import { type AuthService, type KeyValueStore } from '../../services/auth.js';
+import { type AuthService } from '../../services/auth.js';
+import type { KeyValueAtomic } from '../../services/key-value-store.js';
 import { type BankServiceContract } from '../../services/bank.js';
 import { type BichoServiceContract } from '../../services/bicho.js';
 import { type BocaServiceContract } from '../../services/boca.js';
@@ -91,7 +92,7 @@ interface ApiRouteDependencies {
   trainingService: TrainingServiceContract;
   universityService: UniversityServiceContract;
   prisonSystem: PrisonSystemContract;
-  keyValueStore: KeyValueStore;
+  keyValueStore: KeyValueAtomic;
 }
 
 export function createApiRoutes({

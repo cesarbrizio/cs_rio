@@ -14,7 +14,7 @@ import {
 import { and, desc, eq, gt, inArray, lt, or } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
-import { db } from '../db/client.js';
+import { db, type DatabaseExecutor } from '../db/client.js';
 import {
   assassinationContractNotifications,
   assassinationContracts,
@@ -22,6 +22,7 @@ import {
   players,
   prisonRecords,
 } from '../db/schema.js';
+import { DomainError, inferDomainErrorCategory } from '../errors/domain-error.js';
 import { CooldownSystem } from '../systems/CooldownSystem.js';
 import {
   CombatSystem,
@@ -37,6 +38,7 @@ import {
   type HospitalizationSystemContract,
 } from './action-readiness.js';
 import { type FactionUpgradeEffectReaderContract } from './faction.js';
+import { applyPlayerCombatDeltas, applyPlayerResourceDeltas } from './financial-updates.js';
 import { invalidatePlayerProfileCache, invalidatePlayerProfileCaches } from './player-cache.js';
 import { type UniversityEffectReaderContract } from './university.js';
 
@@ -55,7 +57,7 @@ const MIN_ASSASSINATION_ACCEPT_LEVEL = 5;
 const MIN_ASSASSINATION_REQUEST_LEVEL = 7;
 const NOVICE_PROTECTION_DURATION_HOURS = 72;
 const PVP_RANK_ORDER: FactionRank[] = ['patrao', 'general', 'gerente', 'vapor', 'soldado', 'cria'];
-type DatabaseClient = typeof db;
+const pvpPersistenceLevelSystem = new LevelSystem();
 
 export interface PvpServiceContract {
   acceptAssassinationContract(
@@ -152,8 +154,8 @@ export interface PvpRepository {
 
 interface PvpCreateAssassinationContractInput {
   createdAt: Date;
+  requesterMoneyDelta: number;
   requesterId: string;
-  requesterMoneyAfter: number;
   reward: number;
   targetId: string;
 }
@@ -161,44 +163,57 @@ interface PvpCreateAssassinationContractInput {
 interface PvpPersistAssaultInput {
   attacker: {
     attributes: CombatPlayerContext['attributes'];
+    attributeDeltas: CombatPlayerContext['attributes'];
+    cansacoDelta: number;
+    conceitoDelta: number;
     conceitoAfter: number;
+    hpDelta: number;
     hpAfter: number;
     id: string;
     levelAfter: number;
-    moneyAfter: number;
+    moneyDelta: number;
     cansacoAfter: number;
   };
   defender: {
     attributes: CombatPlayerContext['attributes'];
+    attributeDeltas: CombatPlayerContext['attributes'];
+    hpDelta: number;
     hpAfter: number;
     id: string;
-    moneyAfter: number;
+    moneyDelta: number;
   };
 }
 
 interface PvpPersistAmbushInput {
   attackers: Array<{
+    cansacoDelta: number;
+    conceitoDelta: number;
     conceitoAfter: number;
+    hpDelta: number;
     hpAfter: number;
     id: string;
     levelAfter: number;
-    moneyAfter: number;
+    moneyDelta: number;
     cansacoAfter: number;
   }>;
   defender: {
+    hpDelta: number;
     hpAfter: number;
     id: string;
-    moneyAfter: number;
+    moneyDelta: number;
   };
 }
 
 interface PvpPersistAssassinationExecutionInput {
   assassin: {
+    cansacoDelta: number;
+    conceitoDelta: number;
     conceitoAfter: number;
+    hpDelta: number;
     hpAfter: number;
     id: string;
     levelAfter: number;
-    moneyAfter: number;
+    moneyDelta: number;
     cansacoAfter: number;
   };
   contract: {
@@ -217,9 +232,10 @@ interface PvpPersistAssassinationExecutionInput {
     type: AssassinationContractNotificationType;
   }>;
   target: {
+    hpDelta: number;
     hpAfter: number;
     id: string;
-    moneyAfter: number;
+    moneyDelta: number;
   };
 }
 
@@ -239,12 +255,16 @@ type PvpErrorCode =
   | 'not_found'
   | 'validation';
 
-export class PvpError extends Error {
+export function pvpError(code: PvpErrorCode, message: string): DomainError {
+  return new DomainError('pvp', code, inferDomainErrorCategory(code), message);
+}
+
+export class PvpError extends DomainError {
   constructor(
-    public readonly code: PvpErrorCode,
+    code: PvpErrorCode,
     message: string,
   ) {
-    super(message);
+    super('pvp', code, inferDomainErrorCategory(code), message);
     this.name = 'PvpError';
   }
 }
@@ -256,7 +276,7 @@ export class DatabasePvpRepository implements PvpRepository {
     acceptedAt: Date,
   ): Promise<AssassinationContractRecord> {
     return db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
 
       await executor
         .update(assassinationContracts)
@@ -290,14 +310,14 @@ export class DatabasePvpRepository implements PvpRepository {
     input: PvpCreateAssassinationContractInput,
   ): Promise<AssassinationContractRecord> {
     return db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
+      const balanceMutation = await applyPlayerResourceDeltas(executor, input.requesterId, {
+        moneyDelta: input.requesterMoneyDelta,
+      });
 
-      await executor
-        .update(players)
-        .set({
-          money: formatMoney(input.requesterMoneyAfter),
-        })
-        .where(eq(players.id, input.requesterId));
+      if (balanceMutation.status !== 'updated') {
+        throw new Error('Falha ao reservar saldo do contrato de assassinato.');
+      }
 
       const [inserted] = await executor
         .insert(assassinationContracts)
@@ -348,25 +368,13 @@ export class DatabasePvpRepository implements PvpRepository {
     }
 
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
 
       for (const contract of expiredContracts) {
         const reward = Number(contract.reward);
-        const [requester] = await executor
-          .select({
-            money: players.money,
-          })
-          .from(players)
-          .where(eq(players.id, contract.requesterId))
-          .limit(1);
-        const requesterMoney = Number(requester?.money ?? '0');
-
-        await executor
-          .update(players)
-          .set({
-            money: formatMoney(reward + requesterMoney),
-          })
-          .where(eq(players.id, contract.requesterId));
+        await applyPlayerResourceDeltas(executor, contract.requesterId, {
+          moneyDelta: reward,
+        });
 
         await executor
           .update(assassinationContracts)
@@ -565,26 +573,52 @@ export class DatabasePvpRepository implements PvpRepository {
 
   async persistAssassinationExecution(input: PvpPersistAssassinationExecutionInput): Promise<void> {
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
+      const assassinMutation = await applyPlayerResourceDeltas(executor, input.assassin.id, {
+        moneyDelta: input.assassin.moneyDelta,
+      });
+
+      if (assassinMutation.status !== 'updated') {
+        throw new Error('Falha ao atualizar recursos do assassino.');
+      }
+
+      const assassinCombatMutation = await applyPlayerCombatDeltas(executor, input.assassin.id, {
+        cansacoDelta: input.assassin.cansacoDelta,
+        conceitoDelta: input.assassin.conceitoDelta,
+        hpDelta: input.assassin.hpDelta,
+      });
+
+      if (assassinCombatMutation.status !== 'updated') {
+        throw new Error('Falha ao atualizar status do assassino.');
+      }
+
+      const assassinLevelAfter = pvpPersistenceLevelSystem.resolve(
+        assassinCombatMutation.player.conceito,
+        assassinCombatMutation.player.level,
+      ).level;
 
       await executor
         .update(players)
         .set({
-          conceito: input.assassin.conceitoAfter,
-          hp: input.assassin.hpAfter,
-          level: input.assassin.levelAfter,
-          money: formatMoney(input.assassin.moneyAfter),
-          cansaco: input.assassin.cansacoAfter,
+          level: assassinLevelAfter,
         })
         .where(eq(players.id, input.assassin.id));
 
-      await executor
-        .update(players)
-        .set({
-          hp: input.target.hpAfter,
-          money: formatMoney(input.target.moneyAfter),
-        })
-        .where(eq(players.id, input.target.id));
+      const targetMutation = await applyPlayerResourceDeltas(executor, input.target.id, {
+        moneyDelta: input.target.moneyDelta,
+      });
+
+      if (targetMutation.status !== 'updated') {
+        throw new Error('Falha ao atualizar recursos do alvo.');
+      }
+
+      const targetCombatMutation = await applyPlayerCombatDeltas(executor, input.target.id, {
+        hpDelta: input.target.hpDelta,
+      });
+
+      if (targetCombatMutation.status !== 'updated') {
+        throw new Error('Falha ao atualizar status do alvo.');
+      }
 
       await executor
         .update(assassinationContracts)
@@ -604,61 +638,114 @@ export class DatabasePvpRepository implements PvpRepository {
 
   async persistAssault(input: PvpPersistAssaultInput): Promise<void> {
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
+      const attackerMutation = await applyPlayerResourceDeltas(executor, input.attacker.id, {
+        moneyDelta: input.attacker.moneyDelta,
+      });
+
+      if (attackerMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar saldo do atacante no PvP.');
+      }
+
+      const attackerCombatMutation = await applyPlayerCombatDeltas(executor, input.attacker.id, {
+        cansacoDelta: input.attacker.cansacoDelta,
+        carismaDelta: input.attacker.attributeDeltas.carisma,
+        conceitoDelta: input.attacker.conceitoDelta,
+        forcaDelta: input.attacker.attributeDeltas.forca,
+        hpDelta: input.attacker.hpDelta,
+        inteligenciaDelta: input.attacker.attributeDeltas.inteligencia,
+        resistenciaDelta: input.attacker.attributeDeltas.resistencia,
+      });
+
+      if (attackerCombatMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar status do atacante no PvP.');
+      }
+
+      const attackerLevelAfter = pvpPersistenceLevelSystem.resolve(
+        attackerCombatMutation.player.conceito,
+        attackerCombatMutation.player.level,
+      ).level;
 
       await executor
         .update(players)
         .set({
-          carisma: input.attacker.attributes.carisma,
-          conceito: input.attacker.conceitoAfter,
-          forca: input.attacker.attributes.forca,
-          hp: input.attacker.hpAfter,
-          inteligencia: input.attacker.attributes.inteligencia,
-          level: input.attacker.levelAfter,
-          money: formatMoney(input.attacker.moneyAfter),
-          resistencia: input.attacker.attributes.resistencia,
-          cansaco: input.attacker.cansacoAfter,
+          level: attackerLevelAfter,
         })
         .where(eq(players.id, input.attacker.id));
 
-      await executor
-        .update(players)
-        .set({
-          carisma: input.defender.attributes.carisma,
-          forca: input.defender.attributes.forca,
-          hp: input.defender.hpAfter,
-          inteligencia: input.defender.attributes.inteligencia,
-          money: formatMoney(input.defender.moneyAfter),
-          resistencia: input.defender.attributes.resistencia,
-        })
-        .where(eq(players.id, input.defender.id));
+      const defenderMutation = await applyPlayerResourceDeltas(executor, input.defender.id, {
+        moneyDelta: input.defender.moneyDelta,
+      });
+
+      if (defenderMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar saldo do defensor no PvP.');
+      }
+
+      const defenderCombatMutation = await applyPlayerCombatDeltas(executor, input.defender.id, {
+        carismaDelta: input.defender.attributeDeltas.carisma,
+        forcaDelta: input.defender.attributeDeltas.forca,
+        hpDelta: input.defender.hpDelta,
+        inteligenciaDelta: input.defender.attributeDeltas.inteligencia,
+        resistenciaDelta: input.defender.attributeDeltas.resistencia,
+      });
+
+      if (defenderCombatMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar status do defensor no PvP.');
+      }
     });
   }
 
   async persistAmbush(input: PvpPersistAmbushInput): Promise<void> {
     await db.transaction(async (tx) => {
-      const executor = tx as unknown as DatabaseClient;
+      const executor: DatabaseExecutor = tx;
 
       for (const attacker of input.attackers) {
+        const attackerMutation = await applyPlayerResourceDeltas(executor, attacker.id, {
+          moneyDelta: attacker.moneyDelta,
+        });
+
+        if (attackerMutation.status !== 'updated') {
+          throw new Error('Falha ao aplicar saldo de um atacante da emboscada.');
+        }
+
+        const attackerCombatMutation = await applyPlayerCombatDeltas(executor, attacker.id, {
+          cansacoDelta: attacker.cansacoDelta,
+          conceitoDelta: attacker.conceitoDelta,
+          hpDelta: attacker.hpDelta,
+        });
+
+        if (attackerCombatMutation.status !== 'updated') {
+          throw new Error('Falha ao aplicar status de um atacante da emboscada.');
+        }
+
+        const attackerLevelAfter = pvpPersistenceLevelSystem.resolve(
+          attackerCombatMutation.player.conceito,
+          attackerCombatMutation.player.level,
+        ).level;
+
         await executor
           .update(players)
           .set({
-            conceito: attacker.conceitoAfter,
-            hp: attacker.hpAfter,
-            level: attacker.levelAfter,
-            money: formatMoney(attacker.moneyAfter),
-            cansaco: attacker.cansacoAfter,
+            level: attackerLevelAfter,
           })
           .where(eq(players.id, attacker.id));
       }
 
-      await executor
-        .update(players)
-        .set({
-          hp: input.defender.hpAfter,
-          money: formatMoney(input.defender.moneyAfter),
-        })
-        .where(eq(players.id, input.defender.id));
+      const defenderMutation = await applyPlayerResourceDeltas(executor, input.defender.id, {
+        moneyDelta: input.defender.moneyDelta,
+      });
+
+      if (defenderMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar saldo do alvo da emboscada.');
+      }
+
+      const defenderCombatMutation = await applyPlayerCombatDeltas(executor, input.defender.id, {
+        hpDelta: input.defender.hpDelta,
+      });
+
+      if (defenderCombatMutation.status !== 'updated') {
+        throw new Error('Falha ao aplicar status do alvo da emboscada.');
+      }
     });
   }
 }
@@ -806,8 +893,8 @@ export class PvpService implements PvpServiceContract {
     });
     const contract = await this.repository.createAssassinationContract({
       createdAt: currentTime,
+      requesterMoneyDelta: -totalCost,
       requesterId,
-      requesterMoneyAfter: requester.player.resources.money - totalCost,
       reward: normalizedReward,
       targetId: targetPlayerId,
     });
@@ -1058,11 +1145,14 @@ export class PvpService implements PvpServiceContract {
     );
     await this.repository.persistAssassinationExecution({
       assassin: {
+        cansacoDelta: assassinCansacoAfter - assassin.player.resources.cansaco,
+        conceitoDelta: assassinConceitoAfter - assassin.player.resources.conceito,
         conceitoAfter: assassinConceitoAfter,
+        hpDelta: assassinHpAfter - assassin.player.resources.hp,
         hpAfter: assassinHpAfter,
         id: assassinId,
         levelAfter: assassinLevelAfter,
-        moneyAfter: assassinMoneyAfter,
+        moneyDelta: roundMoney(lootAmount + rewardPayout),
         cansacoAfter: assassinCansacoAfter,
       },
       contract: {
@@ -1095,9 +1185,10 @@ export class PvpService implements PvpServiceContract {
             },
           ],
       target: {
+        hpDelta: defenderHpAfter - target.player.resources.hp,
         hpAfter: defenderHpAfter,
         id: target.player.id,
-        moneyAfter: defenderMoneyAfter,
+        moneyDelta: defenderMoneyAfter - target.player.resources.money,
       },
     });
 
@@ -1323,18 +1414,34 @@ export class PvpService implements PvpServiceContract {
     await this.repository.persistAssault({
       attacker: {
         attributes: attackerAttributes,
+        attributeDeltas: {
+          carisma: attackerAttributes.carisma - attacker.attributes.carisma,
+          forca: attackerAttributes.forca - attacker.attributes.forca,
+          inteligencia: attackerAttributes.inteligencia - attacker.attributes.inteligencia,
+          resistencia: attackerAttributes.resistencia - attacker.attributes.resistencia,
+        },
+        cansacoDelta: attackerCansacoAfter - attacker.player.resources.cansaco,
+        conceitoDelta: attackerConceitoAfter - attacker.player.resources.conceito,
         conceitoAfter: attackerConceitoAfter,
+        hpDelta: attackerHpAfter - attacker.player.resources.hp,
         hpAfter: attackerHpAfter,
         id: attackerId,
         levelAfter: attackerLevelAfter,
-        moneyAfter: attackerMoneyAfter,
+        moneyDelta: lootAmount,
         cansacoAfter: attackerCansacoAfter,
       },
       defender: {
         attributes: defenderAttributes,
+        attributeDeltas: {
+          carisma: defenderAttributes.carisma - defender.attributes.carisma,
+          forca: defenderAttributes.forca - defender.attributes.forca,
+          inteligencia: defenderAttributes.inteligencia - defender.attributes.inteligencia,
+          resistencia: defenderAttributes.resistencia - defender.attributes.resistencia,
+        },
+        hpDelta: defenderHpAfter - defender.player.resources.hp,
         hpAfter: defenderHpAfter,
         id: targetPlayerId,
-        moneyAfter: defenderMoneyAfter,
+        moneyDelta: defenderMoneyAfter - defender.player.resources.money,
       },
     });
 
@@ -1711,17 +1818,21 @@ export class PvpService implements PvpServiceContract {
     );
     await this.repository.persistAmbush({
       attackers: persistedAttackers.map((attacker) => ({
+        cansacoDelta: attacker.cansacoDelta,
+        conceitoDelta: attacker.conceitoDelta,
         conceitoAfter: attacker.conceitoAfter,
+        hpDelta: attacker.hpDelta,
         hpAfter: attacker.hpAfter,
         id: attacker.id,
         levelAfter: attacker.levelAfter,
-        moneyAfter: attacker.moneyAfter,
+        moneyDelta: attacker.moneyDelta,
         cansacoAfter: attacker.cansacoAfter,
       })),
       defender: {
+        hpDelta: defenderHpAfter - defender.player.resources.hp,
         hpAfter: defenderHpAfter,
         id: targetPlayerId,
-        moneyAfter: defenderMoneyAfter,
+        moneyDelta: defenderMoneyAfter - defender.player.resources.money,
       },
     });
 

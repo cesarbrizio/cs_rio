@@ -95,20 +95,16 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     });
   }
 
-  async createAssassinationContract(input: {
-    createdAt: Date;
-    requesterId: string;
-    requesterMoneyAfter: number;
-    reward: number;
-    targetId: string;
-  }) {
+  async createAssassinationContract(
+    input: Parameters<PvpRepository['createAssassinationContract']>[0],
+  ) {
     const requester = this.state.players.get(input.requesterId);
 
     if (!requester) {
       throw new Error('Mandante nao encontrado no estado de teste.');
     }
 
-    requester.money = input.requesterMoneyAfter.toFixed(2);
+    requester.money = (Number(requester.money) + input.requesterMoneyDelta).toFixed(2);
 
     const contractId = randomUUID();
     this.state.assassinationContracts.set(contractId, {
@@ -333,11 +329,11 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     assassin.conceito = input.assassin.conceitoAfter;
     assassin.hp = input.assassin.hpAfter;
     assassin.level = input.assassin.levelAfter;
-    assassin.money = input.assassin.moneyAfter.toFixed(2);
+    assassin.money = (Number(assassin.money) + input.assassin.moneyDelta).toFixed(2);
     assassin.cansaco = input.assassin.cansacoAfter;
 
     target.hp = input.target.hpAfter;
-    target.money = input.target.moneyAfter.toFixed(2);
+    target.money = (Number(target.money) + input.target.moneyDelta).toFixed(2);
 
     contract.acceptedAt = input.contract.acceptedAt;
     contract.acceptedBy = input.contract.acceptedBy;
@@ -363,7 +359,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
       attacker.conceito = attackerSnapshot.conceitoAfter;
       attacker.hp = attackerSnapshot.hpAfter;
       attacker.level = attackerSnapshot.levelAfter;
-      attacker.money = attackerSnapshot.moneyAfter.toFixed(2);
+      attacker.money = (Number(attacker.money) + attackerSnapshot.moneyDelta).toFixed(2);
       attacker.cansaco = attackerSnapshot.cansacoAfter;
     }
 
@@ -374,7 +370,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     }
 
     defender.hp = input.defender.hpAfter;
-    defender.money = input.defender.moneyAfter.toFixed(2);
+    defender.money = (Number(defender.money) + input.defender.moneyDelta).toFixed(2);
   }
 
   async persistAssault(input: Parameters<PvpRepository['persistAssault']>[0]) {
@@ -391,7 +387,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     attacker.hp = input.attacker.hpAfter;
     attacker.inteligencia = input.attacker.attributes.inteligencia;
     attacker.level = input.attacker.levelAfter;
-    attacker.money = input.attacker.moneyAfter.toFixed(2);
+    attacker.money = (Number(attacker.money) + input.attacker.moneyDelta).toFixed(2);
     attacker.resistencia = input.attacker.attributes.resistencia;
     attacker.cansaco = input.attacker.cansacoAfter;
 
@@ -399,7 +395,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     defender.forca = input.defender.attributes.forca;
     defender.hp = input.defender.hpAfter;
     defender.inteligencia = input.defender.attributes.inteligencia;
-    defender.money = input.defender.moneyAfter.toFixed(2);
+    defender.money = (Number(defender.money) + input.defender.moneyDelta).toFixed(2);
     defender.resistencia = input.defender.attributes.resistencia;
 
   }
