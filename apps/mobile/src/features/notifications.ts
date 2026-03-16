@@ -8,7 +8,12 @@ import {
 import { type EventNotificationItem } from './events';
 import { resolveContractNotificationLabel } from './contracts';
 import { type AsyncActivityCue } from './activity-results';
+import { type EventResultCue } from './event-results';
 import { type FactionPromotionCue } from './faction-promotion';
+import { type PrivateMessageCue } from './private-messages';
+import { type SabotageCue } from './sabotage';
+import { type TerritoryLossCue } from './territory-loss';
+import { type TribunalCue } from './tribunal-results';
 import { type WarResultCue } from './war-results';
 
 export type NotificationPermissionState = 'denied' | 'granted' | 'undetermined';
@@ -50,6 +55,26 @@ export function buildWarResultNotificationDraft(
   };
 }
 
+export function buildTerritoryLossNotificationDraft(
+  cue: Pick<TerritoryLossCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildEventResultNotificationDraft(
+  cue: Pick<EventResultCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
 export function buildAsyncActivityNotificationDraft(
   cue: Pick<AsyncActivityCue, 'body' | 'key' | 'title'>,
 ): LocalNotificationDraft {
@@ -62,6 +87,36 @@ export function buildAsyncActivityNotificationDraft(
 
 export function buildFactionPromotionNotificationDraft(
   cue: Pick<FactionPromotionCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildPrivateMessageNotificationDraft(
+  cue: Pick<PrivateMessageCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildSabotageNotificationDraft(
+  cue: Pick<SabotageCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
+export function buildTribunalCueNotificationDraft(
+  cue: Pick<TribunalCue, 'body' | 'key' | 'title'>,
 ): LocalNotificationDraft {
   return {
     body: cue.body,

@@ -5,6 +5,7 @@ import {
   SLOT_MACHINE_DEFAULT_MAX_BET,
   SLOT_MACHINE_DEFAULT_MIN_BET,
   SLOT_MACHINE_INSTALL_COST,
+  type GpTemplateSummary,
   type OwnedPropertySummary,
 } from '@cs-rio/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,6 +14,9 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import {
+  buildPuteiroAcquisitionState,
+  buildPuteiroDashboardSnapshot,
+  buildSlotMachineAcquisitionState,
   countOperationalAlerts,
   countReadyOperations,
   filterPropertiesByTab,
@@ -21,12 +25,16 @@ import {
   type OperationsDashboardData,
   type OperationsTab,
   isBusinessProperty,
+  resolveOperationsTabDescription,
+  resolveOperationsTabLabel,
   resolvePropertyOperationSnapshot,
+  resolvePropertyAssetClassLabel,
   resolvePropertyRegionLabel,
   resolvePropertyTypeLabel,
   resolvePropertyUtilityLines,
+  resolvePuteiroWorkerStatusLabel,
   sumCollectableCash,
-  sumPropertyPrestige,
+  sumPropertyDailyUpkeep,
 } from '../features/operations';
 import {
   bocaApi,
@@ -44,6 +52,11 @@ import { colors } from '../theme/colors';
 
 const HIRE_QUANTITY_OPTIONS = [1, 3, 5] as const;
 
+interface OperationResultState {
+  message: string;
+  title: string;
+}
+
 export function OperationsScreen(): JSX.Element {
   const route = useRoute<RouteProp<RootStackParamList, 'Operations'>>();
   const player = useAuthStore((state) => state.player);
@@ -51,11 +64,14 @@ export function OperationsScreen(): JSX.Element {
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
   const [dashboard, setDashboard] = useState<OperationsDashboardData | null>(null);
   const [activeTab, setActiveTab] = useState<OperationsTab>(route.params?.initialTab ?? 'business');
+  const [pendingFocusPropertyId, setPendingFocusPropertyId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
     route.params?.focusPropertyId ?? null,
   );
   const [selectedSoldierType, setSelectedSoldierType] = useState<string | null>(null);
   const [hireQuantity, setHireQuantity] = useState<(typeof HIRE_QUANTITY_OPTIONS)[number]>(1);
+  const [selectedGpType, setSelectedGpType] = useState<GpTemplateSummary['type'] | null>(null);
+  const [gpHireQuantity, setGpHireQuantity] = useState<(typeof HIRE_QUANTITY_OPTIONS)[number]>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,9 +86,9 @@ export function OperationsScreen(): JSX.Element {
   );
   const [slotMachineMinBetInput, setSlotMachineMinBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MIN_BET));
   const [slotMachineMaxBetInput, setSlotMachineMaxBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MAX_BET));
-  const [slotMachineResultMessage, setSlotMachineResultMessage] = useState<string | null>(null);
+  const [operationResult, setOperationResult] = useState<OperationResultState | null>(null);
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (): Promise<OperationsDashboardData | null> => {
     setError(null);
     setIsLoading(true);
 
@@ -96,7 +112,7 @@ export function OperationsScreen(): JSX.Element {
         refreshPlayerProfile(),
       ]);
 
-      setDashboard({
+      const nextDashboard = {
         bocaBook,
         factoryBook,
         frontStoreBook,
@@ -104,9 +120,13 @@ export function OperationsScreen(): JSX.Element {
         puteiroBook,
         raveBook,
         slotMachineBook,
-      });
+      };
+
+      setDashboard(nextDashboard);
+      return nextDashboard;
     } catch (nextError) {
       setError(formatApiError(nextError).message);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -139,12 +159,16 @@ export function OperationsScreen(): JSX.Element {
       return;
     }
 
-    const focusedById = route.params?.focusPropertyId
-      ? allProperties.find((property) => property.id === route.params?.focusPropertyId) ?? null
-      : null;
-    const focusedByType = route.params?.focusPropertyType
-      ? allProperties.find((property) => property.type === route.params?.focusPropertyType) ?? null
-      : null;
+    const focusedById = pendingFocusPropertyId
+      ? allProperties.find((property) => property.id === pendingFocusPropertyId) ?? null
+      : route.params?.focusPropertyId
+        ? allProperties.find((property) => property.id === route.params?.focusPropertyId) ?? null
+        : null;
+    const focusedByType = pendingFocusPropertyId
+      ? null
+      : route.params?.focusPropertyType
+        ? allProperties.find((property) => property.type === route.params?.focusPropertyType) ?? null
+        : null;
     const preferredProperty = focusedById ?? focusedByType;
 
     if (preferredProperty) {
@@ -157,6 +181,10 @@ export function OperationsScreen(): JSX.Element {
       if (preferredProperty.id !== selectedPropertyId) {
         setSelectedPropertyId(preferredProperty.id);
       }
+
+      if (pendingFocusPropertyId === preferredProperty.id) {
+        setPendingFocusPropertyId(null);
+      }
       return;
     }
 
@@ -167,6 +195,7 @@ export function OperationsScreen(): JSX.Element {
     activeTab,
     allProperties,
     filteredProperties,
+    pendingFocusPropertyId,
     route.params?.focusPropertyId,
     route.params?.focusPropertyType,
     selectedPropertyId,
@@ -189,19 +218,64 @@ export function OperationsScreen(): JSX.Element {
       null,
     [dashboard?.slotMachineBook.slotMachines, selectedProperty?.id],
   );
-  const availableSlotMachineDefinition = useMemo(
+  const selectedPuteiro = useMemo(
     () =>
-      dashboard?.propertyBook.availableProperties.find(
-        (propertyDefinition) => propertyDefinition.type === 'slot_machine',
-      ) ?? null,
-    [dashboard?.propertyBook.availableProperties],
+      dashboard?.puteiroBook.puteiros.find((entry) => entry.id === selectedProperty?.id) ??
+      null,
+    [dashboard?.puteiroBook.puteiros, selectedProperty?.id],
   );
-  const ownedSlotMachineCount = useMemo(
-    () => allProperties.filter((property) => property.type === 'slot_machine').length,
-    [allProperties],
+  const slotMachineAcquisition = useMemo(
+    () =>
+      buildSlotMachineAcquisitionState({
+        availableProperties: dashboard?.propertyBook.availableProperties ?? [],
+        ownedProperties: allProperties,
+        playerLevel: player?.level ?? 0,
+        playerMoney: player?.resources.money ?? 0,
+        playerRegionId: player?.regionId ?? null,
+      }),
+    [
+      allProperties,
+      dashboard?.propertyBook.availableProperties,
+      player?.level,
+      player?.regionId,
+      player?.resources.money,
+    ],
   );
+  const puteiroAcquisition = useMemo(
+    () =>
+      buildPuteiroAcquisitionState({
+        availableProperties: dashboard?.propertyBook.availableProperties ?? [],
+        gpTemplates: dashboard?.puteiroBook.templates ?? [],
+        ownedProperties: allProperties,
+        playerLevel: player?.level ?? 0,
+        playerMoney: player?.resources.money ?? 0,
+        playerRegionId: player?.regionId ?? null,
+      }),
+    [
+      allProperties,
+      dashboard?.propertyBook.availableProperties,
+      dashboard?.puteiroBook.templates,
+      player?.level,
+      player?.regionId,
+      player?.resources.money,
+    ],
+  );
+  const showSlotMachineOffer =
+    activeTab === 'business' && Boolean(slotMachineAcquisition.definition) && !slotMachineAcquisition.isOwned;
+  const showPuteiroOffer =
+    activeTab === 'business' && Boolean(puteiroAcquisition.definition) && !puteiroAcquisition.isOwned;
   const isSlotMachineDiscoveryActive =
-    route.params?.focusPropertyType === 'slot_machine' || selectedProperty?.type === 'slot_machine';
+    route.params?.focusPropertyType === 'slot_machine' ||
+    selectedProperty?.type === 'slot_machine' ||
+    showSlotMachineOffer;
+  const isPuteiroDiscoveryActive =
+    route.params?.focusPropertyType === 'puteiro' ||
+    selectedProperty?.type === 'puteiro' ||
+    showPuteiroOffer;
+  const puteiroDashboardSnapshot = useMemo(
+    () => (selectedPuteiro ? buildPuteiroDashboardSnapshot(selectedPuteiro) : null),
+    [selectedPuteiro],
+  );
   const unlockedSoldierTemplates = useMemo(
     () =>
       (dashboard?.propertyBook.soldierTemplates ?? []).filter(
@@ -215,6 +289,13 @@ export function OperationsScreen(): JSX.Element {
       unlockedSoldierTemplates[0] ??
       null,
     [selectedSoldierType, unlockedSoldierTemplates],
+  );
+  const selectedGpTemplate = useMemo(
+    () =>
+      (dashboard?.puteiroBook.templates ?? []).find((template) => template.type === selectedGpType) ??
+      dashboard?.puteiroBook.templates[0] ??
+      null,
+    [dashboard?.puteiroBook.templates, selectedGpType],
   );
 
   useEffect(() => {
@@ -232,6 +313,40 @@ export function OperationsScreen(): JSX.Element {
       setSelectedSoldierType(null);
     }
   }, [selectedSoldierTemplate, selectedSoldierType, unlockedSoldierTemplates]);
+
+  useEffect(() => {
+    const templates = dashboard?.puteiroBook.templates ?? [];
+
+    if (!selectedGpTemplate && templates.length > 0) {
+      setSelectedGpType(templates[0]?.type ?? null);
+      return;
+    }
+
+    if (selectedGpTemplate && selectedGpTemplate.type !== selectedGpType) {
+      setSelectedGpType(selectedGpTemplate.type);
+      return;
+    }
+
+    if (templates.length === 0) {
+      setSelectedGpType(null);
+    }
+  }, [dashboard?.puteiroBook.templates, selectedGpTemplate, selectedGpType]);
+
+  useEffect(() => {
+    const availableSlots = selectedPuteiro?.economics.availableSlots ?? 0;
+
+    if (availableSlots <= 0) {
+      return;
+    }
+
+    if (gpHireQuantity <= availableSlots) {
+      return;
+    }
+
+    const nextQuantity =
+      [...HIRE_QUANTITY_OPTIONS].reverse().find((quantity) => quantity <= availableSlots) ?? 1;
+    setGpHireQuantity(nextQuantity);
+  }, [gpHireQuantity, selectedPuteiro?.economics.availableSlots]);
 
   useEffect(() => {
     if (!selectedSlotMachine) {
@@ -264,15 +379,15 @@ export function OperationsScreen(): JSX.Element {
           slotMachineBook: { slotMachines: [] },
         },
       ),
+      dailyUpkeep: sumPropertyDailyUpkeep(ownedProperties),
       patrimonyCount,
-      prestige: sumPropertyPrestige(ownedProperties),
       readyOperations: dashboard ? countReadyOperations(dashboard) : 0,
     };
   }, [dashboard]);
 
   const handleRefresh = useCallback(async () => {
-    setFeedback('Patrimônio sincronizado. A manutenção é debitada automaticamente quando houver saldo.');
-    setBootstrapStatus('Patrimônio sincronizado com o backend autoritativo.');
+    setFeedback('Ativos sincronizados. A manutenção é debitada automaticamente quando houver saldo.');
+    setBootstrapStatus('Ativos sincronizados com o backend autoritativo.');
     await loadDashboard();
   }, [loadDashboard, setBootstrapStatus]);
 
@@ -340,8 +455,11 @@ export function OperationsScreen(): JSX.Element {
     try {
       const message = await collectPropertyOperation(selectedProperty);
       setFeedback(message);
-      if (selectedProperty.type === 'slot_machine') {
-        setSlotMachineResultMessage(message);
+      if (selectedProperty.type === 'slot_machine' || selectedProperty.type === 'puteiro') {
+        setOperationResult({
+          message,
+          title: selectedProperty.type === 'puteiro' ? 'Puteiro atualizado' : 'Maquininha atualizada',
+        });
       }
       setBootstrapStatus(message);
       await loadDashboard();
@@ -374,7 +492,10 @@ export function OperationsScreen(): JSX.Element {
       });
       const message = `${response.installedQuantity} maquina(s) instalada(s). Custo total ${formatOperationsCurrency(response.totalInstallCost)}.`;
       setFeedback(message);
-      setSlotMachineResultMessage(message);
+      setOperationResult({
+        message,
+        title: 'Maquininha atualizada',
+      });
       setBootstrapStatus(message);
       setSlotMachineActionMode(null);
       await loadDashboard();
@@ -384,6 +505,41 @@ export function OperationsScreen(): JSX.Element {
       setIsSubmitting(false);
     }
   }, [loadDashboard, selectedProperty, setBootstrapStatus, slotMachineInstallQuantityInput]);
+
+  const handlePurchaseSlotMachine = useCallback(async () => {
+    if (!slotMachineAcquisition.definition || !slotMachineAcquisition.purchaseInput) {
+      setError(slotMachineAcquisition.blockerLabel ?? 'Nao foi possivel montar a compra da maquininha.');
+      return;
+    }
+
+    if (!slotMachineAcquisition.canPurchase) {
+      setError(slotMachineAcquisition.blockerLabel ?? 'A compra da maquininha ainda nao esta liberada.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await propertyApi.purchase(slotMachineAcquisition.purchaseInput);
+      const message = `${response.property.definition.label} comprada por ${formatOperationsCurrency(response.purchaseCost)} em ${resolvePropertyRegionLabel(response.property.regionId)}. Proximo passo: instalar as maquinas do ponto.`;
+      setFeedback(message);
+      setOperationResult({
+        message,
+        title: 'Maquininha atualizada',
+      });
+      setBootstrapStatus(message);
+      setActiveTab('business');
+      setPendingFocusPropertyId(response.property.id);
+      setSelectedPropertyId(response.property.id);
+      setSlotMachineActionMode('install');
+      await loadDashboard();
+    } catch (nextError) {
+      setError(formatApiError(nextError).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [loadDashboard, setBootstrapStatus, slotMachineAcquisition]);
 
   const handleConfigureSlotMachine = useCallback(async () => {
     if (!selectedProperty || selectedProperty.type !== 'slot_machine') {
@@ -413,7 +569,10 @@ export function OperationsScreen(): JSX.Element {
       });
       const message = `Maquininha configurada. Casa ${formatPercent(houseEdge)} · jackpot ${formatPercent(jackpotChance)} · faixa ${formatOperationsCurrency(minBet)} → ${formatOperationsCurrency(maxBet)}.`;
       setFeedback(message);
-      setSlotMachineResultMessage(message);
+      setOperationResult({
+        message,
+        title: 'Maquininha atualizada',
+      });
       setBootstrapStatus(message);
       setSlotMachineActionMode(null);
       await loadDashboard();
@@ -430,6 +589,96 @@ export function OperationsScreen(): JSX.Element {
     slotMachineJackpotInput,
     slotMachineMaxBetInput,
     slotMachineMinBetInput,
+  ]);
+
+  const handlePurchasePuteiro = useCallback(async () => {
+    if (!puteiroAcquisition.definition || !puteiroAcquisition.purchaseInput) {
+      setError(puteiroAcquisition.blockerLabel ?? 'Nao foi possivel montar a compra do puteiro.');
+      return;
+    }
+
+    if (!puteiroAcquisition.canPurchase) {
+      setError(puteiroAcquisition.blockerLabel ?? 'A compra do puteiro ainda nao esta liberada.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await propertyApi.purchase(puteiroAcquisition.purchaseInput);
+      const message = `${response.property.definition.label} comprado por ${formatOperationsCurrency(response.purchaseCost)} em ${resolvePropertyRegionLabel(response.property.regionId)}. Proximo passo: contratar o elenco para começar a girar caixa.`;
+      setFeedback(message);
+      setOperationResult({
+        message,
+        title: 'Puteiro atualizado',
+      });
+      setBootstrapStatus(message);
+      setActiveTab('business');
+      setPendingFocusPropertyId(response.property.id);
+      setSelectedPropertyId(response.property.id);
+      await loadDashboard();
+    } catch (nextError) {
+      setError(formatApiError(nextError).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [loadDashboard, puteiroAcquisition, setBootstrapStatus]);
+
+  const handleHireGps = useCallback(async () => {
+    if (!selectedProperty || selectedProperty.type !== 'puteiro') {
+      setError('Selecione um puteiro antes de contratar GPs.');
+      return;
+    }
+
+    if (!selectedPuteiro) {
+      setError('Painel do puteiro indisponível. Sincronize e tente novamente.');
+      return;
+    }
+
+    if (!selectedGpTemplate) {
+      setError('Selecione um template de GP antes de contratar.');
+      return;
+    }
+
+    if (selectedPuteiro.economics.availableSlots <= 0) {
+      setError('Lotação máxima atingida. Aguarde vagas ou reduza o elenco antes de contratar.');
+      return;
+    }
+
+    if (gpHireQuantity > selectedPuteiro.economics.availableSlots) {
+      setError(`Só restam ${selectedPuteiro.economics.availableSlots} vaga(s) livres nesse puteiro.`);
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const response = await puteiroApi.hireGps(selectedProperty.id, {
+        quantity: gpHireQuantity,
+        type: selectedGpTemplate.type,
+      });
+      const message = `${response.hiredGps.length}x ${selectedGpTemplate.label} contratada(s) por ${formatOperationsCurrency(response.totalPurchaseCost)}. Lotação ${response.puteiro.economics.activeGps}/${response.puteiro.economics.capacity}.`;
+      setFeedback(message);
+      setOperationResult({
+        message,
+        title: 'Puteiro atualizado',
+      });
+      setBootstrapStatus(message);
+      await loadDashboard();
+    } catch (nextError) {
+      setError(formatApiError(nextError).message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    gpHireQuantity,
+    loadDashboard,
+    selectedGpTemplate,
+    selectedProperty,
+    selectedPuteiro,
+    setBootstrapStatus,
   ]);
 
   const canUpgrade =
@@ -451,16 +700,30 @@ export function OperationsScreen(): JSX.Element {
     Boolean(selectedProperty && selectedProperty.type === 'slot_machine' && selectedSlotMachine) &&
     !isLoading &&
     !isSubmitting;
+  const canPurchaseSlotMachine =
+    slotMachineAcquisition.canPurchase && !isLoading && !isSubmitting;
+  const canPurchasePuteiro =
+    puteiroAcquisition.canPurchase && !isLoading && !isSubmitting;
+  const canHireGps =
+    Boolean(
+      selectedProperty &&
+        selectedProperty.type === 'puteiro' &&
+        selectedPuteiro &&
+        selectedGpTemplate &&
+        selectedPuteiro.economics.availableSlots >= gpHireQuantity,
+    ) &&
+    !isLoading &&
+    !isSubmitting;
 
   return (
     <InGameScreenLayout
-      subtitle="Painel unificado do patrimônio: sincronize manutenção, acompanhe risco e proteção, colete receita e reforce a segurança dos ativos do jogador."
-      title="Negócios e Patrimônio"
+      subtitle="Separe o que gira caixa do que sustenta mobilidade, proteção, slots e recuperação do personagem."
+      title="Operações e Base"
     >
       <View style={styles.summaryGrid}>
-        <SummaryCard label="Negócios" tone={colors.accent} value={`${summary.businessCount}`} />
-        <SummaryCard label="Patrimônio" tone={colors.info} value={`${summary.patrimonyCount}`} />
-        <SummaryCard label="Prestígio" tone={colors.success} value={`${Math.round(summary.prestige)}`} />
+        <SummaryCard label="Operações" tone={colors.accent} value={`${summary.businessCount}`} />
+        <SummaryCard label="Base" tone={colors.info} value={`${summary.patrimonyCount}`} />
+        <SummaryCard label="Custo/dia" tone={colors.success} value={formatOperationsCurrency(summary.dailyUpkeep)} />
         <SummaryCard label="Caixa pronto" tone={colors.warning} value={formatOperationsCurrency(summary.cashReady)} />
         <SummaryCard label="Coletas" tone={colors.accent} value={`${summary.readyOperations}`} />
         <SummaryCard label="Alertas" tone={colors.danger} value={`${summary.alerts}`} />
@@ -480,7 +743,8 @@ export function OperationsScreen(): JSX.Element {
               pressed ? styles.buttonPressed : null,
             ]}
           >
-            <Text style={styles.tabButtonLabel}>{tab === 'business' ? 'Negócios' : 'Patrimônio'}</Text>
+            <Text style={styles.tabButtonLabel}>{resolveOperationsTabLabel(tab)}</Text>
+            <Text style={styles.tabButtonCopy}>{resolveOperationsTabDescription(tab)}</Text>
           </Pressable>
         ))}
       </View>
@@ -493,18 +757,18 @@ export function OperationsScreen(): JSX.Element {
           <Text style={styles.sectionTitle}>Radar da Maquininha</Text>
           <View style={styles.detailCard}>
             <Text style={styles.infoBlockCopy}>
-              Maquininha é negócio passivo. Você instala as máquinas, regula aposta mínima/máxima, margem da casa e jackpot, e depois coleta o caixa.
+              Maquininha é uma operação semi-passiva da sua base comercial. Você instala as máquinas, regula aposta mínima/máxima, margem da casa e jackpot, e depois coleta o caixa.
             </Text>
             <Text style={styles.infoBlockCopy}>
               Diferente do Jogo do Bicho, aqui não existe aposta manual do jogador: o foco é configurar a operação e rentabilizar o ponto.
             </Text>
             <View style={styles.metricRow}>
-              <MetricPill label="Suas máquinas" value={`${ownedSlotMachineCount}`} />
+              <MetricPill label="Suas máquinas" value={`${slotMachineAcquisition.ownedCount}`} />
               <MetricPill
                 label="Preço base"
                 value={
-                  availableSlotMachineDefinition
-                    ? formatOperationsCurrency(availableSlotMachineDefinition.basePrice)
+                  slotMachineAcquisition.definition
+                    ? formatOperationsCurrency(slotMachineAcquisition.definition.basePrice)
                     : '--'
                 }
               />
@@ -514,9 +778,148 @@ export function OperationsScreen(): JSX.Element {
               />
               <MetricPill
                 label="Unlock"
-                value={`${availableSlotMachineDefinition?.unlockLevel ?? '--'}`}
+                value={`${slotMachineAcquisition.definition?.unlockLevel ?? '--'}`}
               />
             </View>
+            <View style={styles.metricRow}>
+              <MetricPill label="Capacidade base" value={`${slotMachineAcquisition.baseCapacity}`} />
+              <MetricPill
+                label="Ritmo inicial"
+                value={formatOperationsCurrency(slotMachineAcquisition.estimatedHourlyRevenueAtBase)}
+              />
+              <MetricPill
+                label="Sala cheia"
+                value={formatOperationsCurrency(slotMachineAcquisition.estimatedHourlyRevenueAtCapacity)}
+              />
+              <MetricPill
+                label="Defesa base"
+                value={`${slotMachineAcquisition.definition?.baseProtectionScore ?? '--'}`}
+              />
+            </View>
+            {!slotMachineAcquisition.isOwned ? (
+              <View style={styles.inlineManagementCard}>
+                <Text style={styles.inlineManagementTitle}>Compra guiada</Text>
+                <Text style={styles.inlineManagementCopy}>
+                  O ponto entra direto na sua região atual
+                  {slotMachineAcquisition.currentRegionLabel
+                    ? ` (${slotMachineAcquisition.currentRegionLabel})`
+                    : ''}
+                  , com capacidade inicial para {slotMachineAcquisition.baseCapacity} máquinas e risco operacional moderado até você reforçar a proteção.
+                </Text>
+                <Text style={styles.inlineManagementCopy}>
+                  Compra: {slotMachineAcquisition.definition ? formatOperationsCurrency(slotMachineAcquisition.definition.basePrice) : '--'} · instalação por máquina {formatOperationsCurrency(SLOT_MACHINE_INSTALL_COST)}.
+                </Text>
+                <Text style={styles.inlineManagementCopy}>
+                  Estimativa neutra do backend: {formatOperationsCurrency(slotMachineAcquisition.estimatedHourlyRevenueAtBase)}/h com 1 máquina padrão ou {formatOperationsCurrency(slotMachineAcquisition.estimatedHourlyRevenueAtCapacity)}/h com a sala base lotada.
+                </Text>
+                <Text style={styles.infoBlockCopy}>
+                  {slotMachineAcquisition.blockerLabel ??
+                    'Compra liberada. Depois da aquisição, o fluxo já cai em instalação e configuração.'}
+                </Text>
+                <Pressable
+                  disabled={!canPurchaseSlotMachine}
+                  onPress={() => {
+                    void handlePurchaseSlotMachine();
+                  }}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    !canPurchaseSlotMachine ? styles.buttonDisabled : null,
+                    pressed ? styles.buttonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.primaryButtonLabel}>
+                    {slotMachineAcquisition.canPurchase ? 'Comprar maquininha' : 'Compra indisponível'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {isPuteiroDiscoveryActive ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Radar do Puteiro</Text>
+          <View style={styles.detailCard}>
+            <Text style={styles.infoBlockCopy}>
+              Puteiro é negócio operacional. O dinheiro gira pelo elenco ativo, pela manutenção em dia e pelo quanto você controla DST nas GPs, fugas e mortes dentro da casa.
+            </Text>
+            <Text style={styles.infoBlockCopy}>
+              Não é ativo de base e não é mini-game. Você compra o ponto, contrata GPs, monitora risco sanitário e coleta o caixa da operação.
+            </Text>
+            <View style={styles.metricRow}>
+              <MetricPill label="Seus puteiros" value={`${puteiroAcquisition.ownedCount}`} />
+              <MetricPill
+                label="Preço base"
+                value={
+                  puteiroAcquisition.definition
+                    ? formatOperationsCurrency(puteiroAcquisition.definition.basePrice)
+                    : '--'
+                }
+              />
+              <MetricPill label="Capacidade" value={`${puteiroAcquisition.capacity} GPs`} />
+              <MetricPill
+                label="Unlock"
+                value={`${puteiroAcquisition.definition?.unlockLevel ?? '--'}`}
+              />
+            </View>
+            <View style={styles.metricRow}>
+              <MetricPill
+                label="Catálogo"
+                value={`${puteiroAcquisition.templatesCount} modelos`}
+              />
+              <MetricPill
+                label="Entrada"
+                value={puteiroAcquisition.entryTemplate ? puteiroAcquisition.entryTemplate.label : '--'}
+              />
+              <MetricPill
+                label="Custo inicial"
+                value={
+                  puteiroAcquisition.entryTemplate
+                    ? formatOperationsCurrency(puteiroAcquisition.entryTemplate.purchasePrice)
+                    : '--'
+                }
+              />
+              <MetricPill
+                label="Ritmo base"
+                value={formatOperationsCurrency(puteiroAcquisition.estimatedHourlyRevenueAtEntry)}
+              />
+            </View>
+            {!puteiroAcquisition.isOwned ? (
+              <View style={styles.inlineManagementCard}>
+                <Text style={styles.inlineManagementTitle}>Compra guiada</Text>
+                <Text style={styles.inlineManagementCopy}>
+                  O ponto entra direto na sua região atual
+                  {puteiroAcquisition.currentRegionLabel ? ` (${puteiroAcquisition.currentRegionLabel})` : ''}
+                  . Depois da compra, o próximo passo é contratar o elenco para começar a girar caixa.
+                </Text>
+                <Text style={styles.inlineManagementCopy}>
+                  Compra: {puteiroAcquisition.definition ? formatOperationsCurrency(puteiroAcquisition.definition.basePrice) : '--'} · primeira contratação sugerida: {puteiroAcquisition.entryTemplate ? `${puteiroAcquisition.entryTemplate.label} por ${formatOperationsCurrency(puteiroAcquisition.entryTemplate.purchasePrice)}` : '--'}.
+                </Text>
+                <Text style={styles.inlineManagementCopy}>
+                  Estimativa autoritativa: {formatOperationsCurrency(puteiroAcquisition.estimatedHourlyRevenueAtEntry)}/h para abrir o giro com 1 GP e até {formatOperationsCurrency(puteiroAcquisition.estimatedHourlyRevenueAtCapacity)}/h com a casa cheia no teto atual.
+                </Text>
+                <Text style={styles.infoBlockCopy}>
+                  {puteiroAcquisition.blockerLabel ??
+                    'Compra liberada. Depois disso, a tela foca o ativo e abre o fluxo de contratação.'}
+                </Text>
+                <Pressable
+                  disabled={!canPurchasePuteiro}
+                  onPress={() => {
+                    void handlePurchasePuteiro();
+                  }}
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    !canPurchasePuteiro ? styles.buttonDisabled : null,
+                    pressed ? styles.buttonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.primaryButtonLabel}>
+                    {puteiroAcquisition.canPurchase ? 'Comprar puteiro' : 'Compra indisponível'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -524,7 +927,7 @@ export function OperationsScreen(): JSX.Element {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {activeTab === 'business' ? 'Operações do jogador' : 'Ativos patrimoniais'}
+            {activeTab === 'business' ? 'Operações em carteira' : 'Base e logística do personagem'}
           </Text>
           <Pressable
             onPress={() => {
@@ -574,18 +977,25 @@ export function OperationsScreen(): JSX.Element {
                   </View>
 
                   <View style={styles.metricRow}>
-                    <MetricPill label="Prestígio" value={`${Math.round(property.economics.effectivePrestigeScore)}`} />
+                    <MetricPill label="Classe" value={resolvePropertyAssetClassLabel(property.definition)} />
                     <MetricPill label="Defesa" value={`${Math.round(property.protection.defenseScore)}`} />
                     <MetricPill label="Upkeep" value={formatOperationsCurrency(property.economics.totalDailyUpkeep)} />
                   </View>
 
-                  {operation ? (
+                  {property.type === 'puteiro' ? (
+                    <Text style={styles.propertyCardCopy}>
+                      {selectedPuteiro?.id === property.id && puteiroDashboardSnapshot
+                        ? `${puteiroDashboardSnapshot.operatingHeadline} Caixa ${formatOperationsCurrency(selectedPuteiro.cashbox.availableToCollect)}.`
+                        : `${operation?.statusLabel ?? 'Operação'} · negócio de elenco, risco sanitário e caixa.`}
+                    </Text>
+                  ) : operation ? (
                     <Text style={styles.propertyCardCopy}>
                       {operation.statusLabel} · {operation.collectableLabel} prontos
                     </Text>
                   ) : (
                     <Text style={styles.propertyCardCopy}>
-                      Ativo patrimonial sem renda direta, com proteção e desgaste próprios.
+                      {resolvePropertyUtilityLines(property.definition)[0] ??
+                        'Ativo de base sem renda direta, voltado a mobilidade, proteção ou expansão do personagem.'}
                     </Text>
                   )}
                 </Pressable>
@@ -596,10 +1006,10 @@ export function OperationsScreen(): JSX.Element {
           <EmptyState
             copy={
               activeTab === 'business'
-                ? route.params?.focusPropertyType === 'slot_machine'
-                  ? 'Você ainda não tem nenhuma maquininha ativa. Compre o ativo no patrimônio e depois volte aqui para instalar, configurar e coletar o caixa.'
+                ? showSlotMachineOffer || showPuteiroOffer
+                  ? 'Nenhum negócio ativo ainda. Use os radares acima para comprar um ativo operacional, abrir a operação e começar a girar caixa.'
                   : 'Nenhum negócio ativo ainda. Compre ou provisione um ativo operacional para ver caixa e coleta.'
-                : 'Nenhum patrimônio pessoal comprado ainda. Os ativos entram aqui com prestígio, utilidade e risco.'
+                : 'Nenhuma base comprada ainda. Imóveis, veículos e luxo entram aqui para ampliar mobilidade, slots, recuperação e proteção.'
             }
           />
         )}
@@ -644,9 +1054,14 @@ export function OperationsScreen(): JSX.Element {
               </View>
 
               <View style={styles.infoBlock}>
-                <Text style={styles.infoBlockTitle}>Prestígio e utilidade</Text>
+                <Text style={styles.infoBlockTitle}>Perfil e utilidade</Text>
                 <Text style={styles.infoBlockCopy}>
-                  Prestígio efetivo: {Math.round(selectedProperty.economics.effectivePrestigeScore)} · Classe {selectedProperty.definition.assetClass}
+                  Classe {resolvePropertyAssetClassLabel(selectedProperty.definition)} · {selectedProperty.definition.profitable ? 'gera caixa quando operado' : 'não gera caixa direto; sustenta sua base'}
+                </Text>
+                <Text style={styles.infoBlockCopy}>
+                  {selectedProperty.definition.profitable
+                    ? `Capacidade de soldados: ${selectedProperty.definition.soldierCapacity} · comissão faccional ${formatPercent(selectedProperty.economics.effectiveFactionCommissionRate)}`
+                    : `Capacidade de soldados: ${selectedProperty.definition.soldierCapacity} · foco em logística, proteção e utilidade permanente`}
                 </Text>
                 {resolvePropertyUtilityLines(selectedProperty.definition).map((line) => (
                   <Text key={line} style={styles.infoBlockCopy}>
@@ -672,11 +1087,168 @@ export function OperationsScreen(): JSX.Element {
                 </View>
               ) : null}
 
+              {selectedProperty.type === 'puteiro' && selectedPuteiro && puteiroDashboardSnapshot ? (
+                <View style={styles.infoBlock}>
+                  <Text style={styles.infoBlockTitle}>Casa e elenco</Text>
+                  <Text style={styles.infoBlockCopy}>{puteiroDashboardSnapshot.operatingHeadline}</Text>
+                  <Text style={styles.infoBlockCopy}>{puteiroDashboardSnapshot.nextStepCopy}</Text>
+                  <View style={styles.metricRow}>
+                    <MetricPill
+                      label="Ativas"
+                      value={`${selectedPuteiro.economics.activeGps}/${selectedPuteiro.economics.capacity}`}
+                    />
+                    <MetricPill
+                      label="Vagas"
+                      value={`${selectedPuteiro.economics.availableSlots}`}
+                    />
+                    <MetricPill
+                      label="Caixa"
+                      value={formatOperationsCurrency(selectedPuteiro.cashbox.availableToCollect)}
+                    />
+                    <MetricPill
+                      label="Receita/h"
+                      value={formatOperationsCurrency(selectedPuteiro.economics.estimatedHourlyGrossRevenue)}
+                    />
+                  </View>
+                  <View style={styles.metricRow}>
+                    <MetricPill
+                      label="Comissão"
+                      value={formatPercent(selectedPuteiro.economics.effectiveFactionCommissionRate)}
+                    />
+                    <MetricPill
+                      label="Carisma"
+                      value={`x${selectedPuteiro.economics.charismaMultiplier.toFixed(2)}`}
+                    />
+                    <MetricPill
+                      label="Local"
+                      value={`x${selectedPuteiro.economics.locationMultiplier.toFixed(2)}`}
+                    />
+                    <MetricPill
+                      label="Ciclo"
+                      value={`${selectedPuteiro.economics.cycleMinutes} min`}
+                    />
+                  </View>
+                  <Text style={styles.infoBlockCopy}>
+                    {puteiroDashboardSnapshot.workerStatusSummary}
+                  </Text>
+                  <Text style={styles.infoBlockCopy}>
+                    {puteiroDashboardSnapshot.incidentSummary}
+                  </Text>
+
+                  {selectedPuteiro.roster.length > 0 ? (
+                    <View style={styles.cardList}>
+                      {selectedPuteiro.roster.map((worker) => (
+                        <View key={worker.id} style={styles.rosterCard}>
+                          <Text style={styles.rosterTitle}>
+                            {worker.label} · {resolvePuteiroWorkerStatusLabel(worker)}
+                          </Text>
+                          <Text style={styles.rosterCopy}>
+                            Receita/h {formatOperationsCurrency(worker.hourlyGrossRevenueEstimate)} · compra {formatOperationsCurrency(worker.purchasePrice)} · recuperação {Math.round(worker.cansacoRestorePercent * 100)}%
+                          </Text>
+                          <Text style={styles.rosterCopy}>
+                            Risco ciclo: DST {formatPercent(worker.incidentRisk.dstChancePerCycle)} · fuga {formatPercent(worker.incidentRisk.escapeChancePerCycle)} · morte {formatPercent(worker.incidentRisk.deathChancePerCycle)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.infoBlockCopy}>
+                      Nenhuma GP ativa. Sem elenco, o caixa do puteiro não gira.
+                    </Text>
+                  )}
+
+                  <View style={styles.inlineManagementCard}>
+                    <Text style={styles.inlineManagementTitle}>Contratação de GPs</Text>
+                    <Text style={styles.inlineManagementCopy}>
+                      Escolha o perfil do elenco, a quantidade e feche a compra direto aqui. O risco sanitário e operacional acompanha a qualidade e a lotação da casa, sempre restrito às GPs.
+                    </Text>
+
+                    {(dashboard?.puteiroBook.templates ?? []).length > 0 ? (
+                      <>
+                        <View style={styles.choiceRow}>
+                          {(dashboard?.puteiroBook.templates ?? []).map((template) => (
+                            <Pressable
+                              key={template.type}
+                              onPress={() => {
+                                setSelectedGpType(template.type);
+                              }}
+                              style={({ pressed }) => [
+                                styles.choiceChip,
+                                selectedGpTemplate?.type === template.type ? styles.choiceChipSelected : null,
+                                pressed ? styles.buttonPressed : null,
+                              ]}
+                            >
+                              <Text style={styles.choiceChipTitle}>{template.label}</Text>
+                              <Text style={styles.choiceChipCopy}>
+                                Compra {formatOperationsCurrency(template.purchasePrice)} · base/dia {formatOperationsCurrency(template.baseDailyRevenue)}
+                              </Text>
+                              <Text style={styles.choiceChipCopy}>
+                                Recuperação {Math.round(template.cansacoRestorePercent * 100)}% · giro/h {formatOperationsCurrency(template.baseDailyRevenue / 24)}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+
+                        <View style={styles.quantityRow}>
+                          {HIRE_QUANTITY_OPTIONS.map((quantity) => {
+                            const quantityDisabled = quantity > (selectedPuteiro.economics.availableSlots || 0);
+
+                            return (
+                              <Pressable
+                                disabled={quantityDisabled}
+                                key={quantity}
+                                onPress={() => {
+                                  setGpHireQuantity(quantity);
+                                }}
+                                style={({ pressed }) => [
+                                  styles.quantityChip,
+                                  gpHireQuantity === quantity ? styles.quantityChipSelected : null,
+                                  quantityDisabled ? styles.buttonDisabled : null,
+                                  pressed && !quantityDisabled ? styles.buttonPressed : null,
+                                ]}
+                              >
+                                <Text style={styles.quantityChipLabel}>{quantity}x</Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+
+                        <Text style={styles.infoBlockCopy}>
+                          {selectedPuteiro.economics.availableSlots > 0
+                            ? `Cabem mais ${selectedPuteiro.economics.availableSlots} GP(s) nessa casa.`
+                            : 'Lotação máxima atingida. O próximo foco é coleta, manutenção e controle de incidentes.'}
+                        </Text>
+
+                        <Pressable
+                          disabled={!canHireGps}
+                          onPress={() => {
+                            void handleHireGps();
+                          }}
+                          style={({ pressed }) => [
+                            styles.primaryButton,
+                            !canHireGps ? styles.buttonDisabled : null,
+                            pressed ? styles.buttonPressed : null,
+                          ]}
+                        >
+                          <Text style={styles.primaryButtonLabel}>
+                            Contratar {gpHireQuantity}x {selectedGpTemplate?.label ?? 'GP'}
+                          </Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Text style={styles.infoBlockCopy}>
+                        O catálogo de GPs não foi carregado. Sincronize novamente para liberar a contratação.
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ) : null}
+
               {selectedProperty.type === 'slot_machine' && selectedSlotMachine ? (
                 <View style={styles.infoBlock}>
                   <Text style={styles.infoBlockTitle}>Mesa da maquininha</Text>
                   <Text style={styles.infoBlockCopy}>
-                    Negócio passivo do patrimônio. Ajuste a casa, a faixa de aposta e o jackpot para puxar tráfego, depois colete o caixa.
+                    Operação semi-passiva da sua base comercial. Ajuste a casa, a faixa de aposta e o jackpot para puxar tráfego, depois colete o caixa.
                   </Text>
                   <View style={styles.metricRow}>
                     <MetricPill
@@ -974,11 +1546,11 @@ export function OperationsScreen(): JSX.Element {
         </>
       ) : null}
       <OperationResultModal
-        message={slotMachineResultMessage}
+        message={operationResult?.message ?? null}
         onClose={() => {
-          setSlotMachineResultMessage(null);
+          setOperationResult(null);
         }}
-        title="Maquininha atualizada"
+        title={operationResult?.title ?? 'Operação atualizada'}
       />
     </InGameScreenLayout>
   );
@@ -1014,7 +1586,7 @@ export function OperationsScreen(): JSX.Element {
       return `Coletado ${response.collectedQuantity}x ${response.drug.name} da fábrica.`;
     }
 
-    throw new Error('Este patrimônio não gera coleta operacional.');
+    throw new Error('Este ativo não gera coleta operacional.');
   }
 }
 
@@ -1169,23 +1741,30 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   tabButton: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: colors.panel,
     borderColor: colors.line,
-    borderRadius: 999,
+    borderRadius: 18,
     borderWidth: 1,
     flex: 1,
+    gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   tabButtonSelected: {
     borderColor: colors.accent,
+    backgroundColor: colors.panelAlt,
   },
   tabButtonLabel: {
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  tabButtonCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
   },
   section: {
     gap: 12,

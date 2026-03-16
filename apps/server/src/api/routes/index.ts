@@ -8,6 +8,7 @@ import { type AuthService, type KeyValueStore } from '../../services/auth.js';
 import { type BankServiceContract } from '../../services/bank.js';
 import { type BichoServiceContract } from '../../services/bicho.js';
 import { type BocaServiceContract } from '../../services/boca.js';
+import { type ContactService } from '../../services/contact.js';
 import { type CrimeServiceContract } from '../../services/crime.js';
 import { type DrugSaleServiceContract } from '../../services/drug-sale.js';
 import { type GameEventServiceContract } from '../../services/game-event.js';
@@ -20,6 +21,7 @@ import { type PlayerService } from '../../services/player.js';
 import { type PrisonServiceContract } from '../../services/prison.js';
 import { type PvpServiceContract } from '../../services/pvp.js';
 import { type PuteiroServiceContract } from '../../services/puteiro.js';
+import { type PrivateMessageService } from '../../services/private-message.js';
 import { type PropertyServiceContract } from '../../services/property.js';
 import { type RobberyServiceContract } from '../../services/robbery.js';
 import { type RoundServiceContract } from '../../services/round.js';
@@ -28,6 +30,7 @@ import { createBankRoutes } from './bank.js';
 import { createBichoRoutes } from './bicho.js';
 import { createBocaRoutes } from './bocas.js';
 import { createCrimeRoutes } from './crimes.js';
+import { createContactRoutes } from './contacts.js';
 import { createDrugSaleRoutes } from './drug-sales.js';
 import { createEventRoutes } from './events.js';
 import { createFactionRoutes } from './factions.js';
@@ -38,6 +41,7 @@ import { createHospitalRoutes } from './hospital.js';
 import { createMarketRoutes } from './market.js';
 import { createPlayerRoutes } from './players.js';
 import { createPrisonRoutes } from './prison.js';
+import { createPrivateMessageRoutes } from './private-messages.js';
 import { createPvpRoutes } from './pvp.js';
 import { createPuteiroRoutes } from './puteiros.js';
 import { createPropertyRoutes } from './properties.js';
@@ -63,6 +67,7 @@ interface ApiRouteDependencies {
   bankService: BankServiceContract;
   bichoService: BichoServiceContract;
   bocaService: BocaServiceContract;
+  contactService: ContactService;
   crimeService: CrimeServiceContract;
   drugSaleService: DrugSaleServiceContract;
   gameEventService: GameEventServiceContract;
@@ -73,6 +78,7 @@ interface ApiRouteDependencies {
   marketService: MarketServiceContract;
   playerService: PlayerService;
   prisonService: PrisonServiceContract;
+  privateMessageService: PrivateMessageService;
   pvpService: PvpServiceContract;
   puteiroService: PuteiroServiceContract;
   propertyService: PropertyServiceContract;
@@ -94,6 +100,7 @@ export function createApiRoutes({
   bankService,
   bichoService,
   bocaService,
+  contactService,
   crimeService,
   drugSaleService,
   gameEventService,
@@ -104,6 +111,7 @@ export function createApiRoutes({
   marketService,
   playerService,
   prisonService,
+  privateMessageService,
   pvpService,
   puteiroService,
   propertyService,
@@ -133,6 +141,7 @@ export function createApiRoutes({
       await protectedRoutes.register(createBankRoutes({ bankService }));
       await protectedRoutes.register(createBichoRoutes({ bichoService }));
       await protectedRoutes.register(createBocaRoutes({ bocaService }));
+      await protectedRoutes.register(createContactRoutes({ contactService }));
       await protectedRoutes.register(createCrimeRoutes({ actionIdempotency, crimeService }));
       await protectedRoutes.register(createDrugSaleRoutes({ drugSaleService }));
       await protectedRoutes.register(createEventRoutes({ gameEventService }));
@@ -144,9 +153,10 @@ export function createApiRoutes({
       await protectedRoutes.register(createMarketRoutes({ actionIdempotency, marketService }));
       await protectedRoutes.register(createPlayerRoutes({ playerService }));
       await protectedRoutes.register(createPrisonRoutes({ actionIdempotency, prisonService }));
+      await protectedRoutes.register(createPrivateMessageRoutes({ privateMessageService }));
       await protectedRoutes.register(createPvpRoutes({ pvpService }));
       await protectedRoutes.register(createPuteiroRoutes({ puteiroService }));
-      await protectedRoutes.register(createPropertyRoutes({ propertyService }));
+      await protectedRoutes.register(createPropertyRoutes({ actionIdempotency, propertyService }));
       await protectedRoutes.register(createRobberyRoutes({ robberyService }));
       await protectedRoutes.register(createRoundRoutes({ roundService }));
       await protectedRoutes.register(createRaveRoutes({ raveService }));

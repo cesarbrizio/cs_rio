@@ -125,16 +125,16 @@ class InMemoryAuthUniversityRepository implements AuthRepository, UniversityRepo
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 7,
-      morale: 100,
+      brisa: 100,
       money: '120000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 100,
       positionY: 100,
       regionId: RegionId.Centro,
       resistencia: 20,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -293,6 +293,21 @@ describe('university routes', () => {
       'olho_clinico',
       'rei_da_rua',
     ]);
+    expect(centerResponse.json().progression).toMatchObject({
+      completedPerks: 0,
+      completionRatio: 0,
+      currentPerkCode: null,
+      masteryUnlocked: false,
+      stage: 'starting',
+      totalPerks: 4,
+      trackLabel: 'Trilha de Rua',
+      vocation: VocationType.Cria,
+    });
+    expect(centerResponse.json().progression.nextPerk).toMatchObject({
+      code: 'mao_leve',
+      perkSlot: 1,
+      status: 'available',
+    });
 
     const enrollResponse = await app.server.inject({
       headers: {
@@ -429,6 +444,18 @@ describe('university routes', () => {
     expect(centerResponse.json().activeCourse).toBeNull();
     expect(centerResponse.json().completedCourseCodes).toContain('mao_leve');
     expect(centerResponse.json().passiveProfile.crime.soloSuccessMultiplier).toBe(1.1);
+    expect(centerResponse.json().progression).toMatchObject({
+      completedPerks: 1,
+      currentPerkCode: null,
+      masteryUnlocked: false,
+      stage: 'developing',
+      totalPerks: 4,
+    });
+    expect(centerResponse.json().progression.nextPerk).toMatchObject({
+      code: 'corrida_de_fuga',
+      perkSlot: 2,
+      status: 'locked',
+    });
     expect(
       centerResponse.json().courses.find((entry: { code: string }) => entry.code === 'mao_leve'),
     ).toMatchObject({

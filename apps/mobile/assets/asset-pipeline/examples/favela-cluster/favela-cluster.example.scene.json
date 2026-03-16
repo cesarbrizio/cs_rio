@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "stage": "composition",
+  "generatedAt": "2026-03-15T17:31:14.089Z",
+  "assetType": "favela-cluster",
+  "category": "favela",
+  "sceneViewBox": "0 0 160 160",
+  "sceneMetrics": {
+    "requiredElementsCount": 9,
+    "materialsCount": 7,
+    "referenceCount": 2
+  },
+  "appliedStyleGuide": {
+    "selected": "dense-favela",
+    "resolvedProfile": "dense-favela",
+    "visual": {
+      "shadowAlpha": 0.2,
+      "baseStrokeWidth": 2,
+      "maxAccentColors": 3,
+      "contrastBias": "gritty-dense",
+      "silhouettePriority": "very-high",
+      "materialNoise": "high",
+      "clusterDensity": "high",
+      "roofVariation": "high",
+      "utilityObjects": "required"
+    }
+  },
+  "scenePath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/favela-cluster.example.scene.svg"
+}

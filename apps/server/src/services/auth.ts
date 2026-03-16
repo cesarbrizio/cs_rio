@@ -52,6 +52,7 @@ export interface KeyValueStore {
   delete?(key: string): Promise<void>;
   get(key: string): Promise<string | null>;
   increment(key: string, ttlSeconds: number): Promise<number>;
+  setIfAbsent?(key: string, value: string, ttlSeconds?: number): Promise<boolean>;
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
 }
 
@@ -167,7 +168,7 @@ interface RedisKeyValueStoreClient {
   on(event: 'end' | 'ready' | 'reconnecting', listener: () => void): this;
   on(event: 'error', listener: (error: Error) => void): this;
   quit(): Promise<unknown>;
-  set(key: string, value: string, options?: { EX: number }): Promise<unknown>;
+  set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<unknown>;
 }
 
 export class RedisKeyValueStore implements KeyValueStore {
@@ -232,6 +233,21 @@ export class RedisKeyValueStore implements KeyValueStore {
     }
 
     await client.set(key, value);
+  }
+
+  async setIfAbsent(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+    const client = await this.getClient();
+    const result =
+      ttlSeconds && ttlSeconds > 0
+        ? await client.set(key, value, {
+            EX: ttlSeconds,
+            NX: true,
+          })
+        : await client.set(key, value, {
+            NX: true,
+          });
+
+    return result !== null;
   }
 
   private async getClient(): Promise<RedisKeyValueStoreClient> {
@@ -546,10 +562,10 @@ export function toPlayerSummary(player: AuthPlayerRecord): PlayerSummary {
       bankMoney: Number(player.bankMoney),
       conceito: player.conceito,
       hp: player.hp,
-      morale: player.morale,
+      brisa: player.brisa,
       money: Number(player.money),
-      nerve: player.nerve,
-      stamina: player.stamina,
+      disposicao: player.disposicao,
+      cansaco: player.cansaco,
     },
     title: resolveLevelTitle(player.level),
     vocation: player.vocation as VocationType,

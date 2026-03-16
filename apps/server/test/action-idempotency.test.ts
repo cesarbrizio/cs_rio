@@ -10,6 +10,8 @@ import type { KeyValueStore } from '../src/services/auth.js';
 class InMemoryKeyValueStore implements KeyValueStore {
   private readonly entries = new Map<string, { expiresAt: number | null; value: string }>();
 
+  public setIfAbsentCalls = 0;
+
   async delete(key: string): Promise<void> {
     this.entries.delete(key);
   }
@@ -34,6 +36,18 @@ class InMemoryKeyValueStore implements KeyValueStore {
       expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
       value,
     });
+  }
+
+  async setIfAbsent(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+    this.setIfAbsentCalls += 1;
+    this.purgeExpired(key);
+
+    if (this.entries.has(key)) {
+      return false;
+    }
+
+    await this.set(key, value, ttlSeconds);
+    return true;
   }
 
   private purgeExpired(key: string): void {
@@ -76,6 +90,24 @@ describe('ActionIdempotency', () => {
       message: DUPLICATE_ACTION_MESSAGE,
       statusCode: 409,
     });
+  });
+
+  it('usa o lock atomico quando o store oferece setIfAbsent', async () => {
+    const store = new InMemoryKeyValueStore();
+    const guard = new ActionIdempotency(store);
+    const request = buildRequest();
+
+    await expect(
+      guard.run(
+        request,
+        {
+          action: 'hospital.treatment',
+        },
+        async () => ({ ok: true }),
+      ),
+    ).resolves.toEqual({ ok: true });
+
+    expect(store.setIfAbsentCalls).toBe(1);
   });
 
   it('bloqueia request concorrente enquanto a primeira ainda esta em andamento', async () => {

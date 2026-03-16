@@ -62,7 +62,7 @@ export interface CombatResourcesSnapshot {
   heat: number;
   hp: number;
   money: number;
-  stamina: number;
+  cansaco: number;
 }
 
 export interface CombatEquippedWeapon {
@@ -264,7 +264,7 @@ export class DatabaseCombatRepository implements CombatRepository {
           heat: heatState.score,
           hp: player.hp,
           money: Number(player.money),
-          stamina: player.stamina,
+          cansaco: player.cansaco,
         },
         vocation: player.vocation as VocationType,
       },

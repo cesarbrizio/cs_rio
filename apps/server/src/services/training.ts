@@ -83,7 +83,7 @@ export interface TrainingServiceContract {
 
 interface TrainingSessionCreateInput {
   costMoney: number;
-  costStamina: number;
+  costCansaco: number;
   diminishingMultiplier: number;
   endsAt: Date;
   gains: PlayerAttributes;
@@ -208,13 +208,13 @@ export class DatabaseTrainingRepository implements TrainingRepository {
       }
 
       const nextMoney = roundMoney(Number.parseFloat(player.money) - input.costMoney);
-      const nextStamina = player.stamina - input.costStamina;
+      const nextCansaco = player.cansaco - input.costCansaco;
 
       const [updatedPlayer] = await tx
         .update(players)
         .set({
           money: nextMoney.toFixed(2),
-          stamina: nextStamina,
+          cansaco: nextCansaco,
         })
         .where(eq(players.id, playerId))
         .returning();
@@ -224,7 +224,7 @@ export class DatabaseTrainingRepository implements TrainingRepository {
         .values({
           carismaGain: input.gains.carisma,
           costMoney: input.costMoney.toFixed(2),
-          costStamina: input.costStamina,
+          costCansaco: input.costCansaco,
           diminishingMultiplier: input.diminishingMultiplier.toFixed(4),
           endsAt: input.endsAt,
           forcaGain: input.gains.forca,
@@ -482,8 +482,8 @@ export class TrainingService implements TrainingServiceContract {
 
     ensureTrainingUnlocked(definition, player.level, completedBasicSessions);
 
-    if (player.stamina < definition.staminaCost) {
-      throw new TrainingError('insufficient_resources', 'Stamina insuficiente para iniciar o treino.');
+    if (player.cansaco < definition.cansacoCost) {
+      throw new TrainingError('insufficient_resources', 'Cansaço insuficiente para iniciar o treino.');
     }
 
     if (Number.parseFloat(player.money) < inflatedMoneyCost) {
@@ -496,7 +496,7 @@ export class TrainingService implements TrainingServiceContract {
     await this.assertTrainingActionUnlocked(playerId);
     const mutation = await this.repository.createTrainingSession(playerId, {
       costMoney: inflatedMoneyCost,
-      costStamina: definition.staminaCost,
+      costCansaco: definition.cansacoCost,
       diminishingMultiplier: nextTrainingPreview.multiplier,
       endsAt,
       gains,
@@ -562,8 +562,8 @@ export class TrainingService implements TrainingServiceContract {
         activeSession.endsAt.getTime() <= this.now().getTime()
           ? 'Resgate o treino concluido antes de iniciar outro.'
           : 'Ja existe um treino em andamento.';
-    } else if (player.stamina < definition.staminaCost) {
-      lockReason = 'Stamina insuficiente.';
+    } else if (player.cansaco < definition.cansacoCost) {
+      lockReason = 'Cansaço insuficiente.';
     } else if (Number.parseFloat(player.money) < inflatedMoneyCost) {
       lockReason = 'Dinheiro insuficiente.';
     }
@@ -673,7 +673,7 @@ function serializeTrainingSession(
   return {
     claimedAt: session.claimedAt?.toISOString() ?? null,
     costMoney: Number.parseFloat(session.costMoney),
-    costStamina: session.costStamina,
+    costCansaco: session.costCansaco,
     diminishingMultiplier: Number.parseFloat(session.diminishingMultiplier),
     endsAt: session.endsAt.toISOString(),
     id: session.id,

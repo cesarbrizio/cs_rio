@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFavelaAlertLines,
+  buildFavelaForceSummaryLines,
   buildTerritoryHeadlineStats,
   formatTerritoryCountdown,
   groupFavelasByRegion,
@@ -36,6 +37,10 @@ describe('territory helpers', () => {
     expect(resolveX9StatusLabel('warning')).toBe('Aviso');
     expect(resolveWarStatusLabel('active')).toBe('Combate');
     expect(resolveBaileStatusLabel('hangover')).toBe('Ressaca');
+    expect(buildFavelaForceSummaryLines(favela)).toEqual([
+      'Soldados 41/65 · ocupação 63%',
+      'Bandidos 31/34 · 8 presos · 4 baixas recentes · retorno 13/03, 12:00',
+    ]);
     expect(buildFavelaAlertLines(favela)).toEqual([
       'Satisfação crítica: a chance de X9 e de perda de receita está alta.',
       'Tem X9 soprando e a incursão pode cair a qualquer momento.',

@@ -307,7 +307,7 @@ export class DatabaseFactionRepository implements FactionRepository {
         money: players.money,
         nickname: players.nickname,
         resistencia: players.resistencia,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
         vocation: players.vocation,
       })
       .from(players)
@@ -331,7 +331,7 @@ export class DatabaseFactionRepository implements FactionRepository {
       money: roundCurrency(Number.parseFloat(String(player.money))),
       nickname: player.nickname,
       resistencia: player.resistencia,
-      stamina: player.stamina,
+      cansaco: player.cansaco,
       vocation: player.vocation as VocationType,
     };
   }
@@ -775,7 +775,7 @@ export class DatabaseFactionRepository implements FactionRepository {
     defenderWasNpc: boolean;
     factionId: string;
     resolvedAt: Date;
-    staminaCost: number;
+    cansacoCost: number;
     successChancePercent: number;
   }): Promise<FactionLeadershipChallengeRecord> {
     return db.transaction(async (tx) => {
@@ -783,7 +783,7 @@ export class DatabaseFactionRepository implements FactionRepository {
         .select({
           conceito: players.conceito,
           hp: players.hp,
-          stamina: players.stamina,
+          cansaco: players.cansaco,
         })
         .from(players)
         .where(eq(players.id, input.challengerPlayerId))
@@ -798,7 +798,7 @@ export class DatabaseFactionRepository implements FactionRepository {
         .set({
           conceito: Math.max(0, challenger.conceito + input.challengerConceitoDelta),
           hp: Math.max(1, challenger.hp + input.challengerHpDelta),
-          stamina: Math.max(0, challenger.stamina - input.staminaCost),
+          cansaco: Math.max(0, challenger.cansaco - input.cansacoCost),
         })
         .where(eq(players.id, input.challengerPlayerId));
 
@@ -1554,7 +1554,7 @@ export function addHours(date: Date, hours: number): Date {
 
 export function calculateFactionLeadershipPower(player: Pick<
   FactionLeadershipPlayerRecord,
-  'carisma' | 'conceito' | 'forca' | 'hp' | 'inteligencia' | 'level' | 'resistencia' | 'stamina'
+  'carisma' | 'conceito' | 'forca' | 'hp' | 'inteligencia' | 'level' | 'resistencia' | 'cansaco'
 >): number {
   return Math.round(
     player.level * 18 +
@@ -1564,7 +1564,7 @@ export function calculateFactionLeadershipPower(player: Pick<
       player.carisma * 2 +
       player.conceito * 0.5 +
       player.hp * 0.2 +
-      player.stamina * 0.2,
+      player.cansaco * 0.2,
   );
 }
 

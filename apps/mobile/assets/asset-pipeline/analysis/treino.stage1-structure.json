@@ -1,0 +1,266 @@
+{
+  "version": 2,
+  "stage": "stage-1-structure",
+  "status": "ready-for-stage-2",
+  "assetType": "gym treino",
+  "styleGuide": "default",
+  "keepIntermediate": false,
+  "referenceFiles": [
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/gym/1.webp",
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/gym/2.webp"
+  ],
+  "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/treino.svg",
+  "generatedAt": "2026-03-16T04:16:33.470Z",
+  "architecture": {
+    "moduleLibraryFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "moduleCount": 61,
+    "outputs": {
+      "analysisPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/treino.analysis.json",
+      "sceneGraphPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/scene-graphs/treino.scene-graph.json",
+      "moduleManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/treino.module-library.json"
+    },
+    "pendingStages": [
+      "module-library-base",
+      "scene-graph-enrichment",
+      "modular-composer",
+      "svg-renderer",
+      "preview-renderer"
+    ]
+  },
+  "compositionBlueprint": {
+    "stage": "compose-from-modules",
+    "assetType": "gym treino",
+    "category": "poor",
+    "styleGuide": {
+      "resolvedProfile": "default",
+      "family": "gym",
+      "variationPolicy": {
+        "jitter": {
+          "x": 3,
+          "y": 2
+        },
+        "scale": {
+          "min": 0.98,
+          "max": 1.04
+        },
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "low"
+      },
+      "compositionPolicy": {
+        "layout": "single-frontage",
+        "baseAnchor": {
+          "x": 92,
+          "y": 126
+        },
+        "columns": 1,
+        "xStep": 0,
+        "yStep": 0,
+        "rowLift": 6,
+        "layerPattern": [
+          "foreground",
+          "midground",
+          "overlay"
+        ]
+      }
+    },
+    "moduleFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "resolvedModules": [
+      {
+        "id": "gym-sign-2",
+        "module": "gym-sign",
+        "resolved": {
+          "id": "gym-sign",
+          "family": "gym",
+          "footprint": {
+            "width": 28,
+            "depth": 8
+          },
+          "slots": [
+            "detail"
+          ]
+        },
+        "layer": "midground",
+        "anchor": {
+          "x": 92,
+          "y": 120
+        },
+        "placement": {
+          "x": 1,
+          "y": 0,
+          "scale": 1.009
+        },
+        "variants": {
+          "materialHint": "anexo improvisado",
+          "slotHint": "detail",
+          "profile": "default",
+          "family": "gym",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "medium",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a faixa frontal precisa sugerir treino sem texto literal",
+            "deve ler mais como equipamento de bairro do que galpao esportivo"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "gym-core-1",
+        "module": "gym-core",
+        "resolved": {
+          "id": "gym-core",
+          "family": "gym",
+          "footprint": {
+            "width": 56,
+            "depth": 20
+          },
+          "slots": [
+            "core"
+          ]
+        },
+        "layer": "foreground",
+        "anchor": {
+          "x": 92,
+          "y": 126
+        },
+        "placement": {
+          "x": -5,
+          "y": 5,
+          "scale": 1.033
+        },
+        "variants": {
+          "materialHint": "alvenaria simples",
+          "slotHint": "core",
+          "profile": "default",
+          "family": "gym",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "medium",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a faixa frontal precisa sugerir treino sem texto literal",
+            "deve ler mais como equipamento de bairro do que galpao esportivo"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "anchor-shadow-3",
+        "module": "anchor-shadow",
+        "resolved": {
+          "id": "anchor-shadow",
+          "family": "shared",
+          "footprint": {
+            "width": 26,
+            "depth": 10
+          },
+          "slots": [
+            "grounding"
+          ]
+        },
+        "layer": "overlay",
+        "anchor": {
+          "x": 92,
+          "y": 114
+        },
+        "placement": {
+          "x": -4,
+          "y": -9,
+          "scale": 0.989
+        },
+        "variants": {
+          "materialHint": "reboco parcial",
+          "slotHint": "grounding",
+          "profile": "default",
+          "family": "gym",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "medium",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a faixa frontal precisa sugerir treino sem texto literal",
+            "deve ler mais como equipamento de bairro do que galpao esportivo"
+          ]
+        },
+        "skipped": false
+      }
+    ],
+    "compositionViewBox": "0 0 192 160",
+    "compositionSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 160\" fill=\"none\"><g id=\"placement-gym-sign-2\" transform=\"translate(1 0) scale(1.009)\" data-module-id=\"gym-sign\" data-node-id=\"gym-sign-2\" data-layer=\"midground\"><rect x=\"78\" y=\"96\" width=\"28\" height=\"8\" fill=\"#e4b84e\" rx=\"2\"/><line x1=\"82\" y1=\"100\" x2=\"102\" y2=\"100\" stroke=\"#4a3524\" stroke-width=\"2\"/><rect x=\"86\" y=\"103\" width=\"4\" height=\"12\" fill=\"#4a3524\" rx=\"1\"/><rect x=\"94\" y=\"103\" width=\"4\" height=\"12\" fill=\"#4a3524\" rx=\"1\"/></g><g id=\"placement-gym-core-1\" transform=\"translate(-5 5) scale(1.033)\" data-module-id=\"gym-core\" data-node-id=\"gym-core-1\" data-layer=\"foreground\"><g><polygon points=\"94,100 122,110 94,120 66,110\" fill=\"#b9a17b\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"66,110 94,120 94,142 66,132\" fill=\"#69543b\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"94,100 122,110 122,132 94,122\" fill=\"#806746\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><rect x=\"66\" y=\"99\" width=\"46\" height=\"10\" fill=\"#30251d\" rx=\"2\"/><rect x=\"72\" y=\"101\" width=\"34\" height=\"5\" fill=\"#e4b84e\" rx=\"1.5\"/><rect x=\"84\" y=\"108\" width=\"16\" height=\"16\" fill=\"#241b15\" rx=\"1.5\"/><rect x=\"69\" y=\"111\" width=\"10\" height=\"8\" fill=\"#8d7456\" rx=\"1\"/><rect x=\"104\" y=\"111\" width=\"10\" height=\"8\" fill=\"#8d7456\" rx=\"1\"/></g><g id=\"placement-anchor-shadow-3\" transform=\"translate(-4 -9) scale(0.989)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-3\" data-layer=\"overlay\"></g></svg>",
+    "skippedModules": [],
+    "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca."
+  },
+  "renderBlueprint": {
+    "stage": "render-svg",
+    "assetType": "gym treino",
+    "category": "poor",
+    "status": "rendered",
+    "targetViewBox": "0 0 160 160",
+    "sourceViewBox": "0 0 192 160",
+    "fit": {
+      "scale": 0.7292,
+      "translateX": 10,
+      "translateY": 21.67,
+      "padding": 10
+    },
+    "finalSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 160\" fill=\"none\"><g id=\"gym treino-asset\" data-asset-type=\"gym treino\" data-category=\"poor\" data-density=\"medium-low\"><g transform=\"translate(10 21.67) scale(0.7292)\" id=\"gym treino-render-root\"><g id=\"placement-gym-sign-2\" transform=\"translate(1 0) scale(1.009)\" data-module-id=\"gym-sign\" data-node-id=\"gym-sign-2\" data-layer=\"midground\"><rect x=\"78\" y=\"96\" width=\"28\" height=\"8\" fill=\"#e4b84e\" rx=\"2\"/><line x1=\"82\" y1=\"100\" x2=\"102\" y2=\"100\" stroke=\"#4a3524\" stroke-width=\"2\"/><rect x=\"86\" y=\"103\" width=\"4\" height=\"12\" fill=\"#4a3524\" rx=\"1\"/><rect x=\"94\" y=\"103\" width=\"4\" height=\"12\" fill=\"#4a3524\" rx=\"1\"/></g><g id=\"placement-gym-core-1\" transform=\"translate(-5 5) scale(1.033)\" data-module-id=\"gym-core\" data-node-id=\"gym-core-1\" data-layer=\"foreground\"><g><polygon points=\"94,100 122,110 94,120 66,110\" fill=\"#b9a17b\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"66,110 94,120 94,142 66,132\" fill=\"#69543b\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"94,100 122,110 122,132 94,122\" fill=\"#806746\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><rect x=\"66\" y=\"99\" width=\"46\" height=\"10\" fill=\"#30251d\" rx=\"2\"/><rect x=\"72\" y=\"101\" width=\"34\" height=\"5\" fill=\"#e4b84e\" rx=\"1.5\"/><rect x=\"84\" y=\"108\" width=\"16\" height=\"16\" fill=\"#241b15\" rx=\"1.5\"/><rect x=\"69\" y=\"111\" width=\"10\" height=\"8\" fill=\"#8d7456\" rx=\"1\"/><rect x=\"104\" y=\"111\" width=\"10\" height=\"8\" fill=\"#8d7456\" rx=\"1\"/></g><g id=\"placement-anchor-shadow-3\" transform=\"translate(-4 -9) scale(0.989)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-3\" data-layer=\"overlay\"></g></g></g></svg>",
+    "note": "Etapa 5 concluida: o renderer final agora materializa um SVG final a partir da composicao modular.",
+    "compositionSummary": {
+      "nodeCount": 3,
+      "resolvedModules": 3,
+      "skippedModules": 0
+    }
+  },
+  "previewBlueprint": {
+    "stage": "render-preview",
+    "assetType": "gym treino",
+    "category": "poor",
+    "status": "pending-stage-6",
+    "ok": false,
+    "message": "Preview PNG agora e gerado apenas na Etapa 6, a partir do SVG final."
+  }
+}

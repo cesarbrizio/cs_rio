@@ -3,15 +3,23 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildControlledTribunalFavelas,
+  canPlayerLeadTribunal,
+  formatTribunalDeadlineLabel,
   formatTribunalTimestamp,
   pickInitialTribunalFavelaId,
+  resolveTribunalCaseStatusLabel,
   resolveTribunalJudgmentReadLabel,
   resolveTribunalPunishmentLabel,
   resolveTribunalPunishmentReadLabel,
   resolveTribunalRegionLabel,
+  resolveTribunalResolutionSourceLabel,
   resolveTribunalSeverityLabel,
   resolveTribunalSideLabel,
 } from '../src/features/tribunal';
+import {
+  buildPendingTribunalCues,
+  resolveTribunalCueEyebrow,
+} from '../src/features/tribunal-results';
 
 describe('tribunal helpers', () => {
   it('filters and orders controlled favelas for the tribunal screen', () => {
@@ -157,6 +165,8 @@ describe('tribunal helpers', () => {
     expect(resolveTribunalPunishmentLabel('queimar_no_pneu')).toBe('Queimar no pneu');
     expect(resolveTribunalPunishmentReadLabel('dureza_arriscada')).toBe('Dureza arriscada');
     expect(resolveTribunalJudgmentReadLabel('brutal_desnecessaria')).toBe('Brutal desnecessária');
+    expect(resolveTribunalCaseStatusLabel('resolved_by_npc')).toBe('Resolvido pelo comando');
+    expect(resolveTribunalResolutionSourceLabel('npc')).toBe('Comando local');
     expect(resolveTribunalSeverityLabel('media_alta')).toBe('Média / alta');
     expect(resolveTribunalSideLabel('accuser')).toBe('Acusador');
     expect(resolveTribunalRegionLabel('zona_norte')).toBe('Zona Norte');
@@ -164,5 +174,143 @@ describe('tribunal helpers', () => {
 
   it('formats tribunal timestamps for the UI', () => {
     expect(formatTribunalTimestamp('2026-03-11T12:05:00.000Z')).toBe('11/03, 09:05');
+    expect(
+      formatTribunalDeadlineLabel(
+        '2026-03-11T12:35:00.000Z',
+        new Date('2026-03-11T12:05:00.000Z').getTime(),
+      ),
+    ).toBe('30 min restantes');
+    expect(canPlayerLeadTribunal('general')).toBe(true);
+    expect(canPlayerLeadTribunal('soldado')).toBe(false);
+  });
+
+  it('builds pending tribunal cues in chronological order and resolves modal eyebrow copy', () => {
+    const cues = buildPendingTribunalCues({
+      feed: {
+        cues: [
+          {
+            body: 'O comando local decidiu o caso.',
+            case: {
+              accused: {
+                charismaCommunity: 22,
+                charismaFaction: 31,
+                name: 'Buiu',
+                statement: 'nega tudo',
+              },
+              accuser: {
+                charismaCommunity: 44,
+                charismaFaction: 58,
+                name: 'Rosana',
+                statement: 'cobra o tribunal',
+              },
+              antigaoAdvice: {
+                balanceWarning: 'teste',
+                communityRead: 'accuser',
+                punishmentInsights: [],
+                truthRead: 'accuser',
+              },
+              antigaoHint: 'hint',
+              antigaoSuggestedPunishment: 'surra',
+              caseType: 'divida_jogo',
+              communitySupports: 'accuser',
+              createdAt: '2026-03-11T12:00:00.000Z',
+              decisionDeadlineAt: '2026-03-11T14:00:00.000Z',
+              definition: {
+                allowedPunishments: ['aviso', 'surra'],
+                label: 'Dívida de jogo',
+                severity: 'media',
+                type: 'divida_jogo',
+              },
+              favelaId: 'favela-1',
+              id: 'case-1',
+              judgedAt: '2026-03-11T13:30:00.000Z',
+              punishmentChosen: 'surra',
+              resolutionSource: 'npc',
+              status: 'resolved_by_npc',
+              summary: 'Caso encerrado',
+              truthRead: 'accuser',
+            },
+            favela: {
+              id: 'favela-1',
+              name: 'Morro da Coroa',
+              regionId: RegionId.ZonaNorte,
+            },
+            headline: 'O caso foi encerrado.',
+            kind: 'resolved',
+            occurredAt: '2026-03-11T13:30:00.000Z',
+            outcome: {
+              conceitoDelta: 0,
+              faccaoImpact: 3,
+              moradoresImpact: -20,
+              punishmentChosen: 'surra',
+              read: 'arriscada',
+              resolvedAt: '2026-03-11T13:30:00.000Z',
+              resolutionSource: 'npc',
+              summary: 'O comando local resolveu o caso.',
+            },
+            title: 'Tribunal encerrado · Morro da Coroa',
+          },
+          {
+            body: 'Decida antes do prazo.',
+            case: {
+              accused: {
+                charismaCommunity: 22,
+                charismaFaction: 31,
+                name: 'Buiu',
+                statement: 'nega tudo',
+              },
+              accuser: {
+                charismaCommunity: 44,
+                charismaFaction: 58,
+                name: 'Rosana',
+                statement: 'cobra o tribunal',
+              },
+              antigaoAdvice: {
+                balanceWarning: 'teste',
+                communityRead: 'accuser',
+                punishmentInsights: [],
+                truthRead: 'accuser',
+              },
+              antigaoHint: 'hint',
+              antigaoSuggestedPunishment: 'surra',
+              caseType: 'divida_jogo',
+              communitySupports: 'accuser',
+              createdAt: '2026-03-11T11:00:00.000Z',
+              decisionDeadlineAt: '2026-03-11T13:00:00.000Z',
+              definition: {
+                allowedPunishments: ['aviso', 'surra'],
+                label: 'Dívida de jogo',
+                severity: 'media',
+                type: 'divida_jogo',
+              },
+              favelaId: 'favela-1',
+              id: 'case-1',
+              judgedAt: null,
+              punishmentChosen: null,
+              resolutionSource: null,
+              status: 'open',
+              summary: 'Caso em pauta',
+              truthRead: 'accuser',
+            },
+            favela: {
+              id: 'favela-1',
+              name: 'Morro da Coroa',
+              regionId: RegionId.ZonaNorte,
+            },
+            headline: 'O caso abriu.',
+            kind: 'opened',
+            occurredAt: '2026-03-11T11:00:00.000Z',
+            outcome: null,
+            title: 'Tribunal aberto · Morro da Coroa',
+          },
+        ],
+        generatedAt: '2026-03-11T13:35:00.000Z',
+      },
+      seenKeys: new Set(['tribunal:resolved:case-1:2026-03-11T13:30:00.000Z']),
+    });
+
+    expect(cues).toHaveLength(1);
+    expect(cues[0]?.key).toBe('tribunal:opened:case-1:2026-03-11T11:00:00.000Z');
+    expect(resolveTribunalCueEyebrow(cues[0]!)).toBe('Tribunal aberto');
   });
 });

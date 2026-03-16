@@ -44,6 +44,7 @@ import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './fac
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
+  buildPropertySabotageStatusSummary,
   resolvePropertyDailyUpkeep,
   roundCurrency,
 } from './property.js';
@@ -118,6 +119,9 @@ interface FrontStoreSnapshotRecord {
   operationCostMultiplier: number;
   policePressure: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: FrontStoreSoldierRosterRecord[];
   suspended: boolean;
   totalLaunderedClean: number;
@@ -664,6 +668,9 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
         operationCostMultiplier: regions.operationCostMultiplier,
         policePressure: regions.policePressure,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         storeKind: frontStoreOperations.storeKind,
         suspended: properties.suspended,
         totalLaunderedClean: frontStoreOperations.totalLaunderedClean,
@@ -757,6 +764,9 @@ export class DatabaseFrontStoreRepository implements FrontStoreRepository {
       operationCostMultiplier: roundCurrency(Number.parseFloat(String(row.operationCostMultiplier))),
       policePressure: row.policePressure,
       regionId: row.regionId as RegionId,
+      sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: row.sabotageResolvedAt,
+      sabotageState: row.sabotageState,
       soldierRoster: soldiersByPropertyId.get(row.id)
         ? [soldiersByPropertyId.get(row.id) as FrontStoreSoldierRosterRecord]
         : [],
@@ -1073,6 +1083,13 @@ export class FrontStoreService implements FrontStoreServiceContract {
       lastMaintenanceAt: maintenanceStatus.lastMaintenanceAt,
       suspended: maintenanceStatus.blocked,
     };
+    const sabotageStatus = buildPropertySabotageStatusSummary({
+      now: this.now(),
+      sabotageRecoveryReadyAt: propertyAfterMaintenance.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: propertyAfterMaintenance.sabotageResolvedAt,
+      sabotageState: propertyAfterMaintenance.sabotageState,
+      type: 'front_store',
+    });
     const cycleMs = FRONT_STORE_OPERATION_CYCLE_MINUTES * 60 * 1000;
     const elapsedCycles = Math.floor(
       Math.max(0, this.now().getTime() - propertyAfterMaintenance.lastRevenueAt.getTime()) / cycleMs,
@@ -1096,7 +1113,13 @@ export class FrontStoreService implements FrontStoreServiceContract {
     );
     const nextBatches = propertyAfterMaintenance.batches.map((entry) => ({ ...entry }));
 
-    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended && propertyAfterMaintenance.kind && !isUnderInvestigation(propertyAfterMaintenance, this.now())) {
+    if (
+      elapsedCycles > 0 &&
+      !propertyAfterMaintenance.suspended &&
+      !sabotageStatus.blocked &&
+      propertyAfterMaintenance.kind &&
+      !isUnderInvestigation(propertyAfterMaintenance, this.now())
+    ) {
       const legitRevenuePerCycle = buildFrontStoreLegitRevenuePerCycle(
         propertyAfterMaintenance,
         propertyAfterMaintenance.kind,
@@ -1107,7 +1130,9 @@ export class FrontStoreService implements FrontStoreServiceContract {
       );
 
       if (legitRevenuePerCycle > 0) {
-        const grossLegitRevenue = roundCurrency(legitRevenuePerCycle * elapsedCycles);
+        const grossLegitRevenue = roundCurrency(
+          legitRevenuePerCycle * elapsedCycles * sabotageStatus.operationalMultiplier,
+        );
         const commissionAmount = roundCurrency(grossLegitRevenue * effectiveFactionCommissionRate);
         const netLegitRevenue = roundCurrency(grossLegitRevenue - commissionAmount);
 
@@ -1142,7 +1167,9 @@ export class FrontStoreService implements FrontStoreServiceContract {
       }
 
       const effectiveCleanReturn = roundCurrency(
-        batch.expectedCleanReturn * passiveProfile.business.passiveRevenueMultiplier,
+        batch.expectedCleanReturn *
+          passiveProfile.business.passiveRevenueMultiplier *
+          sabotageStatus.operationalMultiplier,
       );
       const commissionAmount = roundCurrency(effectiveCleanReturn * effectiveFactionCommissionRate);
       const netCleanReturn = roundCurrency(effectiveCleanReturn - commissionAmount);
@@ -1481,6 +1508,13 @@ function serializeFrontStoreSummary(
 ): FrontStoreSummary {
   const propertyDefinition = resolveEconomyPropertyDefinition(configCatalog, 'front_store');
   const eventProfile = resolvePropertyEventProfile(configCatalog, 'front_store');
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now,
+    sabotageRecoveryReadyAt: frontStore.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: frontStore.sabotageResolvedAt,
+    sabotageState: frontStore.sabotageState,
+    type: 'front_store',
+  });
   const locationMultiplier = buildFrontStoreLocationMultiplier(frontStore);
   const isInvestigated = isUnderInvestigation(frontStore, now);
   const capacityPerDay = frontStore.kind
@@ -1500,7 +1534,7 @@ function serializeFrontStoreSummary(
       )
     : 0;
   const estimatedHourlyLegitRevenue = roundCurrency(
-    legitRevenuePerCycle * (60 / FRONT_STORE_OPERATION_CYCLE_MINUTES),
+    legitRevenuePerCycle * sabotageStatus.operationalMultiplier * (60 / FRONT_STORE_OPERATION_CYCLE_MINUTES),
   );
   const charismaRiskReduction = buildFrontStoreCharismaRiskReduction(player);
   const projectedDailyGrossRevenue = roundCurrency(estimatedHourlyLegitRevenue * 24);
@@ -1574,8 +1608,11 @@ function serializeFrontStoreSummary(
       overdueDays: maintenanceStatus.overdueDays,
     },
     regionId: frontStore.regionId,
-    status: maintenanceStatus.blocked
-      ? 'maintenance_blocked'
+    sabotageStatus,
+    status: sabotageStatus.blocked
+      ? 'sabotage_blocked'
+      : maintenanceStatus.blocked
+        ? 'maintenance_blocked'
       : isInvestigated
         ? 'investigation_blocked'
         : frontStore.kind

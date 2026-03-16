@@ -18,6 +18,10 @@ export function formatCrimeCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatCrimeRewardReadLabel(read: CrimeCatalogItem['rewardRead']): string {
+  return read === 'exact' ? 'valor real' : 'faixa estimada';
+}
+
 export function formatCrimeCooldown(seconds: number): string {
   if (seconds <= 0) {
     return 'Disponível';

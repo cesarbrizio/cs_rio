@@ -256,7 +256,7 @@ describe('ScenarioOpsService', () => {
     const [updatedPlayer] = await db
       .select({
         regionId: players.regionId,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
       })
       .from(players)
       .where(eq(players.id, player.id))
@@ -269,7 +269,7 @@ describe('ScenarioOpsService', () => {
 
     expect(activePrisons).toHaveLength(0);
     expect(updatedPlayer?.regionId).toBe(RegionId.Centro);
-    expect(updatedPlayer?.stamina).toBe(100);
+    expect(updatedPlayer?.cansaco).toBe(100);
   });
 
   async function createTestPlayer(): Promise<{ email: string; id: string; nickname: string }> {

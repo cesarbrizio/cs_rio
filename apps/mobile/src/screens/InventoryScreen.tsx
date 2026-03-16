@@ -1,112 +1,340 @@
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import {
+  buildInventoryBenefitLines,
+  resolveInventoryItemPresentation,
+  resolveInventoryItemTypeLabel,
+  type InventoryResolvedAction,
+  type InventoryStatusTone,
+} from '../features/inventory';
+import { formatApiError } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
 
+interface InventoryResultState {
+  message: string;
+  title: string;
+  tone: 'danger' | 'info';
+}
+
 export function InventoryScreen(): JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const player = useAuthStore((state) => state.player);
+  const equipInventoryItem = useAuthStore((state) => state.equipInventoryItem);
+  const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
+  const repairInventoryItem = useAuthStore((state) => state.repairInventoryItem);
+  const unequipInventoryItem = useAuthStore((state) => state.unequipInventoryItem);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
   const items = useMemo(() => player?.inventory ?? [], [player?.inventory]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(items[0]?.id ?? null);
-  const selectedItem = useMemo(
-    () => items.find((item) => item.id === selectedItemId) ?? items[0] ?? null,
-    [items, selectedItemId],
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [submittingItemId, setSubmittingItemId] = useState<string | null>(null);
+  const [resultState, setResultState] = useState<InventoryResultState | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPlayerProfile();
+    }, [refreshPlayerProfile]),
+  );
+
+  useEffect(() => {
+    if (selectedItemId && !items.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(null);
+    }
+  }, [items, selectedItemId]);
+  const repairableCount = useMemo(
+    () =>
+      items.filter((item) => {
+        const presentation = resolveInventoryItemPresentation(item, player?.level ?? 1);
+        return (
+          presentation.primaryAction?.kind === 'repair' ||
+          presentation.secondaryAction?.kind === 'repair'
+        );
+      }).length,
+    [items, player?.level],
+  );
+  const equippedCount = useMemo(
+    () => items.filter((item) => item.isEquipped).length,
+    [items],
+  );
+
+  const runAction = useCallback(
+    async (action: InventoryResolvedAction, inventoryItemId: string) => {
+      const selectedItem = items.find((item) => item.id === inventoryItemId) ?? null;
+      const selectedName = selectedItem?.itemName ?? selectedItem?.itemType ?? 'Item';
+
+      if (action.disabledReason) {
+        setResultState({
+          message: action.disabledReason,
+          title: 'Ação indisponível',
+          tone: 'danger',
+        });
+        return;
+      }
+
+      if (action.kind === 'use') {
+        navigation.navigate('DrugUse', {
+          initialInventoryItemId: inventoryItemId,
+          initialVenue: 'rave',
+        });
+        return;
+      }
+
+      setSubmittingItemId(inventoryItemId);
+
+      try {
+        let message = '';
+        let title = 'Inventário atualizado';
+
+        if (action.kind === 'equip') {
+          await equipInventoryItem(inventoryItemId);
+          message = `${selectedName} equipado. Loadout sincronizado com backend.`;
+          title = 'Loadout atualizado';
+        } else if (action.kind === 'unequip') {
+          await unequipInventoryItem(inventoryItemId);
+          message = `${selectedName} desequipado. Slot liberado.`;
+          title = 'Loadout atualizado';
+        } else {
+          const response = await repairInventoryItem(inventoryItemId);
+          message = `${selectedName} reparado por ${formatCurrency(response.repairCost)}.`;
+          title = 'Item reparado';
+        }
+
+        setResultState({
+          message,
+          title,
+          tone: 'info',
+        });
+        setBootstrapStatus(message);
+      } catch (error) {
+        setResultState({
+          message: formatApiError(error).message,
+          title: 'Ação não concluída',
+          tone: 'danger',
+        });
+      } finally {
+        setSubmittingItemId(null);
+      }
+    },
+    [
+      equipInventoryItem,
+      items,
+      navigation,
+      repairInventoryItem,
+      setBootstrapStatus,
+      unequipInventoryItem,
+    ],
   );
 
   return (
     <InGameScreenLayout
-      subtitle="Grade de itens, detalhes do slot selecionado e ações rápidas para equipar, usar, vender ou descartar."
-      title="Inventário"
+      subtitle="Equipar, desequipar e reparar agora refletem o estado real do inventario. Cada arma e colete mostra o ganho pratico em crime, combate e guerra."
+      title="Inventario"
     >
       <View style={styles.summaryRow}>
         <SummaryCard label="Slots ocupados" value={`${items.length}`} />
-        <SummaryCard
-          label="Equipamentos"
-          value={`${items.filter((item) => item.itemType === 'weapon' || item.itemType === 'vest').length}`}
-        />
-        <SummaryCard
-          label="Consumiveis"
-          value={`${items.filter((item) => item.itemType === 'drug').length}`}
-        />
+        <SummaryCard label="Equipados" value={`${equippedCount}`} />
+        <SummaryCard label="Pedindo reparo" value={`${repairableCount}`} />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Grade de Itens</Text>
+        <Text style={styles.sectionCopy}>
+          Toque em um item para expandir o card e agir dali mesmo, sem depender de outro painel.
+        </Text>
         {items.length > 0 ? (
           <View style={styles.grid}>
-            {items.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  setSelectedItemId(item.id);
-                }}
-                style={({ pressed }) => [
-                  styles.gridItem,
-                  selectedItem?.id === item.id ? styles.gridItemSelected : null,
-                  pressed ? styles.buttonPressed : null,
-                ]}
-              >
-                <Text style={styles.gridItemType}>{item.itemType}</Text>
-                <Text style={styles.gridItemName}>{item.itemName ?? 'Item sem nome'}</Text>
-                <Text style={styles.gridItemMeta}>Qtd {item.quantity}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <EmptyState copy="O personagem ainda não possui itens. Crimes, mercado negro e drops vão alimentar esta tela nas próximas fases." />
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Detalhes do Item</Text>
-        {selectedItem ? (
-          <View style={styles.detailCard}>
-            <Text style={styles.detailTitle}>{selectedItem.itemName ?? 'Item sem nome'}</Text>
-            <Text style={styles.detailCopy}>Tipo: {selectedItem.itemType}</Text>
-            <Text style={styles.detailCopy}>Quantidade: {selectedItem.quantity}</Text>
-            <Text style={styles.detailCopy}>
-              Durabilidade: {selectedItem.durability ?? '--'} · Proficiência: {selectedItem.proficiency}
-            </Text>
-
-            <View style={styles.actionRow}>
-              {[
-                { id: 'equip', label: 'Equipar' },
-                { id: 'use', label: 'Usar' },
-                { id: 'sell', label: 'Vender' },
-                { id: 'discard', label: 'Descartar' },
-              ].map((action) => (
-                <Pressable
-                  key={action.id}
-                  onPress={() => {
-                    if (action.id === 'use' && selectedItem.itemType === 'drug') {
-                      navigation.navigate('DrugUse', {
-                        initialInventoryItemId: selectedItem.id,
-                        initialVenue: 'rave',
-                      });
-                      return;
-                    }
-
-                    setBootstrapStatus(`${action.label}: ${selectedItem.itemName ?? selectedItem.itemType}`);
-                  }}
-                  style={({ pressed }) => [styles.actionButton, pressed ? styles.buttonPressed : null]}
+            {items.map((item) => {
+              const presentation = resolveInventoryItemPresentation(item, player?.level ?? 1);
+              const benefits = buildInventoryBenefitLines(item);
+              const isSelected = selectedItemId === item.id;
+              const isSubmittingThisItem = submittingItemId === item.id;
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.gridItemShell,
+                    isSelected ? styles.gridItemShellSelected : null,
+                    item.isEquipped ? styles.gridItemEquipped : null,
+                  ]}
                 >
-                  <Text style={styles.actionButtonLabel}>{action.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+                  <Pressable
+                    onPress={() => {
+                      setSelectedItemId((current) => (current === item.id ? null : item.id));
+                    }}
+                    style={({ pressed }) => [
+                      styles.gridItemPressable,
+                      pressed ? styles.buttonPressed : null,
+                    ]}
+                  >
+                    <View style={styles.gridItemTopRow}>
+                      <Text style={styles.gridItemType}>{resolveInventoryItemTypeLabel(item)}</Text>
+                      <StatusBadge
+                        label={presentation.statusLabel}
+                        tone={presentation.statusTone}
+                      />
+                    </View>
+                    <Text style={styles.gridItemName}>{item.itemName ?? 'Item sem nome'}</Text>
+                    <Text style={styles.gridItemMeta}>
+                      Qtd {item.quantity} · {resolveDurabilityLabel(item)}
+                    </Text>
+                    <Text style={styles.expandHint}>
+                      {isSelected ? 'Toque para recolher' : 'Toque para abrir ações'}
+                    </Text>
+                  </Pressable>
+
+                  {isSelected ? (
+                    <View style={styles.gridItemExpanded}>
+                      <View style={styles.metricRow}>
+                        <MetricPill label="Durabilidade" value={resolveDurabilityValue(item)} />
+                        <MetricPill label="Proficiência" value={`${item.proficiency}`} />
+                        <MetricPill
+                          label="Nível"
+                          value={item.levelRequired !== null ? `${item.levelRequired}` : 'Livre'}
+                        />
+                      </View>
+
+                      {item.equipment?.slot === 'weapon' && typeof item.equipment.power === 'number' ? (
+                        <View style={styles.metricRow}>
+                          <MetricPill label="Poder" value={`+${item.equipment.power}`} />
+                          <MetricPill label="Crime/Guerra" value={`+${item.equipment.power}`} />
+                          <MetricPill label="Combate" value={`+${item.equipment.power}`} />
+                        </View>
+                      ) : null}
+
+                      {item.equipment?.slot === 'vest' && typeof item.equipment.defense === 'number' ? (
+                        <View style={styles.metricRow}>
+                          <MetricPill label="Defesa" value={`+${item.equipment.defense}`} />
+                          <MetricPill label="Crime/Guerra" value={`+${item.equipment.defense * 6}`} />
+                          <MetricPill label="Combate" value={`+${item.equipment.defense}`} />
+                        </View>
+                      ) : null}
+
+                      {benefits.length > 0 ? (
+                        <View style={styles.benefitCard}>
+                          <Text style={styles.benefitTitle}>Benefício real no jogo</Text>
+                          {benefits.map((benefit) => (
+                            <Text key={benefit} style={styles.benefitCopy}>
+                              {benefit}
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {presentation.primaryAction?.disabledReason ? (
+                        <Text style={styles.warningCopy}>{presentation.primaryAction.disabledReason}</Text>
+                      ) : null}
+
+                      <View style={styles.actionRow}>
+                        {presentation.primaryAction ? (
+                          <ActionButton
+                            disabled={Boolean(presentation.primaryAction.disabledReason) || Boolean(submittingItemId)}
+                            label={presentation.primaryAction.label}
+                            onPress={() => {
+                              void runAction(presentation.primaryAction!, item.id);
+                            }}
+                            tone={presentation.statusTone}
+                          />
+                        ) : null}
+
+                        {presentation.secondaryAction ? (
+                          <ActionButton
+                            disabled={Boolean(submittingItemId)}
+                            label={presentation.secondaryAction.label}
+                            onPress={() => {
+                              void runAction(presentation.secondaryAction!, item.id);
+                            }}
+                            tone="warning"
+                          />
+                        ) : null}
+
+                        <ActionButton
+                          disabled={Boolean(submittingItemId)}
+                          label="Abrir mercado"
+                          onPress={() => {
+                            navigation.navigate('Market', {
+                              initialTab:
+                                item.itemType === 'weapon' || item.itemType === 'vest'
+                                  ? 'repair'
+                                  : 'sell',
+                            });
+                          }}
+                          tone="muted"
+                        />
+                      </View>
+
+                      {isSubmittingThisItem ? (
+                        <View style={styles.loadingRow}>
+                          <ActivityIndicator color={colors.accent} />
+                          <Text style={styles.loadingCopy}>Sincronizando inventário com o backend...</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
         ) : (
-          <EmptyState copy="Selecione um slot para ver atributos, durabilidade, proficiência e ações disponíveis." />
+          <EmptyState copy="O personagem ainda nao possui itens. Crimes, mercado negro e drops vao alimentar esta tela." />
         )}
       </View>
+      <InventoryResultModal
+        message={resultState?.message ?? null}
+        onClose={() => {
+          setResultState(null);
+        }}
+        title={resultState?.title ?? 'Inventário atualizado'}
+        tone={resultState?.tone ?? 'info'}
+      />
     </InGameScreenLayout>
+  );
+}
+
+function ActionButton(props: {
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+  tone: InventoryStatusTone;
+}): JSX.Element {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={props.disabled}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        { borderColor: resolveToneColor(props.tone) },
+        props.disabled ? styles.actionButtonDisabled : null,
+        pressed && !props.disabled ? styles.buttonPressed : null,
+      ]}
+    >
+      <Text style={[styles.actionButtonLabel, props.disabled ? styles.actionButtonLabelDisabled : null]}>
+        {props.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <View style={styles.metricPill}>
+      <Text style={styles.metricPillValue}>{value}</Text>
+      <Text style={styles.metricPillLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function StatusBadge({ label, tone }: { label: string; tone: InventoryStatusTone }): JSX.Element {
+  return (
+    <View style={[styles.statusBadge, { borderColor: resolveToneColor(tone) }]}>
+      <Text style={[styles.statusBadgeLabel, { color: resolveToneColor(tone) }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -125,6 +353,83 @@ function EmptyState({ copy }: { copy: string }): JSX.Element {
       <Text style={styles.emptyCopy}>{copy}</Text>
     </View>
   );
+}
+
+function InventoryResultModal(props: {
+  message: string | null;
+  onClose: () => void;
+  title: string;
+  tone: 'danger' | 'info';
+}): JSX.Element {
+  return (
+    <Modal animationType="fade" transparent visible={Boolean(props.message)}>
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalCard, props.tone === 'danger' ? styles.modalCardDanger : styles.modalCardInfo]}>
+          <Text style={styles.modalEyebrow}>
+            {props.tone === 'danger' ? 'Ação bloqueada' : 'Ação concluída'}
+          </Text>
+          <Text style={styles.modalTitle}>{props.title}</Text>
+          <Text style={styles.modalCopy}>{props.message}</Text>
+          <Pressable
+            onPress={props.onClose}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.buttonPressed : null,
+            ]}
+          >
+            <Text style={styles.primaryButtonLabel}>Fechar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+    style: 'currency',
+  }).format(value);
+}
+
+function resolveDurabilityLabel(item: {
+  durability: number | null;
+  maxDurability: number | null;
+}): string {
+  if (item.durability === null || item.maxDurability === null) {
+    return 'sem desgaste';
+  }
+
+  return `${item.durability}/${item.maxDurability}`;
+}
+
+function resolveDurabilityValue(item: {
+  durability: number | null;
+  maxDurability: number | null;
+}): string {
+  if (item.durability === null || item.maxDurability === null) {
+    return 'Estavel';
+  }
+
+  return `${item.durability}/${item.maxDurability}`;
+}
+
+function resolveToneColor(tone: InventoryStatusTone): string {
+  switch (tone) {
+    case 'danger':
+      return colors.danger;
+    case 'info':
+      return colors.info;
+    case 'success':
+      return colors.success;
+    case 'warning':
+      return colors.warning;
+    case 'muted':
+      return colors.muted;
+    case 'accent':
+      return colors.accent;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -159,22 +464,47 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  sectionCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  gridItem: {
+  gridItemShell: {
     backgroundColor: colors.panel,
     borderColor: colors.line,
     borderRadius: 18,
     borderWidth: 1,
-    gap: 4,
+    minWidth: '47%',
+    overflow: 'hidden',
+  },
+  gridItemShellSelected: {
+    borderColor: colors.accent,
+  },
+  gridItemPressable: {
+    gap: 6,
+    padding: 14,
+  },
+  gridItemExpanded: {
+    backgroundColor: colors.panelAlt,
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: 12,
     minWidth: '47%',
     padding: 14,
   },
-  gridItemSelected: {
-    borderColor: colors.accent,
+  gridItemEquipped: {
+    backgroundColor: colors.panelAlt,
+  },
+  gridItemTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
   },
   gridItemType: {
     color: colors.accent,
@@ -191,41 +521,163 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
   },
-  detailCard: {
-    backgroundColor: colors.panelAlt,
-    borderRadius: 18,
-    gap: 8,
-    padding: 16,
+  expandHint: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    textTransform: 'uppercase',
   },
-  detailTitle: {
+  metricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricPill: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    minWidth: '30%',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  metricPillValue: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '800',
   },
-  detailCopy: {
+  metricPillLabel: {
     color: colors.muted,
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  benefitCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  benefitTitle: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  benefitCopy: {
+    color: colors.text,
     fontSize: 13,
+    lineHeight: 18,
+  },
+  warningCopy: {
+    color: colors.warning,
+    fontSize: 12,
+    fontWeight: '700',
     lineHeight: 18,
   },
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 6,
   },
   actionButton: {
     backgroundColor: colors.panel,
-    borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  actionButtonDisabled: {
+    borderColor: colors.line,
+    opacity: 0.55,
   },
   actionButtonLabel: {
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  actionButtonLabelDisabled: {
+    color: colors.muted,
+  },
+  statusBadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusBadgeLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  loadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  loadingCopy: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  primaryButtonLabel: {
+    color: '#17120a',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 8, 7, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 12,
+    maxWidth: 420,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#2a1719',
+    borderColor: 'rgba(217, 108, 108, 0.35)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
   },
   buttonPressed: {
     opacity: 0.88,

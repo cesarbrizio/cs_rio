@@ -26,7 +26,7 @@ export interface TrainingCompletionCue {
   key: string;
   kind: 'training';
   multiplierLabel: string;
-  staminaLabel: string;
+  cansacoLabel: string;
   streakLabel: string;
   title: string;
   trainingLabel: string;
@@ -106,7 +106,7 @@ export function buildPendingTrainingCompletionCue(input: {
     key,
     kind: 'training',
     multiplierLabel: `${session.diminishingMultiplier.toFixed(2)}x`,
-    staminaLabel: `${session.costStamina}`,
+    cansacoLabel: `${session.costCansaco}`,
     streakLabel: `${session.streakIndex + 1}`,
     title: `${trainingLabel} pronto para resgatar`,
     trainingLabel,

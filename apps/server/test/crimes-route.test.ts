@@ -46,7 +46,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -75,16 +75,16 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       inteligencia: 20,
       lastLogin: input.lastLogin,
       level: 4,
-      morale: 100,
+      brisa: 100,
       money: '1000',
-      nerve: 80,
+      disposicao: 80,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 0,
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 18,
-      stamina: 90,
+      cansaco: 90,
       vocation: VocationType.Cria,
     };
 
@@ -139,9 +139,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -219,11 +219,11 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       addictionRate: 1,
       code: drugId,
       drugId,
-      moralBoost: 2,
+      brisaBoost: 2,
       name: `mock-${drugId}`,
-      nerveBoost: 3,
+      disposicaoBoost: 3,
       productionLevel: 1,
-      staminaRecovery: 4,
+      cansacoRecovery: 4,
       type: DrugType.Maconha,
     };
   }
@@ -355,9 +355,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 }
 
@@ -403,17 +403,17 @@ class FakeCrimeService implements CrimeServiceContract {
       moneyDelta: 1250,
       nextConceitoRequired: 1500,
       nextLevel: 5,
-      nerveSpent: 0,
+      disposicaoSpent: 0,
       playerPower: 980,
       resources: {
         addiction: 0,
         conceito: 512,
         hp: 100,
         money: 2250,
-        nerve: 80,
-        stamina: 75,
+        disposicao: 80,
+        cansaco: 75,
       },
-      staminaSpent: 15,
+      cansacoSpent: 15,
       success: true,
     };
   }
@@ -446,7 +446,7 @@ class FakeCrimeService implements CrimeServiceContract {
           level: 5,
           leveledUp: false,
           moneyDelta: 75000,
-          nerveSpent: 20,
+          disposicaoSpent: 20,
           nickname: 'crime_route',
           playerPower: 2100,
           rank: 'patrao',
@@ -454,10 +454,10 @@ class FakeCrimeService implements CrimeServiceContract {
             conceito: 620,
             hp: 100,
             money: 76000,
-            nerve: 60,
-            stamina: 60,
+            disposicao: 60,
+            cansaco: 60,
           },
-          staminaSpent: 30,
+          cansacoSpent: 30,
         },
       ],
       rewardTotal: 150000,
@@ -481,11 +481,12 @@ class FakeCrimeService implements CrimeServiceContract {
           minPower: 50,
           name: `Roubar celular no sinal (${playerId})`,
           playerPower: 980,
-          nerveCost: 0,
+          disposicaoCost: 0,
           conceitoReward: 12,
+          rewardRead: 'approximate',
           rewardMax: 2200,
           rewardMin: 1000,
-          staminaCost: 15,
+          cansacoCost: 15,
           type: CrimeType.Solo,
         },
       ],
@@ -510,10 +511,10 @@ class FakeCrimeService implements CrimeServiceContract {
           minimumCrewSize: 2,
           minPower: 15000,
           name: `Roubo a banco central em bonde (${playerId})`,
-          nerveCost: 20,
+          disposicaoCost: 20,
           rewardMax: 1200000,
           rewardMin: 300000,
-          staminaCost: 30,
+          cansacoCost: 30,
           type: CrimeType.Faccao,
         },
       ],
@@ -529,8 +530,8 @@ class FakeCrimeService implements CrimeServiceContract {
           rank: 'patrao',
           resources: {
             hp: 100,
-            nerve: 80,
-            stamina: 90,
+            disposicao: 80,
+            cansaco: 90,
           },
         },
       ],

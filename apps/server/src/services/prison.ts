@@ -51,6 +51,7 @@ export interface PrisonServiceOptions {
   now?: () => Date;
   policeHeatSystem?: PoliceHeatSystem;
   prisonSystem: PrisonSystemContract;
+  random?: () => number;
   universityReader?: UniversityEffectReaderContract;
 }
 
@@ -93,6 +94,8 @@ export class PrisonService implements PrisonServiceContract {
 
   private readonly prisonSystem: PrisonSystemContract;
 
+  private readonly random: () => number;
+
   private readonly universityReader: UniversityEffectReaderContract;
 
   constructor(options: PrisonServiceOptions) {
@@ -105,6 +108,7 @@ export class PrisonService implements PrisonServiceContract {
         keyValueStore: this.keyValueStore,
       });
     this.prisonSystem = options.prisonSystem;
+    this.random = options.random ?? Math.random;
     this.universityReader = options.universityReader ?? new NoopUniversityEffectReader();
   }
 
@@ -255,7 +259,7 @@ export class PrisonService implements PrisonServiceContract {
       prison.heatTier,
       passiveProfile.police.negotiationSuccessMultiplier,
     );
-    const succeeded = Math.random() * 100 < successChance;
+    const succeeded = this.random() * 100 < successChance;
     const result = await db.transaction(async (tx) => {
       const [currentPlayer] = await tx
         .select({
@@ -395,7 +399,7 @@ export class PrisonService implements PrisonServiceContract {
 
     const prison = await this.prisonSystem.getStatus(playerId);
     const successChance = resolveEscapeChance(player, prison.heatTier);
-    const succeeded = Math.random() * 100 < successChance;
+    const succeeded = this.random() * 100 < successChance;
     const attemptedAt = this.now();
 
     if (succeeded) {

@@ -43,12 +43,12 @@ import { type UniversityEffectReaderContract } from './university.js';
 const AMBUSH_COOLDOWN_SECONDS = 12 * 60 * 60;
 const AMBUSH_MAX_ATTACKERS = 5;
 const AMBUSH_MIN_ATTACKERS = 2;
-const AMBUSH_STAMINA_COST = 15;
+const AMBUSH_CANSACO_COST = 15;
 const ASSAULT_COOLDOWN_SECONDS = 6 * 60 * 60;
-const ASSAULT_STAMINA_COST = 20;
+const ASSAULT_CANSACO_COST = 20;
 const ASSASSINATION_CONTRACT_DURATION_HOURS = 72;
 const ASSASSINATION_CONTRACT_FEE_RATE = 0.1;
-const ASSASSINATION_STAMINA_COST = 20;
+const ASSASSINATION_CANSACO_COST = 20;
 const LIGHT_HOSPITALIZATION_HP_FLOOR = 1;
 const MIN_ASSAULT_LEVEL = 3;
 const MIN_ASSASSINATION_ACCEPT_LEVEL = 5;
@@ -166,7 +166,7 @@ interface PvpPersistAssaultInput {
     id: string;
     levelAfter: number;
     moneyAfter: number;
-    staminaAfter: number;
+    cansacoAfter: number;
   };
   defender: {
     attributes: CombatPlayerContext['attributes'];
@@ -183,7 +183,7 @@ interface PvpPersistAmbushInput {
     id: string;
     levelAfter: number;
     moneyAfter: number;
-    staminaAfter: number;
+    cansacoAfter: number;
   }>;
   defender: {
     hpAfter: number;
@@ -199,7 +199,7 @@ interface PvpPersistAssassinationExecutionInput {
     id: string;
     levelAfter: number;
     moneyAfter: number;
-    staminaAfter: number;
+    cansacoAfter: number;
   };
   contract: {
     acceptedAt: Date | null;
@@ -574,7 +574,7 @@ export class DatabasePvpRepository implements PvpRepository {
           hp: input.assassin.hpAfter,
           level: input.assassin.levelAfter,
           money: formatMoney(input.assassin.moneyAfter),
-          stamina: input.assassin.staminaAfter,
+          cansaco: input.assassin.cansacoAfter,
         })
         .where(eq(players.id, input.assassin.id));
 
@@ -617,7 +617,7 @@ export class DatabasePvpRepository implements PvpRepository {
           level: input.attacker.levelAfter,
           money: formatMoney(input.attacker.moneyAfter),
           resistencia: input.attacker.attributes.resistencia,
-          stamina: input.attacker.staminaAfter,
+          cansaco: input.attacker.cansacoAfter,
         })
         .where(eq(players.id, input.attacker.id));
 
@@ -647,7 +647,7 @@ export class DatabasePvpRepository implements PvpRepository {
             hp: attacker.hpAfter,
             level: attacker.levelAfter,
             money: formatMoney(attacker.moneyAfter),
-            stamina: attacker.staminaAfter,
+            cansaco: attacker.cansacoAfter,
           })
           .where(eq(players.id, attacker.id));
       }
@@ -961,10 +961,10 @@ export class PvpService implements PvpServiceContract {
       );
     }
 
-    if (assassin.player.resources.stamina < ASSASSINATION_STAMINA_COST) {
+    if (assassin.player.resources.cansaco < ASSASSINATION_CANSACO_COST) {
       throw new PvpError(
         'insufficient_resources',
-        'Estamina insuficiente para executar o contrato.',
+        'Cansaço insuficiente para executar o contrato.',
       );
     }
 
@@ -1025,9 +1025,9 @@ export class PvpService implements PvpServiceContract {
     const assassinMoneyAfter = roundMoney(
       assassin.player.resources.money + lootAmount + rewardPayout,
     );
-    const assassinStaminaAfter = Math.max(
+    const assassinCansacoAfter = Math.max(
       0,
-      assassin.player.resources.stamina - ASSASSINATION_STAMINA_COST,
+      assassin.player.resources.cansaco - ASSASSINATION_CANSACO_COST,
     );
     const defenderHpAfter =
       resolution.defender.hospitalization.recommended && !contractSucceeded
@@ -1063,7 +1063,7 @@ export class PvpService implements PvpServiceContract {
         id: assassinId,
         levelAfter: assassinLevelAfter,
         moneyAfter: assassinMoneyAfter,
-        staminaAfter: assassinStaminaAfter,
+        cansacoAfter: assassinCansacoAfter,
       },
       contract: {
         acceptedAt: contractSucceeded ? contract.acceptedAt : null,
@@ -1155,9 +1155,9 @@ export class PvpService implements PvpServiceContract {
         moneyBefore: assassin.player.resources.money,
         moneyDelta: roundMoney(lootAmount + rewardPayout),
         nickname: assassin.player.nickname,
-        staminaAfter: assassinStaminaAfter,
-        staminaBefore: assassin.player.resources.stamina,
-        staminaDelta: assassinStaminaAfter - assassin.player.resources.stamina,
+        cansacoAfter: assassinCansacoAfter,
+        cansacoBefore: assassin.player.resources.cansaco,
+        cansacoDelta: assassinCansacoAfter - assassin.player.resources.cansaco,
       },
       contract: serializedContract,
       defender: {
@@ -1207,8 +1207,8 @@ export class PvpService implements PvpServiceContract {
       );
     }
 
-    if (attacker.player.resources.stamina < ASSAULT_STAMINA_COST) {
-      throw new PvpError('insufficient_resources', 'Estamina insuficiente para iniciar a porrada.');
+    if (attacker.player.resources.cansaco < ASSAULT_CANSACO_COST) {
+      throw new PvpError('insufficient_resources', 'Cansaço insuficiente para iniciar a porrada.');
     }
 
     if (attacker.player.resources.hp <= 0) {
@@ -1301,9 +1301,9 @@ export class PvpService implements PvpServiceContract {
     const defenderMoneyAfter = roundMoney(
       Math.max(0, defender.player.resources.money - lootAmount),
     );
-    const attackerStaminaAfter = Math.max(
+    const attackerCansacoAfter = Math.max(
       0,
-      attacker.player.resources.stamina - ASSAULT_STAMINA_COST,
+      attacker.player.resources.cansaco - ASSAULT_CANSACO_COST,
     );
 
     await this.assertPvpActorsUnlocked([
@@ -1328,7 +1328,7 @@ export class PvpService implements PvpServiceContract {
         id: attackerId,
         levelAfter: attackerLevelAfter,
         moneyAfter: attackerMoneyAfter,
-        staminaAfter: attackerStaminaAfter,
+        cansacoAfter: attackerCansacoAfter,
       },
       defender: {
         attributes: defenderAttributes,
@@ -1365,9 +1365,9 @@ export class PvpService implements PvpServiceContract {
         moneyBefore: attacker.player.resources.money,
         moneyDelta: lootAmount,
         nickname: attacker.player.nickname,
-        staminaAfter: attackerStaminaAfter,
-        staminaBefore: attacker.player.resources.stamina,
-        staminaDelta: attackerStaminaAfter - attacker.player.resources.stamina,
+        cansacoAfter: attackerCansacoAfter,
+        cansacoBefore: attacker.player.resources.cansaco,
+        cansacoDelta: attackerCansacoAfter - attacker.player.resources.cansaco,
       },
       attributeSteal,
       defender: {
@@ -1563,10 +1563,10 @@ export class PvpService implements PvpServiceContract {
         );
       }
 
-      if (attacker.context.player.resources.stamina < AMBUSH_STAMINA_COST) {
+      if (attacker.context.player.resources.cansaco < AMBUSH_CANSACO_COST) {
         throw new PvpError(
           'insufficient_resources',
-          `${attacker.context.player.nickname} nao tem estamina para a emboscada.`,
+          `${attacker.context.player.nickname} nao tem cansaço para a emboscada.`,
         );
       }
     }
@@ -1651,9 +1651,9 @@ export class PvpService implements PvpServiceContract {
       const lootShare = lootShares[index] ?? 0;
       const conceitoShare = conceitoShares[index] ?? 0;
       const isCasualty = casualtyIds.has(attacker.context.player.id);
-      const staminaAfter = Math.max(
+      const cansacoAfter = Math.max(
         0,
-        attacker.context.player.resources.stamina - AMBUSH_STAMINA_COST,
+        attacker.context.player.resources.cansaco - AMBUSH_CANSACO_COST,
       );
       const hpAfter = isCasualty
         ? Math.max(
@@ -1696,9 +1696,9 @@ export class PvpService implements PvpServiceContract {
         power: attacker.powerProfile.power,
         powerSharePercent: basePower > 0 ? roundValue(attacker.powerProfile.power / basePower) : 0,
         rank: attacker.membership.rank,
-        staminaAfter,
-        staminaBefore: attacker.context.player.resources.stamina,
-        staminaDelta: staminaAfter - attacker.context.player.resources.stamina,
+        cansacoAfter,
+        cansacoBefore: attacker.context.player.resources.cansaco,
+        cansacoDelta: cansacoAfter - attacker.context.player.resources.cansaco,
       };
     });
 
@@ -1716,7 +1716,7 @@ export class PvpService implements PvpServiceContract {
         id: attacker.id,
         levelAfter: attacker.levelAfter,
         moneyAfter: attacker.moneyAfter,
-        staminaAfter: attacker.staminaAfter,
+        cansacoAfter: attacker.cansacoAfter,
       })),
       defender: {
         hpAfter: defenderHpAfter,
@@ -1769,9 +1769,9 @@ export class PvpService implements PvpServiceContract {
         power: attacker.power,
         powerSharePercent: attacker.powerSharePercent,
         rank: attacker.rank,
-        staminaAfter: attacker.staminaAfter,
-        staminaBefore: attacker.staminaBefore,
-        staminaDelta: attacker.staminaDelta,
+        cansacoAfter: attacker.cansacoAfter,
+        cansacoBefore: attacker.cansacoBefore,
+        cansacoDelta: attacker.cansacoDelta,
       })),
       coordinationMultiplier,
       defender: {

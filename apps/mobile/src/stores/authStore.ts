@@ -9,6 +9,8 @@ import {
   type AuthRegisterInput,
   type AuthSession,
   type DrugConsumeResponse,
+  type InventoryListResponse,
+  type InventoryRepairResponse,
   type PlayerCreationInput,
   type PlayerProfile,
   type RegionId,
@@ -24,6 +26,7 @@ import {
   installAuthInterceptors,
   playerApi,
 } from '../services/api';
+import { useAppStore } from './appStore';
 
 const ACCESS_TOKEN_KEY = 'cs_rio_access_token';
 const REFRESH_TOKEN_KEY = 'cs_rio_refresh_token';
@@ -31,6 +34,7 @@ const REFRESH_TOKEN_KEY = 'cs_rio_refresh_token';
 interface AuthStore {
   consumeDrugInventoryItem: (inventoryItemId: string) => Promise<DrugConsumeResponse>;
   createCharacter: (input: PlayerCreationInput) => Promise<PlayerProfile>;
+  equipInventoryItem: (inventoryItemId: string) => Promise<InventoryListResponse>;
   isAuthenticated: boolean;
   isHydrated: boolean;
   isLoading: boolean;
@@ -41,11 +45,13 @@ interface AuthStore {
   refreshPlayerProfile: () => Promise<PlayerProfile | null>;
   refreshAuth: () => Promise<string | null>;
   refreshToken: string | null;
+  repairInventoryItem: (inventoryItemId: string) => Promise<InventoryRepairResponse>;
   register: (input: AuthRegisterInput & {
     confirmPassword: string;
   }) => Promise<void>;
   token: string | null;
   travelToRegion: (regionId: RegionId) => Promise<PlayerProfile>;
+  unequipInventoryItem: (inventoryItemId: string) => Promise<InventoryListResponse>;
 }
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -80,6 +86,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       return player;
+    } catch (error) {
+      set({ isLoading: false });
+      throw formatApiError(error);
+    }
+  },
+  async equipInventoryItem(inventoryItemId) {
+    set({ isLoading: true });
+
+    try {
+      const response = await inventoryApi.equip(inventoryItemId);
+      set((state) => ({
+        isLoading: false,
+        player: applyInventoryItemsToPlayer(state.player, response.items),
+      }));
+
+      return response;
     } catch (error) {
       set({ isLoading: false });
       throw formatApiError(error);
@@ -178,6 +200,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   async logout() {
     await clearStoredSession();
+    refreshPromise = null;
+    useAppStore.getState().resetForLogout();
     set({
       isAuthenticated: false,
       isHydrated: true,
@@ -237,6 +261,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return refreshPromise;
   },
   refreshToken: null,
+  async repairInventoryItem(inventoryItemId) {
+    set({ isLoading: true });
+
+    try {
+      const response = await inventoryApi.repair(inventoryItemId);
+      set((state) => ({
+        isLoading: false,
+        player: applyRepairToPlayer(state.player, response),
+      }));
+
+      return response;
+    } catch (error) {
+      set({ isLoading: false });
+      throw formatApiError(error);
+    }
+  },
   async register(input) {
     set({ isLoading: true });
 
@@ -280,6 +320,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       return player;
+    } catch (error) {
+      set({ isLoading: false });
+      throw formatApiError(error);
+    }
+  },
+  async unequipInventoryItem(inventoryItemId) {
+    set({ isLoading: true });
+
+    try {
+      const response = await inventoryApi.unequip(inventoryItemId);
+      set((state) => ({
+        isLoading: false,
+        player: applyInventoryItemsToPlayer(state.player, response.items),
+      }));
+
+      return response;
     } catch (error) {
       set({ isLoading: false });
       throw formatApiError(error);
@@ -341,6 +397,38 @@ async function storeSessionTokens(accessToken: string, refreshToken: string): Pr
     SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
     SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
   ]);
+}
+
+function applyInventoryItemsToPlayer(
+  player: PlayerProfile | null,
+  items: PlayerProfile['inventory'],
+): PlayerProfile | null {
+  if (!player) {
+    return player;
+  }
+
+  return {
+    ...player,
+    inventory: items,
+  };
+}
+
+function applyRepairToPlayer(
+  player: PlayerProfile | null,
+  response: InventoryRepairResponse,
+): PlayerProfile | null {
+  if (!player) {
+    return player;
+  }
+
+  return {
+    ...player,
+    inventory: response.items,
+    resources: {
+      ...player.resources,
+      money: Math.max(0, player.resources.money - response.repairCost),
+    },
+  };
 }
 
 function validateEmail(email: string): void {

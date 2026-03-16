@@ -1,4 +1,10 @@
-import { RegionId, type DocksEventStatusResponse, type PoliceEventStatusResponse, type SeasonalEventStatusResponse } from '@cs-rio/shared';
+import {
+  RegionId,
+  type DocksEventStatusResponse,
+  type EventResultListResponse,
+  type PoliceEventStatusResponse,
+  type SeasonalEventStatusResponse,
+} from '@cs-rio/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +12,10 @@ import {
   resolveEventDestinationLabel,
   resolveEventNotificationTimeLabel,
 } from '../src/features/events';
+import {
+  buildPendingEventResultCues,
+  resolveEventResultDestinationLabel,
+} from '../src/features/event-results';
 
 describe('event feed', () => {
   it('prioritizes police danger events over seasonal and docks notices', () => {
@@ -87,5 +97,66 @@ describe('event feed', () => {
     expect(resolveEventDestinationLabel('territory')).toBe('Abrir território');
     expect(resolveEventDestinationLabel('market')).toBe('Abrir mercado');
     expect(resolveEventDestinationLabel('map')).toBe('Abrir mapa');
+  });
+
+  it('builds pending event result cues in chronological order and skips seen results', () => {
+    const results: EventResultListResponse = {
+      generatedAt: '2026-03-11T18:00:00.000Z',
+      results: [
+        {
+          body: 'A janela premium das docas fechou em Centro.',
+          destination: 'market',
+          eventType: 'navio_docas',
+          favelaId: null,
+          favelaName: null,
+          headline: 'Navio nas Docas: a janela premium de escoamento abriu no Centro.',
+          id: 'dock-1',
+          impactSummary: 'O multiplicador extra saiu do porto e a demanda livre voltou ao fluxo normal do mercado.',
+          metrics: [{ label: 'Multiplicador', value: '1.5x' }],
+          regionId: RegionId.Centro,
+          regionName: 'Centro',
+          resolvedAt: '2026-03-11T17:00:00.000Z',
+          severity: 'info',
+          startedAt: '2026-03-11T11:00:00.000Z',
+          title: 'Navio nas Docas · Centro',
+        },
+        {
+          body: '2 bandidos foram presos na operação.',
+          destination: 'territory',
+          eventType: 'operacao_policial',
+          favelaId: 'favela-1',
+          favelaName: 'Complexo do Teste',
+          headline: 'Operação Policial: a pressão subiu e a rua ficou mais quente.',
+          id: 'police-1',
+          impactSummary: 'A favela terminou o ciclo com mais pressão policial.',
+          metrics: [{ label: 'Bandidos presos', value: '2' }],
+          regionId: RegionId.ZonaNorte,
+          regionName: 'Zona Norte',
+          resolvedAt: '2026-03-11T16:00:00.000Z',
+          severity: 'warning',
+          startedAt: '2026-03-11T14:00:00.000Z',
+          title: 'Operação policial · Complexo do Teste · Zona Norte',
+        },
+      ],
+    };
+
+    const cues = buildPendingEventResultCues({
+      results,
+      seenKeys: new Set(['event-result:police-1:2026-03-11T16:00:00.000Z']),
+    });
+
+    expect(cues).toHaveLength(1);
+    expect(cues[0]).toMatchObject({
+      destination: 'market',
+      key: 'event-result:dock-1:2026-03-11T17:00:00.000Z',
+      title: 'Navio nas Docas · Centro',
+    });
+  });
+
+  it('maps target labels for event result modal actions', () => {
+    expect(resolveEventResultDestinationLabel('territory')).toBe('Abrir território');
+    expect(resolveEventResultDestinationLabel('market')).toBe('Abrir mercado');
+    expect(resolveEventResultDestinationLabel('map')).toBe('Abrir mapa');
+    expect(resolveEventResultDestinationLabel('prison')).toBe('Abrir prisão');
   });
 });

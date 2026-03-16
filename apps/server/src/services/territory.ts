@@ -42,6 +42,9 @@ import {
   type TerritoryBossSummary,
   type TerritoryConquestParticipantOutcome,
   type TerritoryFavelaSummary,
+  type TerritoryLossCause,
+  type TerritoryLossCueSummary,
+  type TerritoryLossFeedResponse,
   type TerritoryOverviewResponse,
   type TerritoryRegionSummary,
   VocationType,
@@ -70,6 +73,7 @@ import {
   buildInactiveRegionalDominationBonus,
   type RegionalDominationBonus,
 } from './regional-domination.js';
+import { type KeyValueStore } from './auth.js';
 import { DatabaseTerritoryRepository } from './territory/repository.js';
 
 
@@ -85,6 +89,9 @@ const FACTION_WAR_ROUND_INTERVAL_MS = 30 * 60 * 1000;
 const FACTION_WAR_MAX_PREPARATION_BUDGET = 100000;
 const FACTION_WAR_MAX_SOLDIER_COMMITMENT = 20;
 const FACTION_WAR_DEFENDER_TERRAIN_MULTIPLIER = 1.12;
+const MAX_STORED_TERRITORY_LOSS_CUES = 30;
+const TERRITORY_LOSS_REPLAY_WINDOW_MS = 72 * 60 * 60 * 1000;
+const TERRITORY_LOSS_STORE_PREFIX = 'cs_rio_recent_territory_losses:';
 type TerritorySatisfactionProfile = TerritoryFavelaSummary['satisfactionProfile'];
 type TerritorySatisfactionFactorSummary = TerritorySatisfactionProfile['factors'][number];
 type TerritorySatisfactionTier = TerritorySatisfactionProfile['tier'];
@@ -208,7 +215,7 @@ interface TerritoryFavelaBaileRecord {
   organizedByPlayerId: string;
   resultTier: FavelaBaileResultTier;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 }
 
 interface TerritoryFactionWarPreparationRecord {
@@ -223,13 +230,13 @@ interface TerritoryFactionWarPreparationRecord {
 
 interface TerritoryFactionWarRoundRecord {
   attackerHpLoss: number;
-  attackerNerveLoss: number;
+  attackerDisposicaoLoss: number;
   attackerPower: number;
-  attackerStaminaLoss: number;
+  attackerCansacoLoss: number;
   defenderHpLoss: number;
-  defenderNerveLoss: number;
+  defenderDisposicaoLoss: number;
   defenderPower: number;
-  defenderStaminaLoss: number;
+  defenderCansacoLoss: number;
   message: string;
   outcome: FactionWarRoundOutcome;
   resolvedAt: Date;
@@ -309,7 +316,7 @@ interface TerritoryParticipantRecord {
     id: string;
     level: number;
     nickname: string;
-    resources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+    resources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
     vocation: VocationType;
   };
   rank: FactionRank;
@@ -322,7 +329,7 @@ interface TerritoryConquestParticipantPersistenceUpdate {
   hpDelta: number;
   logType: 'territory_conquest_failure' | 'territory_conquest_success';
   nextLevel: number;
-  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
   playerId: string;
 }
 
@@ -525,7 +532,7 @@ interface TerritoryFavelaBailePersistenceInput {
   resultTier: FavelaBaileResultTier;
   satisfactionAfter: number;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 }
 
 interface TerritoryFactionWarCreateInput {
@@ -555,7 +562,7 @@ interface TerritoryFactionWarPreparePersistenceInput {
 interface TerritoryFactionWarParticipantPersistenceUpdate {
   conceitoDelta: number;
   nextLevel: number;
-  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
   playerId: string;
 }
 
@@ -679,6 +686,7 @@ export interface TerritoryServiceContract {
     input: FavelaServiceInstallInput,
   ): Promise<FavelaServiceMutationResponse>;
   listFavelaServices(playerId: string, favelaId: string): Promise<FavelaServicesResponse>;
+  listTerritoryLosses(playerId: string): Promise<TerritoryLossFeedResponse>;
   listTerritory(playerId: string): Promise<TerritoryOverviewResponse>;
   transitionFavelaState(
     playerId: string,
@@ -695,6 +703,7 @@ export interface TerritoryServiceContract {
 export interface TerritoryServiceOptions {
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
   gameConfigService?: GameConfigService;
+  keyValueStore?: KeyValueStore;
   levelSystem?: LevelSystem;
   now?: () => Date;
   random?: () => number;
@@ -724,6 +733,8 @@ export class TerritoryService implements TerritoryServiceContract {
 
   private readonly gameConfigService: GameConfigService;
 
+  private readonly keyValueStore: KeyValueStore | null;
+
   private readonly levelSystem: LevelSystem;
 
   private readonly now: () => Date;
@@ -735,6 +746,7 @@ export class TerritoryService implements TerritoryServiceContract {
   constructor(options: TerritoryServiceOptions = {}) {
     this.factionUpgradeReader = options.factionUpgradeReader ?? new NoopFactionUpgradeEffectReader();
     this.gameConfigService = options.gameConfigService ?? new GameConfigService();
+    this.keyValueStore = options.keyValueStore ?? null;
     this.levelSystem = options.levelSystem ?? new LevelSystem();
     this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
@@ -831,15 +843,15 @@ export class TerritoryService implements TerritoryServiceContract {
         this.applyFactionUpgradeEffects(participant as TerritoryParticipantRecord),
       ),
     );
-    const staminaCost = resolveTerritoryConquestStaminaCost(favela.difficulty);
-    const nerveCost = resolveTerritoryConquestNerveCost(favela.difficulty);
+    const cansacoCost = resolveTerritoryConquestCansacoCost(favela.difficulty);
+    const disposicaoCost = resolveTerritoryConquestDisposicaoCost(favela.difficulty);
 
     for (const participant of effectiveParticipants) {
       const lockReason = resolveTerritoryConquestLockReason(
         participant,
         favela.regionId,
-        staminaCost,
-        nerveCost,
+        cansacoCost,
+        disposicaoCost,
       );
 
       if (lockReason) {
@@ -876,8 +888,8 @@ export class TerritoryService implements TerritoryServiceContract {
         const nextResources = {
           conceito: Math.max(0, participant.player.resources.conceito + conceitoRewardPerParticipant),
           hp: clamp(participant.player.resources.hp + hpDelta, 0, 100),
-          nerve: clamp(participant.player.resources.nerve - nerveCost, 0, 100),
-          stamina: clamp(participant.player.resources.stamina - staminaCost, 0, 100),
+          disposicao: clamp(participant.player.resources.disposicao - disposicaoCost, 0, 100),
+          cansaco: clamp(participant.player.resources.cansaco - cansacoCost, 0, 100),
         };
         const levelProgression = this.levelSystem.resolve(nextResources.conceito, participant.player.level);
 
@@ -892,8 +904,8 @@ export class TerritoryService implements TerritoryServiceContract {
           rank: participant.rank,
           regionId: participant.regionId,
           resources: nextResources,
-          nerveSpent: nerveCost,
-          staminaSpent: staminaCost,
+          disposicaoSpent: disposicaoCost,
+          cansacoSpent: cansacoCost,
         };
       },
     );
@@ -1018,6 +1030,23 @@ export class TerritoryService implements TerritoryServiceContract {
     const syncedFavelas = await this.syncAndListFavelas();
 
     return buildTerritoryOverview(player.factionId, syncedFavelas);
+  }
+
+  async listTerritoryLosses(playerId: string): Promise<TerritoryLossFeedResponse> {
+    const player = await this.assertPlayerReady(playerId);
+    const now = this.now();
+
+    if (!player.factionId) {
+      return {
+        cues: [],
+        generatedAt: now.toISOString(),
+      };
+    }
+
+    return {
+      cues: await this.readTerritoryLossFeed(player.factionId, now),
+      generatedAt: now.toISOString(),
+    };
   }
 
   async getFactionWar(playerId: string, favelaId: string): Promise<FactionWarStatusResponse> {
@@ -1345,13 +1374,13 @@ export class TerritoryService implements TerritoryServiceContract {
     });
     const nextRounds = [...warBefore.rounds, round].map((entry) => ({
       attackerHpLoss: entry.attackerHpLoss,
-      attackerNerveLoss: entry.attackerNerveLoss,
+      attackerDisposicaoLoss: entry.attackerDisposicaoLoss,
       attackerPower: entry.attackerPower,
-      attackerStaminaLoss: entry.attackerStaminaLoss,
+      attackerCansacoLoss: entry.attackerCansacoLoss,
       defenderHpLoss: entry.defenderHpLoss,
-      defenderNerveLoss: entry.defenderNerveLoss,
+      defenderDisposicaoLoss: entry.defenderDisposicaoLoss,
       defenderPower: entry.defenderPower,
-      defenderStaminaLoss: entry.defenderStaminaLoss,
+      defenderCansacoLoss: entry.defenderCansacoLoss,
       message: entry.message,
       outcome: entry.outcome,
       resolvedAt: new Date(entry.resolvedAt),
@@ -1452,7 +1481,24 @@ export class TerritoryService implements TerritoryServiceContract {
       throw new TerritoryError('conflict', 'Nao foi possivel registrar o round da guerra.');
     }
 
-    const overview = buildTerritoryOverview(player.factionId, await this.syncAndListFavelas());
+    const syncedAfter = await this.syncAndListFavelas();
+
+    if (warEnded && finalStatus === 'attacker_won') {
+      const beforeSnapshots = syncedBefore.map(toTerritoryLossSnapshot);
+      const afterSnapshots = syncedAfter.map(toTerritoryLossSnapshot);
+      const factionIds = collectTerritoryLossFactionIds(beforeSnapshots, afterSnapshots);
+      const factionRecords = await this.repository.listFactionsByIds([...factionIds]);
+
+      await this.emitTerritoryLosses({
+        after: afterSnapshots,
+        before: beforeSnapshots,
+        causeByFavelaId: new Map([[favelaId, 'war_defeat' satisfies TerritoryLossCause]]),
+        factionRecordsById: new Map(factionRecords.map((faction) => [faction.id, faction])),
+        occurredAt: now,
+      });
+    }
+
+    const overview = buildTerritoryOverview(player.factionId, syncedAfter);
     const favela = overview.favelas.find((entry) => entry.id === favelaId);
 
     if (!favela?.war) {
@@ -1569,7 +1615,7 @@ export class TerritoryService implements TerritoryServiceContract {
       resultTier: outcome.resultTier,
       satisfactionAfter,
       satisfactionDelta: outcome.satisfactionDelta,
-      staminaBoostPercent: outcome.staminaBoostPercent,
+      cansacoBoostPercent: outcome.cansacoBoostPercent,
     });
 
     const overview = buildTerritoryOverview(player.factionId, await this.syncAndListFavelas());
@@ -1806,6 +1852,23 @@ export class TerritoryService implements TerritoryServiceContract {
     });
 
     const syncedAfterTransition = await this.syncAndListFavelas();
+    const transitionCause =
+      input.action === 'attacker_win'
+        ? ('war_defeat' satisfies TerritoryLossCause)
+        : ('control_removed' satisfies TerritoryLossCause);
+    const beforeSnapshots = syncedBeforeTransition.map(toTerritoryLossSnapshot);
+    const afterSnapshots = syncedAfterTransition.map(toTerritoryLossSnapshot);
+    const factionIds = collectTerritoryLossFactionIds(beforeSnapshots, afterSnapshots);
+    const factionRecords = await this.repository.listFactionsByIds([...factionIds]);
+
+    await this.emitTerritoryLosses({
+      after: afterSnapshots,
+      before: beforeSnapshots,
+      causeByFavelaId: new Map([[favelaId, transitionCause]]),
+      factionRecordsById: new Map(factionRecords.map((faction) => [faction.id, faction])),
+      occurredAt: now,
+    });
+
     const overview = buildTerritoryOverview(player.factionId, syncedAfterTransition);
     const transitionedFavela = overview.favelas.find((entry) => entry.id === favelaId);
 
@@ -1877,6 +1940,87 @@ export class TerritoryService implements TerritoryServiceContract {
     };
   }
 
+  private async readTerritoryLossFeed(
+    factionId: string,
+    now: Date,
+  ): Promise<TerritoryLossCueSummary[]> {
+    if (!this.keyValueStore) {
+      return [];
+    }
+
+    const raw = await this.keyValueStore.get(buildTerritoryLossStoreKey(factionId));
+    const parsed = parseTerritoryLossCueSummaries(raw);
+    const fresh = parsed
+      .filter((cue) => now.getTime() - new Date(cue.occurredAt).getTime() <= TERRITORY_LOSS_REPLAY_WINDOW_MS)
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
+      .slice(0, MAX_STORED_TERRITORY_LOSS_CUES);
+
+    if (fresh.length !== parsed.length) {
+      await this.keyValueStore.set(
+        buildTerritoryLossStoreKey(factionId),
+        JSON.stringify(fresh),
+        Math.ceil(TERRITORY_LOSS_REPLAY_WINDOW_MS / 1000),
+      );
+    }
+
+    return fresh;
+  }
+
+  private async appendTerritoryLossCue(cue: TerritoryLossCueSummary): Promise<void> {
+    if (!this.keyValueStore) {
+      return;
+    }
+
+    const current = await this.readTerritoryLossFeed(
+      cue.lostByFactionId,
+      new Date(cue.occurredAt),
+    );
+
+    if (current.some((entry) => entry.key === cue.key)) {
+      return;
+    }
+
+    const next = [cue, ...current]
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
+      .slice(0, MAX_STORED_TERRITORY_LOSS_CUES);
+
+    await this.keyValueStore.set(
+      buildTerritoryLossStoreKey(cue.lostByFactionId),
+      JSON.stringify(next),
+      Math.ceil(TERRITORY_LOSS_REPLAY_WINDOW_MS / 1000),
+    );
+  }
+
+  private async emitTerritoryLosses(input: TerritoryLossEmissionInput): Promise<void> {
+    const beforeById = new Map(input.before.map((favela) => [favela.favelaId, favela]));
+    const afterById = new Map(input.after.map((favela) => [favela.favelaId, favela]));
+
+    for (const [favelaId, cause] of input.causeByFavelaId.entries()) {
+      const beforeFavela = beforeById.get(favelaId);
+      const afterFavela = afterById.get(favelaId);
+
+      if (!beforeFavela?.controllingFactionId || !afterFavela) {
+        continue;
+      }
+
+      if (afterFavela.controllingFactionId === beforeFavela.controllingFactionId) {
+        continue;
+      }
+
+      await this.appendTerritoryLossCue(
+        buildTerritoryLossCueSummary({
+          after: input.after,
+          afterFavela,
+          before: input.before,
+          beforeFavela,
+          cause,
+          factionRecordsById: input.factionRecordsById,
+          occurredAt: input.occurredAt,
+        }),
+      );
+    }
+  }
+
   private async assertPlayerReady(playerId: string): Promise<TerritoryPlayerRecord> {
     const player = await this.repository.getPlayer(playerId);
 
@@ -1925,12 +2069,21 @@ export class TerritoryService implements TerritoryServiceContract {
     await this.gameConfigService.getResolvedCatalog();
     const now = this.now();
     const favelasList = await this.repository.listFavelas();
+    const beforeSnapshots = favelasList.map(toTerritoryLossSnapshotFromRecord);
+    const causeByFavelaId = new Map<string, TerritoryLossCause>();
 
     for (const favela of favelasList) {
       const synced = syncFavelaState(favela, now);
 
       if (!synced.changed) {
         continue;
+      }
+
+      if (
+        favela.controllingFactionId &&
+        synced.nextState.controllingFactionId !== favela.controllingFactionId
+      ) {
+        causeByFavelaId.set(favela.id, 'control_removed');
       }
 
       await this.repository.updateFavelaState(favela.id, {
@@ -1946,7 +2099,11 @@ export class TerritoryService implements TerritoryServiceContract {
       favela.warDeclaredAt = synced.nextState.warDeclaredAt;
     }
 
-    await this.syncFavelaPropina(favelasList, now);
+    const propinaLosses = await this.syncFavelaPropina(favelasList, now);
+
+    for (const favelaId of propinaLosses) {
+      causeByFavelaId.set(favelaId, 'state_takeover');
+    }
 
     const satisfactionContexts = await this.syncFavelaSatisfaction(favelasList, now);
     const x9EventsByFavelaId = await this.syncFavelaX9(favelasList, satisfactionContexts, now);
@@ -1974,6 +2131,12 @@ export class TerritoryService implements TerritoryServiceContract {
       }
     }
 
+    const afterSnapshots = favelasList.map(toTerritoryLossSnapshotFromRecord);
+
+    for (const factionId of collectTerritoryLossFactionIds(beforeSnapshots, afterSnapshots)) {
+      factionIds.add(factionId);
+    }
+
     const factionRecords = await this.repository.listFactionsByIds([...factionIds]);
     const factionRecordsById = new Map(factionRecords.map((faction) => [faction.id, faction]));
     const factionsById = new Map(
@@ -1986,6 +2149,17 @@ export class TerritoryService implements TerritoryServiceContract {
         } satisfies FavelaFactionSummary,
       ]),
     );
+
+    if (causeByFavelaId.size > 0) {
+      await this.emitTerritoryLosses({
+        after: afterSnapshots,
+        before: beforeSnapshots,
+        causeByFavelaId,
+        factionRecordsById,
+        occurredAt: now,
+      });
+    }
+
     const banditReturnStatsByFavelaId = await this.syncFavelaBandits(
       favelasList,
       factionRecordsById,
@@ -2148,13 +2322,14 @@ export class TerritoryService implements TerritoryServiceContract {
   private async syncFavelaPropina(
     favelasList: TerritoryFavelaRecord[],
     now: Date,
-  ): Promise<void> {
+  ): Promise<string[]> {
     if (favelasList.length === 0) {
-      return;
+      return [];
     }
 
     const propinaPolicy = resolveCachedTerritoryPropinaPolicy();
     const syncUpdates: TerritoryFavelaPropinaSyncUpdate[] = [];
+    const takeoverFavelaIds: string[] = [];
 
     for (const favela of favelasList) {
       if (favela.state !== 'controlled' || !favela.controllingFactionId) {
@@ -2236,6 +2411,7 @@ export class TerritoryService implements TerritoryServiceContract {
         favela.state = 'state';
         favela.stateControlledUntil = takeoverUntil;
         favela.warDeclaredAt = null;
+        takeoverFavelaIds.push(favela.id);
         continue;
       }
 
@@ -2268,6 +2444,8 @@ export class TerritoryService implements TerritoryServiceContract {
     if (syncUpdates.length > 0) {
       await this.repository.persistFavelaPropinaSync(syncUpdates);
     }
+
+    return takeoverFavelaIds;
   }
 
   private async requireLatestX9EventForFavela(favelaId: string): Promise<TerritoryX9EventRecord> {
@@ -2706,6 +2884,287 @@ export class TerritoryService implements TerritoryServiceContract {
 
 type TerritoryResolvedFavela = TerritoryFavelaSummary;
 
+interface TerritoryLossSnapshot {
+  controllingFactionId: string | null;
+  favelaId: string;
+  favelaName: string;
+  regionId: RegionId;
+  state: FavelaControlState;
+}
+
+interface TerritoryLossEmissionInput {
+  after: TerritoryLossSnapshot[];
+  before: TerritoryLossSnapshot[];
+  causeByFavelaId: Map<string, TerritoryLossCause>;
+  factionRecordsById: Map<string, TerritoryFactionRecord>;
+  occurredAt: Date;
+}
+
+function buildTerritoryLossStoreKey(factionId: string): string {
+  return `${TERRITORY_LOSS_STORE_PREFIX}${factionId}`;
+}
+
+function parseTerritoryLossCueSummaries(raw: string | null): TerritoryLossCueSummary[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isTerritoryLossCueSummary);
+  } catch {
+    return [];
+  }
+}
+
+function isTerritoryLossCueSummary(value: unknown): value is TerritoryLossCueSummary {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const cue = value as Partial<TerritoryLossCueSummary>;
+
+  return (
+    typeof cue.body === 'string' &&
+    typeof cue.cause === 'string' &&
+    typeof cue.economicImpact === 'string' &&
+    typeof cue.favelaId === 'string' &&
+    typeof cue.favelaName === 'string' &&
+    typeof cue.key === 'string' &&
+    typeof cue.lostByFactionId === 'string' &&
+    typeof cue.occurredAt === 'string' &&
+    typeof cue.politicalImpact === 'string' &&
+    typeof cue.regionId === 'string' &&
+    typeof cue.territorialImpact === 'string' &&
+    typeof cue.title === 'string'
+  );
+}
+
+function toTerritoryLossSnapshot(favela: TerritoryResolvedFavela): TerritoryLossSnapshot {
+  return {
+    controllingFactionId: favela.controllingFaction?.id ?? null,
+    favelaId: favela.id,
+    favelaName: favela.name,
+    regionId: favela.regionId,
+    state: favela.state,
+  };
+}
+
+function toTerritoryLossSnapshotFromRecord(favela: TerritoryFavelaRecord): TerritoryLossSnapshot {
+  return {
+    controllingFactionId: favela.controllingFactionId,
+    favelaId: favela.id,
+    favelaName: favela.name,
+    regionId: favela.regionId,
+    state: favela.state,
+  };
+}
+
+function collectTerritoryLossFactionIds(
+  before: TerritoryLossSnapshot[],
+  after: TerritoryLossSnapshot[],
+): Set<string> {
+  const factionIds = new Set<string>();
+
+  for (const snapshot of [...before, ...after]) {
+    if (snapshot.controllingFactionId) {
+      factionIds.add(snapshot.controllingFactionId);
+    }
+  }
+
+  return factionIds;
+}
+
+function buildTerritoryLossCueSummary(input: {
+  after: TerritoryLossSnapshot[];
+  afterFavela: TerritoryLossSnapshot;
+  before: TerritoryLossSnapshot[];
+  beforeFavela: TerritoryLossSnapshot;
+  cause: TerritoryLossCause;
+  factionRecordsById: Map<string, TerritoryFactionRecord>;
+  occurredAt: Date;
+}): TerritoryLossCueSummary {
+  const lostByFactionId = input.beforeFavela.controllingFactionId as string;
+  const lostByFactionAbbreviation =
+    input.factionRecordsById.get(lostByFactionId)?.abbreviation ?? null;
+  const newControllerFactionId = input.afterFavela.controllingFactionId;
+  const newControllerFactionAbbreviation = resolveTerritoryLossControllerAbbreviation(
+    input.afterFavela,
+    input.factionRecordsById,
+  );
+  const newControllerLabel = newControllerFactionAbbreviation ?? 'sem facção';
+  const beforeControlledCount = countFactionControlledFavelas(input.before, lostByFactionId);
+  const afterControlledCount = countFactionControlledFavelas(input.after, lostByFactionId);
+  const beforeRegionCount = countFactionControlledFavelasInRegion(
+    input.before,
+    lostByFactionId,
+    input.beforeFavela.regionId,
+  );
+  const afterRegionCount = countFactionControlledFavelasInRegion(
+    input.after,
+    lostByFactionId,
+    input.beforeFavela.regionId,
+  );
+
+  return {
+    body: resolveTerritoryLossBody({
+      cause: input.cause,
+      favelaName: input.beforeFavela.favelaName,
+      lostByFactionAbbreviation,
+      newControllerLabel,
+    }),
+    cause: input.cause,
+    economicImpact: resolveTerritoryLossEconomicImpact({
+      cause: input.cause,
+      favelaName: input.beforeFavela.favelaName,
+    }),
+    favelaId: input.beforeFavela.favelaId,
+    favelaName: input.beforeFavela.favelaName,
+    key: [
+      'territory-loss',
+      input.cause,
+      input.beforeFavela.favelaId,
+      lostByFactionId,
+      newControllerFactionId ?? input.afterFavela.state,
+      input.occurredAt.toISOString(),
+    ].join(':'),
+    lostByFactionAbbreviation,
+    lostByFactionId,
+    newControllerFactionAbbreviation,
+    newControllerFactionId,
+    occurredAt: input.occurredAt.toISOString(),
+    politicalImpact: resolveTerritoryLossPoliticalImpact({
+      afterControlledCount,
+      beforeControlledCount,
+      cause: input.cause,
+      lostByFactionAbbreviation,
+    }),
+    regionId: input.beforeFavela.regionId,
+    territorialImpact: resolveTerritoryLossTerritorialImpact({
+      afterControlledCount,
+      afterRegionCount,
+      beforeControlledCount,
+      beforeRegionCount,
+      favelaName: input.beforeFavela.favelaName,
+      newControllerLabel,
+    }),
+    title: resolveTerritoryLossTitle(input.cause, input.beforeFavela.favelaName),
+  };
+}
+
+function countFactionControlledFavelas(
+  snapshots: TerritoryLossSnapshot[],
+  factionId: string,
+): number {
+  return snapshots.filter((favela) => favela.controllingFactionId === factionId).length;
+}
+
+function countFactionControlledFavelasInRegion(
+  snapshots: TerritoryLossSnapshot[],
+  factionId: string,
+  regionId: RegionId,
+): number {
+  return snapshots.filter(
+    (favela) =>
+      favela.regionId === regionId && favela.controllingFactionId === factionId,
+  ).length;
+}
+
+function resolveTerritoryLossControllerAbbreviation(
+  favela: TerritoryLossSnapshot,
+  factionRecordsById: Map<string, TerritoryFactionRecord>,
+): string | null {
+  if (favela.controllingFactionId) {
+    return factionRecordsById.get(favela.controllingFactionId)?.abbreviation ?? 'Rival';
+  }
+
+  if (favela.state === 'state') {
+    return 'Estado';
+  }
+
+  return null;
+}
+
+function resolveTerritoryLossTitle(
+  cause: TerritoryLossCause,
+  favelaName: string,
+): string {
+  if (cause === 'war_defeat') {
+    return `${favelaName}: guerra perdida`;
+  }
+
+  if (cause === 'state_takeover') {
+    return `${favelaName}: tomada estatal`;
+  }
+
+  return `${favelaName}: controle perdido`;
+}
+
+function resolveTerritoryLossBody(input: {
+  cause: TerritoryLossCause;
+  favelaName: string;
+  lostByFactionAbbreviation: string | null;
+  newControllerLabel: string;
+}): string {
+  const lostByLabel = input.lostByFactionAbbreviation ?? 'Sua facção';
+
+  if (input.cause === 'war_defeat') {
+    return `${lostByLabel} perdeu ${input.favelaName} na guerra. Controle agora com ${input.newControllerLabel}.`;
+  }
+
+  if (input.cause === 'state_takeover') {
+    return `${input.favelaName} foi tomada pelo Estado por inadimplência prolongada. ${lostByLabel} perdeu a área.`;
+  }
+
+  return `${lostByLabel} perdeu ${input.favelaName}. Controle atual: ${input.newControllerLabel}.`;
+}
+
+function resolveTerritoryLossTerritorialImpact(input: {
+  afterControlledCount: number;
+  afterRegionCount: number;
+  beforeControlledCount: number;
+  beforeRegionCount: number;
+  favelaName: string;
+  newControllerLabel: string;
+}): string {
+  return `${input.favelaName} saiu do seu domínio e passou para ${input.newControllerLabel}. Controle total da facção caiu de ${input.beforeControlledCount} para ${input.afterControlledCount} favelas; na região, caiu de ${input.beforeRegionCount} para ${input.afterRegionCount}.`;
+}
+
+function resolveTerritoryLossEconomicImpact(input: {
+  cause: TerritoryLossCause;
+  favelaName: string;
+}): string {
+  if (input.cause === 'state_takeover') {
+    return `Receitas, serviços e caixa territorial ligados a ${input.favelaName} ficaram travados sob pressão estatal até nova retomada.`;
+  }
+
+  return `Receitas e serviços dependentes do controle de ${input.favelaName} saem da sua mão até a facção recuperar a área.`;
+}
+
+function resolveTerritoryLossPoliticalImpact(input: {
+  afterControlledCount: number;
+  beforeControlledCount: number;
+  cause: TerritoryLossCause;
+  lostByFactionAbbreviation: string | null;
+}): string {
+  const lostByLabel = input.lostByFactionAbbreviation ?? 'Sua facção';
+
+  if (input.cause === 'state_takeover') {
+    return `A tomada estatal expõe fraqueza administrativa e amplia a pressão política sobre ${lostByLabel}.`;
+  }
+
+  if (input.afterControlledCount <= 0) {
+    return `${lostByLabel} ficou sem presença territorial ativa. A moral e a capacidade de pressão na rua despencam.`;
+  }
+
+  return `${lostByLabel} perdeu presença territorial: ${input.beforeControlledCount} -> ${input.afterControlledCount} favelas sob comando.`;
+}
+
 function assertFavelaCanBeConquered(favela: TerritoryResolvedFavela, actorFactionId: string): void {
   if (favela.state === 'state') {
     throw new TerritoryError(
@@ -3078,13 +3537,13 @@ function buildFactionWarPreparationSummary(
 function buildFactionWarRoundSummary(round: TerritoryFactionWarRoundRecord): FactionWarRoundSummary {
   return {
     attackerHpLoss: round.attackerHpLoss,
-    attackerNerveLoss: round.attackerNerveLoss,
+    attackerDisposicaoLoss: round.attackerDisposicaoLoss,
     attackerPower: round.attackerPower,
-    attackerStaminaLoss: round.attackerStaminaLoss,
+    attackerCansacoLoss: round.attackerCansacoLoss,
     defenderHpLoss: round.defenderHpLoss,
-    defenderNerveLoss: round.defenderNerveLoss,
+    defenderDisposicaoLoss: round.defenderDisposicaoLoss,
     defenderPower: round.defenderPower,
-    defenderStaminaLoss: round.defenderStaminaLoss,
+    defenderCansacoLoss: round.defenderCansacoLoss,
     message: round.message,
     outcome: round.outcome,
     resolvedAt: round.resolvedAt.toISOString(),
@@ -3186,13 +3645,13 @@ function buildFactionWarRoundRecord(input: {
   if (input.outcome === 'attacker') {
     return {
       attackerHpLoss: 8 + Math.round(intensity * 0.5),
-      attackerNerveLoss: 6 + Math.round(intensity * 0.3),
+      attackerDisposicaoLoss: 6 + Math.round(intensity * 0.3),
       attackerPower: input.attackerPower,
-      attackerStaminaLoss: 10 + Math.round(intensity * 0.5),
+      attackerCansacoLoss: 10 + Math.round(intensity * 0.5),
       defenderHpLoss: 16 + intensity,
-      defenderNerveLoss: 10 + Math.round(intensity * 0.5),
+      defenderDisposicaoLoss: 10 + Math.round(intensity * 0.5),
       defenderPower: input.defenderPower,
-      defenderStaminaLoss: 14 + intensity,
+      defenderCansacoLoss: 14 + intensity,
       message: `Round ${input.roundNumber}: o ataque abriu vantagem e empurrou a defesa para tras.`,
       outcome: input.outcome,
       resolvedAt: input.resolvedAt,
@@ -3203,13 +3662,13 @@ function buildFactionWarRoundRecord(input: {
   if (input.outcome === 'defender') {
     return {
       attackerHpLoss: 16 + intensity,
-      attackerNerveLoss: 10 + Math.round(intensity * 0.5),
+      attackerDisposicaoLoss: 10 + Math.round(intensity * 0.5),
       attackerPower: input.attackerPower,
-      attackerStaminaLoss: 14 + intensity,
+      attackerCansacoLoss: 14 + intensity,
       defenderHpLoss: 8 + Math.round(intensity * 0.5),
-      defenderNerveLoss: 6 + Math.round(intensity * 0.3),
+      defenderDisposicaoLoss: 6 + Math.round(intensity * 0.3),
       defenderPower: input.defenderPower,
-      defenderStaminaLoss: 10 + Math.round(intensity * 0.5),
+      defenderCansacoLoss: 10 + Math.round(intensity * 0.5),
       message: `Round ${input.roundNumber}: a defesa segurou a linha e conteve o bonde invasor.`,
       outcome: input.outcome,
       resolvedAt: input.resolvedAt,
@@ -3219,13 +3678,13 @@ function buildFactionWarRoundRecord(input: {
 
   return {
     attackerHpLoss: 12 + intensity,
-    attackerNerveLoss: 8 + Math.round(intensity * 0.4),
+    attackerDisposicaoLoss: 8 + Math.round(intensity * 0.4),
     attackerPower: input.attackerPower,
-    attackerStaminaLoss: 12 + intensity,
+    attackerCansacoLoss: 12 + intensity,
     defenderHpLoss: 12 + intensity,
-    defenderNerveLoss: 8 + Math.round(intensity * 0.4),
+    defenderDisposicaoLoss: 8 + Math.round(intensity * 0.4),
     defenderPower: input.defenderPower,
-    defenderStaminaLoss: 12 + intensity,
+    defenderCansacoLoss: 12 + intensity,
     message: `Round ${input.roundNumber}: troca franca de tiro, sem vantagem decisiva para nenhum lado.`,
     outcome: input.outcome,
     resolvedAt: input.resolvedAt,
@@ -3365,8 +3824,8 @@ function buildFactionWarParticipantUpdates(input: {
     participants: TerritoryParticipantRecord[],
     losses: {
       hpLoss: number;
-      nerveLoss: number;
-      staminaLoss: number;
+      disposicaoLoss: number;
+      cansacoLoss: number;
     },
     conceitoDelta: number,
   ) => {
@@ -3374,8 +3833,8 @@ function buildFactionWarParticipantUpdates(input: {
       const nextResources = {
         conceito: Math.max(0, participant.player.resources.conceito + conceitoDelta),
         hp: clamp(participant.player.resources.hp - losses.hpLoss, 0, 100),
-        nerve: clamp(participant.player.resources.nerve - losses.nerveLoss, 0, 100),
-        stamina: clamp(participant.player.resources.stamina - losses.staminaLoss, 0, 100),
+        disposicao: clamp(participant.player.resources.disposicao - losses.disposicaoLoss, 0, 100),
+        cansaco: clamp(participant.player.resources.cansaco - losses.cansacoLoss, 0, 100),
       };
       const levelProgression = input.levelSystem.resolve(
         nextResources.conceito,
@@ -3395,8 +3854,8 @@ function buildFactionWarParticipantUpdates(input: {
     input.attackerParticipants,
     {
       hpLoss: input.attackerLosses.attackerHpLoss,
-      nerveLoss: input.attackerLosses.attackerNerveLoss,
-      staminaLoss: input.attackerLosses.attackerStaminaLoss,
+      disposicaoLoss: input.attackerLosses.attackerDisposicaoLoss,
+      cansacoLoss: input.attackerLosses.attackerCansacoLoss,
     },
     input.attackerConceitoDelta,
   );
@@ -3404,8 +3863,8 @@ function buildFactionWarParticipantUpdates(input: {
     input.defenderParticipants,
     {
       hpLoss: input.defenderLosses.defenderHpLoss,
-      nerveLoss: input.defenderLosses.defenderNerveLoss,
-      staminaLoss: input.defenderLosses.defenderStaminaLoss,
+      disposicaoLoss: input.defenderLosses.defenderDisposicaoLoss,
+      cansacoLoss: input.defenderLosses.defenderCansacoLoss,
     },
     input.defenderConceitoDelta,
   );
@@ -3496,8 +3955,8 @@ function resolveTerritoryConceitoReward(difficulty: number, population: number):
 function resolveTerritoryConquestLockReason(
   participant: TerritoryParticipantRecord,
   regionId: RegionId,
-  staminaCost: number,
-  nerveCost: number,
+  cansacoCost: number,
+  disposicaoCost: number,
 ): string | null {
   if (!participant.player.characterCreatedAt) {
     return 'Personagem ainda nao foi criado.';
@@ -3511,22 +3970,22 @@ function resolveTerritoryConquestLockReason(
     return 'HP esgotado.';
   }
 
-  if (participant.player.resources.stamina < staminaCost) {
-    return `Estamina insuficiente. Requer ${staminaCost}.`;
+  if (participant.player.resources.cansaco < cansacoCost) {
+    return `Cansaço insuficiente. Requer ${cansacoCost}.`;
   }
 
-  if (participant.player.resources.nerve < nerveCost) {
-    return `Nervos insuficientes. Requer ${nerveCost}.`;
+  if (participant.player.resources.disposicao < disposicaoCost) {
+    return `Disposição insuficiente. Requer ${disposicaoCost}.`;
   }
 
   return null;
 }
 
-function resolveTerritoryConquestNerveCost(difficulty: number): number {
+function resolveTerritoryConquestDisposicaoCost(difficulty: number): number {
   return clamp(8 + difficulty, 10, 20);
 }
 
-function resolveTerritoryConquestStaminaCost(difficulty: number): number {
+function resolveTerritoryConquestCansacoCost(difficulty: number): number {
   return clamp(12 + difficulty * 2, 16, 36);
 }
 
@@ -4224,7 +4683,7 @@ function resolveFavelaBaileOutcome(input: {
   incidentCode: string | null;
   resultTier: FavelaBaileResultTier;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 } {
   const mcMultiplier = resolveFavelaBaileMcTierMultiplier(input.mcTier);
   const budgetMultiplier = clamp(input.budget / 50000, 0.75, 1.2);
@@ -4236,7 +4695,7 @@ function resolveFavelaBaileOutcome(input: {
       incidentCode: priceyEntry ? 'fila_cara' : null,
       resultTier: 'total_success',
       satisfactionDelta: 20,
-      staminaBoostPercent: input.mcTier === 'estelar' ? 35 : 30,
+      cansacoBoostPercent: input.mcTier === 'estelar' ? 35 : 30,
     };
   }
 
@@ -4246,7 +4705,7 @@ function resolveFavelaBaileOutcome(input: {
       incidentCode: priceyEntry ? 'fila_cara' : null,
       resultTier: 'success',
       satisfactionDelta: 15,
-      staminaBoostPercent: input.mcTier === 'estelar' ? 24 : 20,
+      cansacoBoostPercent: input.mcTier === 'estelar' ? 24 : 20,
     };
   }
 
@@ -4256,7 +4715,7 @@ function resolveFavelaBaileOutcome(input: {
       incidentCode: priceyEntry ? 'fila_cara' : 'confusao_controlada',
       resultTier: 'mixed',
       satisfactionDelta: 5,
-      staminaBoostPercent: 0,
+      cansacoBoostPercent: 0,
     };
   }
 
@@ -4265,7 +4724,7 @@ function resolveFavelaBaileOutcome(input: {
     incidentCode: input.random() < 0.5 ? 'briga_generalizada' : 'pm_na_porta',
     resultTier: 'failure',
     satisfactionDelta: -10,
-    staminaBoostPercent: 0,
+    cansacoBoostPercent: 0,
   };
 }
 
@@ -4349,7 +4808,7 @@ function buildFavelaBaileSummary(
       mcTier: null,
       resultTier: null,
       satisfactionDelta: null,
-      staminaBoostPercent: null,
+      cansacoBoostPercent: null,
       status: 'ready',
     };
   }
@@ -4366,7 +4825,7 @@ function buildFavelaBaileSummary(
     mcTier: record.mcTier,
     resultTier: record.resultTier,
     satisfactionDelta: record.satisfactionDelta,
-    staminaBoostPercent: record.staminaBoostPercent,
+    cansacoBoostPercent: record.cansacoBoostPercent,
     status: resolveFavelaBaileStatus(record, now),
   };
 }

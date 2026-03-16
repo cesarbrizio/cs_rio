@@ -19,6 +19,25 @@ export function createTribunalRoutes({
   return async (fastify) => {
     const favelaIdParamsSchema = buildIdParamsSchema('favelaId');
 
+    fastify.get('/tribunal/cues', {
+      schema: {
+        response: buildStandardResponseSchema(),
+      },
+    }, async (request, reply) => {
+      if (!request.playerId) {
+        return reply.code(401).send({
+          message: 'Token ausente.',
+        });
+      }
+
+      try {
+        const result = await tribunalService.getTribunalCues(request.playerId);
+        return reply.send(result);
+      } catch (error) {
+        return sendTribunalError(reply, error);
+      }
+    });
+
     fastify.get<{ Params: { favelaId: string } }>(
       '/tribunal/favelas/:favelaId/case',
       {

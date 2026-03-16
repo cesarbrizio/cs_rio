@@ -32,13 +32,13 @@ describe('simple financial transactions', () => {
     const repository = new DatabaseTrainingRepository();
     const playerId = await createTestPlayer({
       money: '5000.00',
-      stamina: 100,
+      cansaco: 100,
     });
 
     await expect(
       repository.createTrainingSession(playerId, {
         costMoney: 1200,
-        costStamina: 12,
+        costCansaco: 12,
         diminishingMultiplier: 1,
         endsAt: new Date('2026-03-14T16:00:00.000Z'),
         gains: {
@@ -55,7 +55,7 @@ describe('simple financial transactions', () => {
 
     const player = await getPlayerOrThrow(playerId);
     expect(player.money).toBe('5000.00');
-    expect(player.stamina).toBe(100);
+    expect(player.cansaco).toBe(100);
 
     const sessions = await db.select().from(trainingSessions).where(eq(trainingSessions.playerId, playerId));
     expect(sessions).toHaveLength(0);
@@ -113,7 +113,7 @@ describe('simple financial transactions', () => {
 async function createTestPlayer(
   overrides: Partial<{
     money: string;
-    stamina: number;
+    cansaco: number;
   }> = {},
 ): Promise<string> {
   const id = randomUUID();
@@ -134,15 +134,15 @@ async function createTestPlayer(
     inteligencia: 10,
     lastLogin: new Date('2026-03-14T12:00:00.000Z'),
     money: overrides.money ?? '10000.00',
-    morale: 100,
-    nerve: 100,
+    brisa: 100,
+    disposicao: 100,
     nickname: `tx_${id.slice(0, 10)}`,
     passwordHash: 'test-hash',
     positionX: 0,
     positionY: 0,
     regionId: RegionId.Centro,
     resistencia: 10,
-    stamina: overrides.stamina ?? 100,
+    cansaco: overrides.cansaco ?? 100,
     vocation: VocationType.Cria,
   });
 

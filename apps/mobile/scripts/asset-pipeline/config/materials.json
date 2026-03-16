@@ -1,0 +1,14 @@
+{
+  "categories": {
+    "favela": ["concreto cru", "reboco gasto", "tijolo aparente", "metal remendado"],
+    "nightlife": ["metal pintado", "lona", "cabos", "caixas de som", "luz artificial"],
+    "hospital": ["concreto institucional", "vidro", "sinalizacao medica"],
+    "prison": ["concreto pesado", "grade metalica", "torre tecnica"],
+    "factory": ["metal", "concreto", "galpao", "doca", "chamine"],
+    "junkyard": ["sucata", "telha", "container", "metal oxidado"],
+    "market": ["toldo", "placa", "estrutura leve"],
+    "wealthy": ["concreto claro", "vidro amplo", "madeira nobre", "pergolado"],
+    "residential": ["alvenaria", "telhado", "garagem", "varanda"],
+    "poor": ["alvenaria simples", "telha", "reboco parcial", "anexo improvisado"]
+  }
+}

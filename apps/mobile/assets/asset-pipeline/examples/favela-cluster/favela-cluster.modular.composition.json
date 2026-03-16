@@ -1,0 +1,645 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "favela-cluster",
+  "category": "favela",
+  "styleGuide": {
+    "resolvedProfile": "dense-favela",
+    "family": "favela-cluster",
+    "variationPolicy": {
+      "jitter": {
+        "x": 7,
+        "y": 5
+      },
+      "scale": {
+        "min": 0.94,
+        "max": 1.1
+      },
+      "roofVariation": "very-high",
+      "materialVariation": "high",
+      "attachmentVariation": "high"
+    },
+    "compositionPolicy": {
+      "layout": "compressed-hillside",
+      "baseAnchor": {
+        "x": 82,
+        "y": 130
+      },
+      "columns": 4,
+      "xStep": 14,
+      "yStep": 5,
+      "rowLift": 10,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "foreground",
+        "foreground",
+        "midground",
+        "midground",
+        "midground",
+        "midground",
+        "midground",
+        "background",
+        "background",
+        "background",
+        "overlay",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile"
+  ],
+  "resolvedModules": [
+    {
+      "id": "external-pipe-12",
+      "module": "external-pipe",
+      "resolved": {
+        "id": "external-pipe",
+        "family": "favela",
+        "footprint": {
+          "width": 8,
+          "depth": 6
+        },
+        "slots": [
+          "utility-side"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 124,
+        "y": 95
+      },
+      "placement": {
+        "x": 29,
+        "y": -20,
+        "scale": 1.027
+      },
+      "variants": {
+        "materialHint": "tijolo aparente",
+        "slotHint": "utility-side",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "stair-11",
+      "module": "stair",
+      "resolved": {
+        "id": "stair",
+        "family": "favela",
+        "footprint": {
+          "width": 30,
+          "depth": 18
+        },
+        "slots": [
+          "circulation"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 110,
+        "y": 100
+      },
+      "placement": {
+        "x": 29,
+        "y": -14,
+        "scale": 1.051
+      },
+      "variants": {
+        "materialHint": "telha metalica",
+        "slotHint": "circulation",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "water-tank-10",
+      "module": "water-tank",
+      "resolved": {
+        "id": "water-tank",
+        "family": "favela",
+        "footprint": {
+          "width": 14,
+          "depth": 10
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 96,
+        "y": 105
+      },
+      "placement": {
+        "x": -2,
+        "y": -2,
+        "scale": 0.999
+      },
+      "variants": {
+        "materialHint": "tijolo aparente",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "wide-building-8",
+      "module": "wide-building",
+      "resolved": {
+        "id": "wide-building",
+        "family": "favela",
+        "footprint": {
+          "width": 56,
+          "depth": 22
+        },
+        "slots": [
+          "facade-front",
+          "awning"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 124,
+        "y": 105
+      },
+      "placement": {
+        "x": 27,
+        "y": -17,
+        "scale": 0.966
+      },
+      "variants": {
+        "materialHint": "caixa d'agua",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "building-2f-7",
+      "module": "building-2f",
+      "resolved": {
+        "id": "building-2f",
+        "family": "favela",
+        "footprint": {
+          "width": 48,
+          "depth": 20
+        },
+        "slots": [
+          "facade-front",
+          "roof-detail"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 110,
+        "y": 110
+      },
+      "placement": {
+        "x": 18,
+        "y": -8,
+        "scale": 0.952
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "narrow-building-9",
+      "module": "narrow-building",
+      "resolved": {
+        "id": "narrow-building",
+        "family": "favela",
+        "footprint": {
+          "width": 30,
+          "depth": 16
+        },
+        "slots": [
+          "facade-front",
+          "window"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 82,
+        "y": 110
+      },
+      "placement": {
+        "x": -19,
+        "y": -10,
+        "scale": 1.034
+      },
+      "variants": {
+        "materialHint": "reboco gasto",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "building-3f-6",
+      "module": "building-3f",
+      "resolved": {
+        "id": "building-3f",
+        "family": "favela",
+        "footprint": {
+          "width": 42,
+          "depth": 18
+        },
+        "slots": [
+          "facade-front",
+          "roof-detail"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 96,
+        "y": 115
+      },
+      "placement": {
+        "x": 0,
+        "y": -6,
+        "scale": 1.057
+      },
+      "variants": {
+        "materialHint": "concreto cru",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "cluster-service-strip-5",
+      "module": "cluster-service-strip",
+      "resolved": {
+        "id": "cluster-service-strip",
+        "family": "favela-cluster",
+        "footprint": {
+          "width": 72,
+          "depth": 20
+        },
+        "slots": [
+          "circulation",
+          "facade-front"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 82,
+        "y": 120
+      },
+      "placement": {
+        "x": -9,
+        "y": 2,
+        "scale": 1.079
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "circulation",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "cluster-roofline-4",
+      "module": "cluster-roofline",
+      "resolved": {
+        "id": "cluster-roofline",
+        "family": "favela-cluster",
+        "footprint": {
+          "width": 64,
+          "depth": 20
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 124,
+        "y": 115
+      },
+      "placement": {
+        "x": 32,
+        "y": 21,
+        "scale": 0.971
+      },
+      "variants": {
+        "materialHint": "concreto cru",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "cluster-step-right-3",
+      "module": "cluster-step-right",
+      "resolved": {
+        "id": "cluster-step-right",
+        "family": "favela-cluster",
+        "footprint": {
+          "width": 70,
+          "depth": 28
+        },
+        "slots": [
+          "roof-detail",
+          "utility-side"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 110,
+        "y": 120
+      },
+      "placement": {
+        "x": 12,
+        "y": 6,
+        "scale": 1.093
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "utility-side",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "cluster-step-left-2",
+      "module": "cluster-step-left",
+      "resolved": {
+        "id": "cluster-step-left",
+        "family": "favela-cluster",
+        "footprint": {
+          "width": 74,
+          "depth": 30
+        },
+        "slots": [
+          "roof-detail",
+          "circulation"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 96,
+        "y": 125
+      },
+      "placement": {
+        "x": 5,
+        "y": 9,
+        "scale": 1.071
+      },
+      "variants": {
+        "materialHint": "concreto cru",
+        "slotHint": "circulation",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "cluster-core-dense-1",
+      "module": "cluster-core-dense",
+      "resolved": {
+        "id": "cluster-core-dense",
+        "family": "favela-cluster",
+        "footprint": {
+          "width": 84,
+          "depth": 34
+        },
+        "slots": [
+          "roof-detail",
+          "utility-top",
+          "facade-front"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 82,
+        "y": 130
+      },
+      "placement": {
+        "x": -9,
+        "y": 16,
+        "scale": 0.94
+      },
+      "variants": {
+        "materialHint": "tijolo aparente",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "corrugated-roof-14",
+      "module": "corrugated-roof",
+      "resolved": {
+        "id": "corrugated-roof",
+        "family": "favela",
+        "footprint": {
+          "width": 34,
+          "depth": 16
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 95
+      },
+      "placement": {
+        "x": 1,
+        "y": -8,
+        "scale": 1.081
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "awning-13",
+      "module": "awning",
+      "resolved": {
+        "id": "awning",
+        "family": "favela",
+        "footprint": {
+          "width": 24,
+          "depth": 12
+        },
+        "slots": [
+          "facade-front"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 82,
+        "y": 100
+      },
+      "placement": {
+        "x": -10,
+        "y": -15,
+        "scale": 0.986
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "favela-cluster",
+        "density": "high",
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high",
+        "visualRules": [
+          "a favela deve ler como massa comprimida, nao como predio unico",
+          "usar skyline quebrado com caixas d'agua e escadas",
+          "priorizar profundidade lateral e encaixe entre blocos"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/favela-cluster.composition.svg"
+}

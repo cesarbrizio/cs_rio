@@ -7,9 +7,9 @@ interface DrugCatalogEntry {
   addictionRate: number;
   aliases: string[];
   name: string;
-  nerveBoost: number;
-  moraleBoost: number;
-  staminaRecovery: number;
+  disposicaoBoost: number;
+  brisaBoost: number;
+  cansacoRecovery: number;
   type: DrugType;
 }
 
@@ -29,64 +29,64 @@ const DRUG_CATALOG: DrugCatalogEntry[] = [
   {
     addictionRate: 0.5,
     aliases: ['maconha'],
-    moraleBoost: 1,
+    brisaBoost: 1,
     name: 'Maconha',
-    nerveBoost: 0,
-    staminaRecovery: 1,
+    disposicaoBoost: 0,
+    cansacoRecovery: 1,
     type: DrugType.Maconha,
   },
   {
     addictionRate: 1,
     aliases: ['lanca', 'lança'],
-    moraleBoost: 1,
+    brisaBoost: 1,
     name: 'Lança',
-    nerveBoost: 2,
-    staminaRecovery: 2,
+    disposicaoBoost: 2,
+    cansacoRecovery: 2,
     type: DrugType.Lanca,
   },
   {
     addictionRate: 1.5,
     aliases: ['bala'],
-    moraleBoost: 2,
+    brisaBoost: 2,
     name: 'Bala',
-    nerveBoost: 5,
-    staminaRecovery: 3,
+    disposicaoBoost: 5,
+    cansacoRecovery: 3,
     type: DrugType.Bala,
   },
   {
     addictionRate: 1,
     aliases: ['doce'],
-    moraleBoost: 2,
+    brisaBoost: 2,
     name: 'Doce',
-    nerveBoost: 0,
-    staminaRecovery: 4,
+    disposicaoBoost: 0,
+    cansacoRecovery: 4,
     type: DrugType.Doce,
   },
   {
     addictionRate: 2,
     aliases: ['md'],
-    moraleBoost: 2,
+    brisaBoost: 2,
     name: 'MD',
-    nerveBoost: 3,
-    staminaRecovery: 5,
+    disposicaoBoost: 3,
+    cansacoRecovery: 5,
     type: DrugType.MD,
   },
   {
     addictionRate: 3,
     aliases: ['cocaina', 'cocaína'],
-    moraleBoost: 3,
+    brisaBoost: 3,
     name: 'Cocaína',
-    nerveBoost: 10,
-    staminaRecovery: 7,
+    disposicaoBoost: 10,
+    cansacoRecovery: 7,
     type: DrugType.Cocaina,
   },
   {
     addictionRate: 5,
     aliases: ['crack'],
-    moraleBoost: 3,
+    brisaBoost: 3,
     name: 'Crack',
-    nerveBoost: 15,
-    staminaRecovery: 8,
+    disposicaoBoost: 15,
+    cansacoRecovery: 8,
     type: DrugType.Crack,
   },
 ];
@@ -94,7 +94,7 @@ const DRUG_CATALOG: DrugCatalogEntry[] = [
 export const DRUG_VENUES: DrugVenueDefinition[] = [
   {
     crowdLabel: 'Pista premium, fluxo menor e efeito mais calculado.',
-    description: 'Contexto de rave para consumo mais controlado, com foco em moral e ritmo.',
+    description: 'Contexto de rave para consumo mais controlado, com foco em brisa e ritmo.',
     id: 'rave',
     label: 'Rave',
     maxDrugsLabel: 'Até 10 tipos no cardápio',
@@ -126,8 +126,8 @@ export function buildDrugUseWarnings(
     );
   }
 
-  if (player.resources.stamina + drug.staminaRecovery > 100) {
-    warnings.push('A estamina prevista pode ultrapassar 100 e disparar overdose por excesso.');
+  if (player.resources.cansaco + drug.cansacoRecovery > 100) {
+    warnings.push('O cansaço previsto pode ultrapassar 100 e disparar overdose por excesso.');
   }
 
   if (player.resources.addiction >= 95) {
@@ -201,7 +201,7 @@ export function resolveDrugCatalogEntry(
 
   return {
     ...match,
-    estimatedUnitPrice: `R$ ${Math.round(50 + match.addictionRate * 100 + match.staminaRecovery * 40)}`,
+    estimatedUnitPrice: `R$ ${Math.round(50 + match.addictionRate * 100 + match.cansacoRecovery * 40)}`,
   };
 }
 
@@ -236,7 +236,7 @@ export function resolveDrugRiskLevel(
     score += 1;
   }
 
-  if (player.resources.stamina + drug.staminaRecovery > 100) {
+  if (player.resources.cansaco + drug.cansacoRecovery > 100) {
     score += 3;
   }
 
@@ -246,7 +246,7 @@ export function resolveDrugRiskLevel(
 
   if (score >= 5) {
     return {
-      copy: 'Risco alto de overdose. Revise estamina, vício e mistura recente.',
+      copy: 'Risco alto de overdose. Revise cansaço, vício e mistura recente.',
       level: 'high',
     };
   }

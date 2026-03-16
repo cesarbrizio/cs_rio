@@ -25,12 +25,15 @@ import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import {
   buildControlledTribunalFavelas,
+  formatTribunalDeadlineLabel,
   formatTribunalTimestamp,
   pickInitialTribunalFavelaId,
+  resolveTribunalCaseStatusLabel,
   resolveTribunalJudgmentReadLabel,
   resolveTribunalPunishmentLabel,
   resolveTribunalPunishmentReadLabel,
   resolveTribunalRegionLabel,
+  resolveTribunalResolutionSourceLabel,
   resolveTribunalSeverityLabel,
   resolveTribunalSideLabel,
 } from '../features/tribunal';
@@ -50,9 +53,9 @@ export function TribunalScreen(): JSX.Element {
   const [selectedFavelaId, setSelectedFavelaId] = useState<string | null>(route.params?.focusFavelaId ?? null);
   const [selectedPunishment, setSelectedPunishment] = useState<TribunalPunishment | null>(null);
   const [lastJudgment, setLastJudgment] = useState<TribunalJudgmentSummary | null>(null);
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now());
   const [isLoading, setIsLoading] = useState(false);
   const [isCenterLoading, setIsCenterLoading] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isJudging, setIsJudging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -65,7 +68,26 @@ export function TribunalScreen(): JSX.Element {
     () => controlledFavelas.find((favela) => favela.id === selectedFavelaId) ?? null,
     [controlledFavelas, selectedFavelaId],
   );
-  const activeCase = center?.activeCase ?? null;
+  const activeCase = center?.activeCase?.judgedAt ? null : (center?.activeCase ?? null);
+  const latestResolvedCase = center?.latestResolvedCase ?? (center?.activeCase?.judgedAt ? center.activeCase : null);
+  const latestResolvedOutcome = center?.latestResolvedOutcome ?? null;
+  const activeCaseDeadlineLabel = activeCase
+    ? formatTribunalDeadlineLabel(activeCase.decisionDeadlineAt, currentTimeMs)
+    : null;
+
+  useEffect(() => {
+    if (!activeCase) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 30_000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [activeCase]);
 
   useEffect(() => {
     if (!activeCase) {
@@ -152,37 +174,16 @@ export function TribunalScreen(): JSX.Element {
     [loadTribunalCenter],
   );
 
-  const handleGenerateCase = useCallback(async () => {
-    if (!selectedFavelaId) {
+  const handleJudgeCase = useCallback(async () => {
+    if (!selectedFavelaId || !selectedPunishment || !activeCase || activeCase.judgedAt) {
       return;
     }
 
-    setIsGenerating(true);
-    setErrorMessage(null);
-    setFeedbackMessage(null);
-    setLastJudgment(null);
-
-    try {
-      const response = await tribunalApi.generateCase(selectedFavelaId);
-      setCenter(response);
-      setSelectedPunishment(response.activeCase?.antigaoSuggestedPunishment ?? null);
-
-      const message = response.created
-        ? 'Caso novo gerado para julgamento.'
-        : 'O caso aberto da favela foi carregado novamente.';
-      setBootstrapStatus(message);
-      setFeedbackMessage(message);
-    } catch (error) {
-      const message = formatApiError(error).message;
+    if (new Date(activeCase.decisionDeadlineAt).getTime() <= Date.now()) {
+      const message = 'O prazo acabou e o comando local deve assumir o caso na próxima sincronização.';
       setBootstrapStatus(message);
       setErrorMessage(message);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [selectedFavelaId, setBootstrapStatus]);
-
-  const handleJudgeCase = useCallback(async () => {
-    if (!selectedFavelaId || !selectedPunishment || !activeCase || activeCase.judgedAt) {
+      void loadTribunalCenter(selectedFavelaId);
       return;
     }
 
@@ -211,6 +212,7 @@ export function TribunalScreen(): JSX.Element {
     }
   }, [
     activeCase,
+    loadTribunalCenter,
     refreshPlayerProfile,
     selectedFavelaId,
     selectedPunishment,
@@ -234,7 +236,7 @@ export function TribunalScreen(): JSX.Element {
 
   return (
     <InGameScreenLayout
-      subtitle="Julgue conflitos nas favelas dominadas pela sua facção, consulte o Antigão e veja o impacto antes de bater o martelo."
+      subtitle="Os casos surgem automaticamente nas favelas dominadas. Você precisa decidir antes do prazo ou o comando local assume e bate o pior martelo possível para os moradores."
       title="Tribunal do Tráfico"
     >
       <View style={styles.topActionRow}>
@@ -271,8 +273,14 @@ export function TribunalScreen(): JSX.Element {
         />
         <SummaryCard
           label="Status"
-          tone={activeCase ? colors.warning : colors.success}
-          value={activeCase ? (activeCase.judgedAt ? 'Julgado' : 'Em pauta') : 'Sem caso'}
+          tone={activeCase ? colors.warning : latestResolvedCase ? colors.info : colors.success}
+          value={
+            activeCase
+              ? resolveTribunalCaseStatusLabel(activeCase.status)
+              : latestResolvedCase
+                ? resolveTribunalCaseStatusLabel(latestResolvedCase.status)
+                : 'Sem caso'
+          }
         />
         <SummaryCard
           label="Nível"
@@ -337,6 +345,20 @@ export function TribunalScreen(): JSX.Element {
 
       {feedbackMessage ? <InlineBanner message={feedbackMessage} tone="info" /> : null}
 
+      {activeCase && activeCaseDeadlineLabel ? (
+        <InlineBanner
+          message={`O caso atual fecha em ${activeCaseDeadlineLabel}. Se você não decidir, o comando local assume e aplica a pior saída para os moradores.`}
+          tone="info"
+        />
+      ) : null}
+
+      {!activeCase && latestResolvedOutcome?.resolutionSource === 'npc' ? (
+        <InlineBanner
+          message={`Você perdeu o prazo deste tribunal. ${resolveTribunalResolutionSourceLabel(latestResolvedOutcome.resolutionSource)} escolheu ${resolveTribunalPunishmentLabel(latestResolvedOutcome.punishmentChosen).toLowerCase()} e o desfecho ficou registrado abaixo.`}
+          tone="danger"
+        />
+      ) : null}
+
       {!isLoading && controlledFavelas.length === 0 ? (
         <EmptyCard
           actionLabel="Abrir território"
@@ -355,15 +377,14 @@ export function TribunalScreen(): JSX.Element {
         />
       ) : null}
 
-      {!isLoading && !isCenterLoading && controlledFavelas.length > 0 && !activeCase ? (
+      {!isLoading && !isCenterLoading && controlledFavelas.length > 0 && !activeCase && !latestResolvedCase ? (
         <EmptyCard
-          actionLabel={isGenerating ? 'Gerando...' : 'Gerar caso'}
-          copy="Não há caso aberto nessa favela agora. Gere um novo julgamento para colocar o Tribunal em pauta."
-          title="Sem caso ativo"
+          actionLabel="Sincronizar"
+          copy="Não há caso aberto nesta favela agora. Os tribunais surgem automaticamente; quando um novo caso entrar em pauta, ele aparece aqui e também abre como alerta no jogo."
+          title="Aguardando novo tribunal"
           onPress={() => {
-            void handleGenerateCase();
+            void loadTribunalHub(selectedFavelaId);
           }}
-          disabled={isGenerating}
         />
       ) : null}
 
@@ -380,11 +401,11 @@ export function TribunalScreen(): JSX.Element {
                 <View
                   style={[
                     styles.statusPill,
-                    activeCase.judgedAt ? styles.statusPillReady : styles.statusPillRunning,
+                    styles.statusPillRunning,
                   ]}
                 >
                   <Text style={styles.statusPillLabel}>
-                    {activeCase.judgedAt ? 'Julgado' : 'Aguardando martelo'}
+                    {resolveTribunalCaseStatusLabel(activeCase.status)}
                   </Text>
                 </View>
               </View>
@@ -405,6 +426,10 @@ export function TribunalScreen(): JSX.Element {
                 <MetricPill
                   label="Criado"
                   value={formatTribunalTimestamp(activeCase.createdAt)}
+                />
+                <MetricPill
+                  label="Prazo"
+                  value={activeCaseDeadlineLabel ?? formatTribunalTimestamp(activeCase.decisionDeadlineAt)}
                 />
               </View>
             </View>
@@ -499,7 +524,7 @@ export function TribunalScreen(): JSX.Element {
                     {isSelected && !activeCase.judgedAt ? (
                       <View style={styles.inlineActionCard}>
                         <Text style={styles.helperCopy}>
-                          Ao bater o martelo, o julgamento é resolvido imediatamente com esta punição e os impactos de moradores, facção e conceito são aplicados na hora.
+                          Ao bater o martelo, o julgamento fecha na hora. Se você deixar o prazo estourar, o comando local assume e escolhe a pior saída possível para a população.
                         </Text>
                         <Pressable
                           disabled={!selectedPunishment || isJudging}
@@ -526,7 +551,6 @@ export function TribunalScreen(): JSX.Element {
 
           <View style={styles.primaryActionRow}>
             <Pressable
-              disabled={isGenerating}
               onPress={() => {
                 void loadTribunalHub(selectedFavelaId);
               }}
@@ -539,6 +563,67 @@ export function TribunalScreen(): JSX.Element {
             </Pressable>
           </View>
 
+        </>
+      ) : null}
+
+      {!activeCase && latestResolvedCase && latestResolvedOutcome ? (
+        <>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Último desfecho</Text>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardHeaderCopy}>
+                  <Text style={styles.cardTitle}>{latestResolvedCase.definition.label}</Text>
+                  <Text style={styles.cardSubtitle}>{latestResolvedCase.summary}</Text>
+                </View>
+                <View style={[styles.statusPill, styles.statusPillReady]}>
+                  <Text style={styles.statusPillLabel}>
+                    {resolveTribunalResolutionSourceLabel(latestResolvedOutcome.resolutionSource)}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.helperHeadline}>{latestResolvedOutcome.summary}</Text>
+              <View style={styles.metricRow}>
+                <MetricPill
+                  label="Encerrado"
+                  value={formatTribunalTimestamp(latestResolvedOutcome.resolvedAt)}
+                />
+                <MetricPill
+                  label="Punição"
+                  value={resolveTribunalPunishmentLabel(latestResolvedOutcome.punishmentChosen)}
+                />
+                <MetricPill
+                  label="Moradores"
+                  value={formatSignedDelta(latestResolvedOutcome.moradoresImpact)}
+                />
+                <MetricPill
+                  label="Facção"
+                  value={formatSignedDelta(latestResolvedOutcome.faccaoImpact)}
+                />
+                <MetricPill
+                  label="Conceito"
+                  value={formatSignedDelta(latestResolvedOutcome.conceitoDelta)}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Caso encerrado</Text>
+            <View style={styles.participantStack}>
+              <ParticipantCard
+                label="Acusador"
+                participant={latestResolvedCase.accuser}
+                tone={colors.info}
+              />
+              <ParticipantCard
+                label="Acusado"
+                participant={latestResolvedCase.accused}
+                tone={colors.warning}
+              />
+            </View>
+          </View>
         </>
       ) : null}
 

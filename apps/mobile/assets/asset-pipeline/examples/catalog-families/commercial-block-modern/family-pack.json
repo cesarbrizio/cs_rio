@@ -1,0 +1,87 @@
+{
+  "family": "commercial-block-modern",
+  "title": "Bloco comercial moderno",
+  "category": "wealthy",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "predio-comercial-moderno-1",
+    "predio-comercial-moderno-2"
+  ],
+  "assetTypes": [
+    "predio-comercial-moderno"
+  ],
+  "planCategories": [
+    "commercial"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/houses/casa_luxo_2.jpg",
+    "assets/examples/houses/casa_luxo_4.jpg",
+    "assets/examples/neighboor/Residencial_6.jpg",
+    "assets/examples/neighboor/Residencial_7.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/neighboor/Residencial_6.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/neighboor/Residencial_7.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_4.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "bloco urbano limpo e contemporaneo, com vidro, concreto e marquise discreta",
+  "mustCapture": [
+    "fachada reta",
+    "ritmo regular de janelas",
+    "base comercial mais nobre"
+  ],
+  "avoid": [
+    "torre luxuosa residencial",
+    "shopping center",
+    "galpao fabril"
+  ],
+  "notes": [
+    "Familia de suporte para zonas centrais e ricas."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/neighboor/Residencial_6.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Residencial_6.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern/references/01-neighboor-Residencial_6.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/neighboor/Residencial_7.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Residencial_7.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern/references/02-neighboor-Residencial_7.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_2.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_2.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern/references/03-houses-casa_luxo_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_4.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_4.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern/references/04-houses-casa_luxo_4.jpg"
+    }
+  ]
+}

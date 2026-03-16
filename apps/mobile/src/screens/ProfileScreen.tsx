@@ -1,10 +1,17 @@
 import { LEVELS } from '@cs-rio/shared';
+import { useNavigation } from '@react-navigation/native';
+import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
+import {
+  buildVocationScopeLines,
+  PROFILE_VISIBILITY_COPY,
+  PROFILE_VISIBILITY_TITLE,
+} from '../features/vocationScope';
 import { useAuthStore } from '../stores/authStore';
-import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
 
 const ACHIEVEMENT_LABELS = [
@@ -22,16 +29,17 @@ const ATTRIBUTE_TONES = {
 
 const RESOURCE_TONES = {
   addiction: colors.warning,
+  brisa: '#f2b94b',
   conceito: colors.accent,
   hp: '#f49d9d',
   money: colors.text,
-  nerve: '#7bb2ff',
-  stamina: colors.success,
+  disposicao: '#7bb2ff',
+  cansaco: colors.success,
 } as const;
 
 export function ProfileScreen(): JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const player = useAuthStore((state) => state.player);
-  const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
   const [isLevelGuideOpen, setIsLevelGuideOpen] = useState(false);
 
   const currentLevel = player?.level ?? 1;
@@ -85,7 +93,7 @@ export function ProfileScreen(): JSX.Element {
           <Text style={styles.guideTitle}>Como subir</Text>
           <Text style={styles.guideCopy}>
             Ganhe conceito praticando crimes, roubos, PvP, Tribunal do Tráfico, domínio
-            territorial e negócios que aumentem seu prestígio na rodada.
+            territorial e negócios que fortaleçam sua posição na rodada.
           </Text>
 
           <View style={styles.levelGuideTable}>
@@ -142,15 +150,21 @@ export function ProfileScreen(): JSX.Element {
         <View style={styles.resourceGrid}>
           <StatTile
             compact
-            label="Stamina"
-            tone={RESOURCE_TONES.stamina}
-            value={`${player?.resources.stamina ?? '--'}`}
+            label="Cansaço"
+            tone={RESOURCE_TONES.cansaco}
+            value={`${player?.resources.cansaco ?? '--'}`}
           />
           <StatTile
             compact
-            label="Nervos"
-            tone={RESOURCE_TONES.nerve}
-            value={`${player?.resources.nerve ?? '--'}`}
+            label="Disposição"
+            tone={RESOURCE_TONES.disposicao}
+            value={`${player?.resources.disposicao ?? '--'}`}
+          />
+          <StatTile
+            compact
+            label="Brisa"
+            tone={RESOURCE_TONES.brisa}
+            value={`${player?.resources.brisa ?? '--'}`}
           />
           <StatTile
             compact
@@ -160,7 +174,7 @@ export function ProfileScreen(): JSX.Element {
           />
           <StatTile
             compact
-            label="Prestígio"
+            label="Conceito"
             tone={RESOURCE_TONES.conceito}
             value={`${player?.resources.conceito ?? '--'}`}
           />
@@ -177,6 +191,11 @@ export function ProfileScreen(): JSX.Element {
             value={`R$ ${player?.resources.money.toLocaleString('pt-BR') ?? '--'}`}
           />
         </View>
+        <View style={styles.card}>
+          <Text style={styles.detailCopy}>
+            Brisa sobe no consumo de drogas, aparece no efeito imediato da viagem e zera quando o personagem entra em overdose.
+          </Text>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -191,27 +210,38 @@ export function ProfileScreen(): JSX.Element {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Estatísticas Públicas</Text>
+        <Text style={styles.sectionTitle}>{PROFILE_VISIBILITY_TITLE}</Text>
         <View style={styles.card}>
+          <Text style={styles.detailCopy}>{PROFILE_VISIBILITY_COPY}</Text>
           <Text style={styles.detailCopy}>Inventário visível: {player?.inventory.length ?? 0} itens</Text>
           <Text style={styles.detailCopy}>Propriedades: {player?.properties.length ?? 0}</Text>
           <Text style={styles.detailCopy}>
             Facção: {player?.faction ? `${player.faction.name} (${player.faction.abbreviation})` : 'sem facção'}
           </Text>
           <Text style={styles.detailCopy}>
-            Posição pública: {player ? `${player.location.positionX}, ${player.location.positionY}` : '--'}
+            Posição visível hoje: {player ? `${player.location.positionX}, ${player.location.positionY}` : '--'}
           </Text>
         </View>
       </View>
 
-      <Pressable
-        onPress={() => {
-          setBootstrapStatus('Troca de vocação será liberada junto dos sistemas de progressão.');
-        }}
-        style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
-      >
-        <Text style={styles.primaryButtonLabel}>Trocar vocação</Text>
-      </Pressable>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Vocação nesta rodada</Text>
+        <View style={styles.card}>
+          {buildVocationScopeLines(player?.vocation).map((line) => (
+            <Text key={line} style={styles.listItem}>
+              • {line}
+            </Text>
+          ))}
+        </View>
+        <Pressable
+          onPress={() => {
+            navigation.navigate('Vocation');
+          }}
+          style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
+        >
+          <Text style={styles.primaryButtonLabel}>Abrir central de vocação</Text>
+        </Pressable>
+      </View>
     </InGameScreenLayout>
   );
 }

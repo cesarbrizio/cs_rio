@@ -197,7 +197,7 @@ export function BichoScreen(): JSX.Element {
   return (
     <>
       <InGameScreenLayout
-        subtitle="Aposta manual da rua. Veja o sorteio atual, escolha grupo, cabeça ou dezena e confirme ali mesmo na card da jogada."
+        subtitle="Mini-game manual de aposta. Veja o sorteio atual, escolha grupo, cabeça ou dezena e confirme ali mesmo na card da jogada, sem vínculo com facção ou patrimônio."
         title="Jogo do Bicho"
       >
         <View style={styles.summaryRow}>
@@ -218,13 +218,6 @@ export function BichoScreen(): JSX.Element {
             value={`${pendingBets.length}`}
           />
         </View>
-
-        {book?.factionCommission.active ? (
-          <Banner
-            copy={`Repasse automático ativo: ${book.factionCommission.ratePercent}% de cada aposta cai no banco da sua facção.`}
-            tone="neutral"
-          />
-        ) : null}
 
         {errorMessage ? <Banner copy={errorMessage} tone="danger" /> : null}
         {feedbackMessage ? <Banner copy={feedbackMessage} tone="neutral" /> : null}
@@ -547,13 +540,6 @@ function BichoResultModal(props: {
                 tone={colors.accent}
                 value={formatCurrency(props.result.playerMoneyAfterBet)}
               />
-              {props.result.factionCommission.active ? (
-                <MetricCard
-                  label="Facção"
-                  tone={colors.info}
-                  value={formatCurrency(props.result.factionCommission.amount)}
-                />
-              ) : null}
             </View>
           ) : null}
 

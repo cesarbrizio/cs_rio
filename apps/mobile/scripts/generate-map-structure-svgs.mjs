@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 const outputDir = path.join(__dirname, '..', 'assets', 'map-structures');
 const generatedDir = path.join(__dirname, '..', 'src', 'data', 'generated');
 const generatedTsPath = path.join(generatedDir, 'mapStructureSvgCatalog.generated.ts');
+const catalogOnly = process.argv.includes('--catalog-only');
 
 const VIEWBOX_WIDTH = 160;
 const VIEWBOX_HEIGHT = 160;
@@ -385,9 +386,14 @@ fs.mkdirSync(generatedDir, { recursive: true });
 const generatedMap = {};
 
 for (const [kind, builder] of structures) {
-  const svg = builder();
   const filePath = path.join(outputDir, `${kind}.svg`);
-  fs.writeFileSync(filePath, `${svg}\n`);
+  const svg = catalogOnly
+    ? fs.readFileSync(filePath, 'utf8').trim()
+    : builder();
+
+  if (!catalogOnly) {
+    fs.writeFileSync(filePath, `${svg}\n`);
+  }
   generatedMap[kind] = svg;
 }
 
@@ -398,4 +404,8 @@ export const mapStructureSvgMarkupByKind: Record<MapStructureKind, string> = ${J
 
 fs.writeFileSync(generatedTsPath, generatedFile);
 
-console.log(`Generated ${structures.length} map structure SVGs.`);
+console.log(
+  catalogOnly
+    ? `Regenerated catalog for ${structures.length} map structure SVGs from existing files.`
+    : `Generated ${structures.length} map structure SVGs.`,
+);

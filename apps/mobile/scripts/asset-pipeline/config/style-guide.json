@@ -1,0 +1,240 @@
+{
+  "name": "cs-rio-semirealista",
+  "version": 1,
+  "principles": [
+    "legibilidade urbana acima de detalhismo decorativo",
+    "silhueta forte antes de microdetalhe",
+    "semi-realista e nao fotorealista",
+    "volumetria coerente com SimCity-like isometrico",
+    "evitar icone generico sem arquitetura"
+  ],
+  "projection": "isometric-2:1",
+  "outlinePolicy": {
+    "mode": "selective",
+    "maxStrokeWidth": 2.5
+  },
+  "profiles": {
+    "default": {
+      "description": "Guia base do projeto para assets urbanos isometricos semirrealistas.",
+      "visual": {
+        "shadowAlpha": 0.18,
+        "baseStrokeWidth": 2,
+        "maxAccentColors": 2,
+        "contrastBias": "balanced",
+        "silhouettePriority": "high",
+        "materialNoise": "medium"
+      }
+    },
+    "simcity-urban": {
+      "description": "Leitura mais limpa e estruturada, com massa urbana organizada e contraste controlado.",
+      "visual": {
+        "shadowAlpha": 0.14,
+        "baseStrokeWidth": 1.75,
+        "maxAccentColors": 2,
+        "contrastBias": "clean-urban",
+        "silhouettePriority": "high",
+        "materialNoise": "low"
+      }
+    },
+    "dense-favela": {
+      "description": "Densidade, sobreposicao e heterogeneidade mais fortes para clusters de favela e barracos.",
+      "visual": {
+        "shadowAlpha": 0.2,
+        "baseStrokeWidth": 2,
+        "maxAccentColors": 3,
+        "contrastBias": "gritty-dense",
+        "silhouettePriority": "very-high",
+        "materialNoise": "high"
+      }
+    }
+  },
+  "categoryOverrides": {
+    "favela": {
+      "preferredProfile": "dense-favela",
+      "visual": {
+        "clusterDensity": "high",
+        "roofVariation": "high",
+        "utilityObjects": "required"
+      }
+    },
+    "nightlife": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "lightingReadability": "required",
+        "frontagePriority": "high"
+      }
+    },
+    "hospital": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "institutionalClarity": "high",
+        "roofVariation": "low"
+      }
+    },
+    "factory": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "industrialSpread": "high",
+        "utilityObjects": "recommended"
+      }
+    },
+    "junkyard": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "industrialSpread": "medium",
+        "scrapSilhouette": "required"
+      }
+    },
+    "wealthy": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "materialNoise": "low",
+        "silhouettePriority": "high"
+      }
+    },
+    "residential": {
+      "preferredProfile": "default",
+      "visual": {
+        "materialNoise": "medium",
+        "roofVariation": "medium"
+      }
+    },
+    "poor": {
+      "preferredProfile": "default",
+      "visual": {
+        "materialNoise": "medium-high",
+        "roofVariation": "medium-high"
+      }
+    }
+  },
+  "familyGuides": {
+    "favela": {
+      "description": "Favela base com massa irregular, lajes e utilidades aparentes.",
+      "preferredProfile": "dense-favela",
+      "modulePolicy": {
+        "targetNodeCount": 9,
+        "primaryModules": ["building-3f", "building-2f", "wide-building"],
+        "secondaryModules": ["narrow-building", "corrugated-roof", "rooftop-slab", "side-wall"],
+        "detailModules": ["water-tank", "external-pipe", "awning", "stair", "small-window", "ac-unit"],
+        "forbiddenModules": ["stage", "truss", "speaker-stack", "street-segment"]
+      },
+      "compositionPolicy": {
+        "layout": "staggered-terrace",
+        "baseAnchor": { "x": 94, "y": 124 },
+        "columns": 3,
+        "xStep": 18,
+        "yStep": 7,
+        "rowLift": 12,
+        "layerPattern": ["foreground", "foreground", "midground", "midground", "midground", "background", "background", "background", "overlay"]
+      },
+      "variationPolicy": {
+        "jitter": { "x": 6, "y": 5 },
+        "scale": { "min": 0.96, "max": 1.08 },
+        "roofVariation": "high",
+        "materialVariation": "high",
+        "attachmentVariation": "high"
+      },
+      "visualRules": [
+        "privilegiar lajes e coberturas sobrepostas",
+        "evitar simetria limpa entre os volumes",
+        "manter utilidades aparentes na silhueta"
+      ]
+    },
+    "favela-cluster": {
+      "description": "Cluster comprimido com massa urbana reconhecível e skyline quebrado.",
+      "preferredProfile": "dense-favela",
+      "modulePolicy": {
+        "targetNodeCount": 14,
+        "primaryModules": ["cluster-core-dense", "cluster-step-left", "cluster-step-right", "cluster-roofline"],
+        "secondaryModules": ["cluster-service-strip", "building-3f", "building-2f", "wide-building", "narrow-building"],
+        "detailModules": ["water-tank", "stair", "external-pipe", "awning", "corrugated-roof", "rooftop-slab"],
+        "forbiddenModules": ["stage", "truss", "speaker-stack", "street-segment", "crowd-mass"]
+      },
+      "compositionPolicy": {
+        "layout": "compressed-hillside",
+        "baseAnchor": { "x": 82, "y": 130 },
+        "columns": 4,
+        "xStep": 14,
+        "yStep": 5,
+        "rowLift": 10,
+        "layerPattern": ["foreground", "foreground", "foreground", "foreground", "midground", "midground", "midground", "midground", "midground", "background", "background", "background", "overlay", "overlay"]
+      },
+      "variationPolicy": {
+        "jitter": { "x": 7, "y": 5 },
+        "scale": { "min": 0.94, "max": 1.1 },
+        "roofVariation": "very-high",
+        "materialVariation": "high",
+        "attachmentVariation": "high"
+      },
+      "visualRules": [
+        "a favela deve ler como massa comprimida, nao como predio unico",
+        "usar skyline quebrado com caixas d'agua e escadas",
+        "priorizar profundidade lateral e encaixe entre blocos"
+      ]
+    },
+    "barraco": {
+      "description": "Barraco isolado ou empilhado com leitura improvisada, mas legível.",
+      "preferredProfile": "dense-favela",
+      "modulePolicy": {
+        "targetNodeCount": 6,
+        "primaryModules": ["barraco-unit", "barraco-stacked", "barraco-corner"],
+        "secondaryModules": ["barraco-roof-patch", "corrugated-roof", "side-wall"],
+        "detailModules": ["external-pipe", "awning", "small-window", "stair"],
+        "forbiddenModules": ["stage", "truss", "cluster-core-dense", "speaker-stack"]
+      },
+      "compositionPolicy": {
+        "layout": "single-shelter-plus-annex",
+        "baseAnchor": { "x": 94, "y": 126 },
+        "columns": 2,
+        "xStep": 20,
+        "yStep": 6,
+        "rowLift": 10,
+        "layerPattern": ["foreground", "foreground", "midground", "midground", "background", "overlay"]
+      },
+      "variationPolicy": {
+        "jitter": { "x": 5, "y": 4 },
+        "scale": { "min": 0.97, "max": 1.06 },
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium"
+      },
+      "visualRules": [
+        "preservar leitura improvisada do volume",
+        "não virar cubo genérico limpo",
+        "cobertura e anexos precisam dominar a silhueta"
+      ]
+    },
+    "baile": {
+      "description": "Rua comprimida por favela lateral, palco legível e massa social central.",
+      "preferredProfile": "simcity-urban",
+      "modulePolicy": {
+        "targetNodeCount": 16,
+        "primaryModules": ["favela-side-block-left", "favela-side-block-right", "street-segment", "stage", "truss"],
+        "secondaryModules": ["crowd-mass", "speaker-stack", "tent", "pole", "canopy-strip"],
+        "detailModules": ["wires"],
+        "forbiddenModules": ["cluster-core-dense", "barraco-roof-patch", "building-3f"]
+      },
+      "compositionPolicy": {
+        "layout": "street-canyon-event",
+        "baseAnchor": { "x": 96, "y": 124 },
+        "columns": 4,
+        "xStep": 14,
+        "yStep": 4,
+        "rowLift": 8,
+        "layerPattern": ["background", "background", "midground", "midground", "midground", "midground", "overlay", "foreground", "foreground", "foreground", "foreground", "foreground", "foreground", "overlay", "overlay", "overlay"]
+      },
+      "variationPolicy": {
+        "jitter": { "x": 3, "y": 2 },
+        "scale": { "min": 0.97, "max": 1.03 },
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high"
+      },
+      "visualRules": [
+        "a rua precisa ler como corredor comprimido e cheio",
+        "o palco deve ficar ao fundo organizando a perspectiva",
+        "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+      ]
+    }
+  }
+}

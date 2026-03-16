@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-moderno-2.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 12,
+      "deltaY": 31,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 7,
+      "max": 34,
+      "palette": [
+        "#c7d3db",
+        "#2f241f",
+        "#5b7585",
+        "#6c8898",
+        "#91d5f0",
+        "#e2ecef",
+        "#d8f3fb"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 29,
+    "pathCount": 0,
+    "colorCount": 7,
+    "resolvedMaxColors": 34,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 66,
+      "minY": 80,
+      "maxX": 118,
+      "maxY": 142,
+      "width": 52,
+      "height": 62,
+      "centerX": 92,
+      "centerY": 111
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "commercial-block-modern predio-comercial-moderno-2",
+  "category": "wealthy",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-moderno-2.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-comercial-moderno-2.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-moderno-2.preview.json"
+}

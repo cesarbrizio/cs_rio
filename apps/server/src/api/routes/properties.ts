@@ -4,9 +4,11 @@ import {
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
+import { type ActionIdempotency } from '../action-idempotency.js';
 import { throwRouteHttpError } from '../http-errors.js';
 import {
   buildIdParamsSchema,
+  propertySabotageParamsSchema,
   buildStandardResponseSchema,
   propertyHireSoldiersBodySchema,
   propertyPurchaseBodySchema,
@@ -14,10 +16,12 @@ import {
 import { type PropertyServiceContract } from '../../services/property.js';
 
 interface PropertyRouteDependencies {
+  actionIdempotency: ActionIdempotency;
   propertyService: PropertyServiceContract;
 }
 
 export function createPropertyRoutes({
+  actionIdempotency,
   propertyService,
 }: PropertyRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
@@ -71,6 +75,68 @@ export function createPropertyRoutes({
     );
 
     fastify.post<{ Params: { propertyId: string } }>(
+      '/properties/:propertyId/sabotage',
+      {
+        schema: {
+          params: propertySabotageParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const result = await actionIdempotency.run(
+            request,
+            {
+              action: 'property.sabotage',
+              keyParts: [request.params.propertyId],
+            },
+            () => propertyService.attemptSabotage(request.playerId!, request.params.propertyId),
+          );
+          return reply.send(result);
+        } catch (error) {
+          return sendPropertyError(reply, error);
+        }
+      },
+    );
+
+    fastify.post<{ Params: { propertyId: string } }>(
+      '/properties/:propertyId/sabotage/recover',
+      {
+        schema: {
+          params: propertySabotageParamsSchema,
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const result = await actionIdempotency.run(
+            request,
+            {
+              action: 'property.sabotage-recover',
+              keyParts: [request.params.propertyId],
+            },
+            () => propertyService.recoverSabotage(request.playerId!, request.params.propertyId),
+          );
+          return reply.send(result);
+        } catch (error) {
+          return sendPropertyError(reply, error);
+        }
+      },
+    );
+
+    fastify.post<{ Params: { propertyId: string } }>(
       '/properties/:propertyId/upgrade',
       {
         schema: {
@@ -90,6 +156,29 @@ export function createPropertyRoutes({
             request.playerId,
             request.params.propertyId,
           );
+          return reply.send(result);
+        } catch (error) {
+          return sendPropertyError(reply, error);
+        }
+      },
+    );
+
+    fastify.get(
+      '/properties/sabotage',
+      {
+        schema: {
+          response: buildStandardResponseSchema(),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const result = await propertyService.getSabotageCenter(request.playerId);
           return reply.send(result);
         } catch (error) {
           return sendPropertyError(reply, error);

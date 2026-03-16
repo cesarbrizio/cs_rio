@@ -19,6 +19,7 @@ import type {
   PlayerDrugConsumptionInput,
   type PlayerOverdosePenaltyInput,
   type PlayerOverdosePenaltyResult,
+  PlayerPublicProfileRecord,
   PlayerProfileRecord,
   PlayerRepository,
   PlayerRuntimeStateInput,
@@ -45,7 +46,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -72,9 +73,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '0',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       appearanceJson: DEFAULT_CHARACTER_APPEARANCE,
       characterCreatedAt: null,
@@ -83,7 +84,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -120,12 +121,12 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     player.hp = 100;
     player.inteligencia = attributes.inteligencia;
     player.level = 1;
-    player.morale = 100;
-    player.nerve = 100;
+    player.brisa = 100;
+    player.disposicao = 100;
     player.positionX = spawnPoint.positionX;
     player.positionY = spawnPoint.positionY;
     player.resistencia = attributes.resistencia;
-    player.stamina = 100;
+    player.cansaco = 100;
     player.vocation = input.vocation;
 
     return this.getPlayerProfile(playerId);
@@ -178,9 +179,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -255,6 +256,50 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     };
   }
 
+  async getPublicProfileByNickname(nickname: string): Promise<PlayerPublicProfileRecord | null> {
+    const player = [...this.players.values()].find(
+      (entry) => entry.nickname === nickname && entry.characterCreatedAt !== null,
+    );
+
+    if (!player) {
+      return null;
+    }
+
+    const rankedPlayers = [...this.players.values()]
+      .filter((entry) => entry.characterCreatedAt !== null)
+      .sort((left, right) => {
+        if (left.conceito !== right.conceito) {
+          return right.conceito - left.conceito;
+        }
+
+        if (left.level !== right.level) {
+          return right.level - left.level;
+        }
+
+        const createdAtDiff = left.createdAt.getTime() - right.createdAt.getTime();
+
+        if (createdAtDiff !== 0) {
+          return createdAtDiff;
+        }
+
+        return left.nickname.localeCompare(right.nickname, 'pt-BR');
+      });
+    const currentRank = rankedPlayers.findIndex((entry) => entry.id === player.id) + 1;
+
+    return {
+      faction: this.factionByPlayerId.get(player.id) ?? null,
+      inventoryItemCount: (this.inventoryByPlayerId.get(player.id) ?? []).length,
+      player: {
+        ...player,
+      },
+      propertiesCount: (this.propertiesByPlayerId.get(player.id) ?? []).length,
+      ranking: {
+        currentRank,
+        totalPlayers: rankedPlayers.length,
+      },
+    };
+  }
+
   async getInventoryDefinition(itemType: InventoryItemType, itemId: string) {
     return {
       durabilityMax: itemType === 'drug' ? null : 100,
@@ -272,11 +317,11 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       addictionRate: 1,
       code: drugId,
       drugId,
-      moralBoost: 2,
+      brisaBoost: 2,
       name: `mock-${drugId}`,
-      nerveBoost: 3,
+      disposicaoBoost: 3,
       productionLevel: 1,
-      staminaRecovery: 4,
+      cansacoRecovery: 4,
       type: DrugType.Maconha,
     };
   }
@@ -420,9 +465,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 }
 
@@ -534,6 +579,117 @@ describe('auth routes', () => {
       regionId: RegionId.Centro,
       vocation: VocationType.Cria,
     });
+  });
+
+  it('exposes a public profile by nickname without requiring bearer auth', async () => {
+    const firstRegisterResponse = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'public01@csrio.test',
+        nickname: 'Public_01',
+        password: 'segredo123',
+      },
+      url: '/api/auth/register',
+    });
+    const secondRegisterResponse = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'public02@csrio.test',
+        nickname: 'Public_02',
+        password: 'segredo123',
+      },
+      url: '/api/auth/register',
+    });
+    const firstSession = firstRegisterResponse.json();
+    const secondSession = secondRegisterResponse.json();
+
+    await app.inject({
+      headers: {
+        authorization: `Bearer ${firstSession.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        appearance: DEFAULT_CHARACTER_APPEARANCE,
+        vocation: VocationType.Soldado,
+      },
+      url: '/api/players/create',
+    });
+    await app.inject({
+      headers: {
+        authorization: `Bearer ${secondSession.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        appearance: DEFAULT_CHARACTER_APPEARANCE,
+        vocation: VocationType.Gerente,
+      },
+      url: '/api/players/create',
+    });
+
+    const repositoryState = repository as unknown as {
+      players: Map<string, AuthPlayerRecord>;
+    };
+    const firstPlayer = repositoryState.players.get(firstSession.player.id);
+    const secondPlayer = repositoryState.players.get(secondSession.player.id);
+
+    if (!firstPlayer || !secondPlayer) {
+      throw new Error('test players not found');
+    }
+
+    firstPlayer.conceito = 420;
+    firstPlayer.level = 9;
+    secondPlayer.conceito = 180;
+    secondPlayer.level = 5;
+
+    const publicResponse = await app.inject({
+      method: 'GET',
+      url: '/api/players/public/Public_02',
+    });
+
+    expect(publicResponse.statusCode).toBe(200);
+    expect(publicResponse.json()).toMatchObject({
+      conceito: 180,
+      faction: null,
+      id: secondSession.player.id,
+      level: 5,
+      location: {
+        positionX: REGION_SPAWN_POINTS[RegionId.Centro].positionX,
+        positionY: REGION_SPAWN_POINTS[RegionId.Centro].positionY,
+        regionId: RegionId.Centro,
+      },
+      nickname: 'Public_02',
+      ranking: {
+        currentRank: 2,
+        totalPlayers: 2,
+      },
+      regionId: RegionId.Centro,
+      title: 'soldado',
+      visibility: {
+        inventoryItemCount: 0,
+        preciseLocationVisible: true,
+        propertyCount: 0,
+      },
+      vocation: VocationType.Gerente,
+    });
+  });
+
+  it('keeps accounts without character creation out of the public profile surface', async () => {
+    await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'public03@csrio.test',
+        nickname: 'Public_03',
+        password: 'segredo123',
+      },
+      url: '/api/auth/register',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/players/public/Public_03',
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it('rejects duplicate register attempts by email or nickname', async () => {

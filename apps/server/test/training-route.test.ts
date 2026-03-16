@@ -19,7 +19,7 @@ interface InMemoryTrainingSessionRecord {
   carismaGain: number;
   claimedAt: Date | null;
   costMoney: string;
-  costStamina: number;
+  costCansaco: number;
   createdAt: Date;
   diminishingMultiplier: string;
   endsAt: Date;
@@ -90,16 +90,16 @@ class InMemoryAuthTrainingRepository implements AuthRepository, TrainingReposito
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 7,
-      morale: 100,
+      brisa: 100,
       money: '120000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 100,
       positionY: 100,
       regionId: RegionId.Centro,
       resistencia: 20,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -112,7 +112,7 @@ class InMemoryAuthTrainingRepository implements AuthRepository, TrainingReposito
     playerId: string,
     input: {
       costMoney: number;
-      costStamina: number;
+      costCansaco: number;
       diminishingMultiplier: number;
       endsAt: Date;
       gains: { carisma: number; forca: number; inteligencia: number; resistencia: number };
@@ -128,12 +128,12 @@ class InMemoryAuthTrainingRepository implements AuthRepository, TrainingReposito
     }
 
     player.money = (Number.parseFloat(player.money) - input.costMoney).toFixed(2);
-    player.stamina -= input.costStamina;
+    player.cansaco -= input.costCansaco;
     const session: InMemoryTrainingSessionRecord = {
       carismaGain: input.gains.carisma,
       claimedAt: null,
       costMoney: input.costMoney.toFixed(2),
-      costStamina: input.costStamina,
+      costCansaco: input.costCansaco,
       createdAt: input.startedAt,
       diminishingMultiplier: input.diminishingMultiplier.toFixed(4),
       endsAt: input.endsAt,
@@ -320,7 +320,7 @@ describe('training routes', () => {
       inteligencia: 9,
       resistencia: 18,
     });
-    expect(startResponse.json().player.resources.stamina).toBe(85);
+    expect(startResponse.json().player.resources.cansaco).toBe(85);
     expect(startResponse.json().player.resources.money).toBe(119000);
 
     const sessionId = startResponse.json().session.id as string;

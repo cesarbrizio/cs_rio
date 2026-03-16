@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import { DEFAULT_CHARACTER_APPEARANCE, RegionId, VocationType } from '@cs-rio/shared';
+import {
+  DEFAULT_CHARACTER_APPEARANCE,
+  RegionId,
+  UNIVERSITY_EMPTY_PASSIVE_PROFILE,
+  VocationType,
+} from '@cs-rio/shared';
 import Fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -75,31 +80,46 @@ class InMemoryAuthTribunalRepository implements AuthRepository, TribunalReposito
 
   async applyJudgment(input: {
     caseId: string;
-    conceitoAfter: number;
+    conceitoAfter: number | null;
     conceitoImpact: number;
     factionId: string;
     factionInternalSatisfactionAfter: number;
     judgedAt: Date;
-    judgedBy: string;
+    judgedBy: string | null;
     moralFacaoImpact: number;
     moralMoradoresImpact: number;
-    playerId: string;
-    playerLevelAfter: number;
+    playerId: string | null;
+    playerLevelAfter: number | null;
     punishmentChosen: 'aviso' | 'expulsao' | 'esquartejar' | 'matar' | 'queimar_no_pneu' | 'surra';
     satisfactionAfter: number;
   }) {
-    const player = this.state.players.get(input.playerId);
     const faction = this.state.factions.get(input.factionId);
     const caseRecord = [...this.state.casesByFavelaId.values()]
       .flat()
       .find((entry) => entry.id === input.caseId && entry.judgedAt === null);
 
-    if (!player || !faction || !caseRecord) {
+    if (!faction || !caseRecord) {
       return null;
     }
 
-    player.conceito = input.conceitoAfter;
-    player.level = input.playerLevelAfter;
+    let playerRecord: AuthPlayerRecord | null = null;
+
+    if (
+      input.playerId &&
+      input.conceitoAfter !== null &&
+      input.playerLevelAfter !== null
+    ) {
+      const player = this.state.players.get(input.playerId);
+
+      if (!player) {
+        return null;
+      }
+
+      player.conceito = input.conceitoAfter;
+      player.level = input.playerLevelAfter;
+      playerRecord = { ...player };
+    }
+
     faction.internalSatisfaction = input.factionInternalSatisfactionAfter;
 
     const favela = this.state.favelas.get(caseRecord.favelaId);
@@ -117,7 +137,7 @@ class InMemoryAuthTribunalRepository implements AuthRepository, TribunalReposito
     return {
       caseRecord: { ...caseRecord },
       factionInternalSatisfactionAfter: faction.internalSatisfaction,
-      playerRecord: { ...player },
+      playerRecord,
       satisfactionAfter: input.satisfactionAfter,
     };
   }
@@ -186,16 +206,16 @@ class InMemoryAuthTribunalRepository implements AuthRepository, TribunalReposito
       inteligencia: 20,
       lastLogin: input.lastLogin,
       level: 7,
-      morale: 100,
+      brisa: 100,
       money: '150000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 84,
       positionY: 118,
       regionId: RegionId.ZonaNorte,
       resistencia: 22,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Gerente,
     };
 
@@ -246,6 +266,13 @@ class InMemoryAuthTribunalRepository implements AuthRepository, TribunalReposito
     return openCase ? { ...openCase } : null;
   }
 
+  async getLatestCase(favelaId: string) {
+    const latestCase = [...(this.state.casesByFavelaId.get(favelaId) ?? [])]
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0];
+
+    return latestCase ? { ...latestCase } : null;
+  }
+
   async getPlayer(playerId: string): Promise<AuthPlayerRecord | null> {
     const player = this.state.players.get(playerId);
     return player ? { ...player } : null;
@@ -254,6 +281,23 @@ class InMemoryAuthTribunalRepository implements AuthRepository, TribunalReposito
   async getPlayerFactionMembership(playerId: string) {
     const membership = this.state.membershipsByPlayerId.get(playerId);
     return membership ? { ...membership } : null;
+  }
+
+  async listControlledFavelas(factionId: string) {
+    return [...this.state.favelas.values()]
+      .filter((favela) => favela.controllingFactionId === factionId && favela.state === 'controlled')
+      .map((favela) => ({ ...favela }));
+  }
+
+  async listLatestCasesByFavelaIds(favelaIds: string[]) {
+    return favelaIds
+      .map((favelaId) => {
+        const latestCase = [...(this.state.casesByFavelaId.get(favelaId) ?? [])]
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0];
+
+        return latestCase ? { ...latestCase } : null;
+      })
+      .filter((caseRecord): caseRecord is InMemoryTribunalCaseRecord => caseRecord !== null);
   }
 
   async updateLastLogin(playerId: string, date: Date): Promise<void> {
@@ -362,6 +406,8 @@ describe('tribunal routes', () => {
     expect(generateResponse.statusCode).toBe(201);
     expect(generateResponse.json().created).toBe(true);
     expect(generateResponse.json().activeCase.definition.type).toBe('roubo_entre_moradores');
+    expect(generateResponse.json().activeCase.status).toBe('open');
+    expect(generateResponse.json().activeCase.decisionDeadlineAt).toBeTruthy();
     expect(generateResponse.json().activeCase.accuser.name).not.toBe(
       generateResponse.json().activeCase.accused.name,
     );
@@ -525,7 +571,10 @@ describe('tribunal routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().activeCase.punishmentChosen).toBe('matar');
     expect(response.json().activeCase.judgedAt).toBeTruthy();
+    expect(response.json().activeCase.status).toBe('resolved_by_player');
+    expect(response.json().activeCase.resolutionSource).toBe('player');
     expect(response.json().judgment.read).toBe('justa');
+    expect(response.json().judgment.resolutionSource).toBe('player');
     expect(response.json().judgment.moradoresImpact).toBe(10);
     expect(response.json().judgment.faccaoImpact).toBe(5);
     expect(response.json().judgment.conceitoDelta).toBeGreaterThan(0);
@@ -547,6 +596,182 @@ describe('tribunal routes', () => {
 
     expect(centerResponse.statusCode).toBe(200);
     expect(centerResponse.json().activeCase).toBeNull();
+    expect(centerResponse.json().latestResolvedCase.status).toBe('resolved_by_player');
+    expect(centerResponse.json().latestResolvedOutcome.resolutionSource).toBe('player');
+  });
+
+  it('applies political university bonuses to faction and community tribunal impacts', async () => {
+    await app.server.close();
+    app = await buildTestApp({
+      randomSequence: [0.2, 0.4, 0.6],
+      state,
+      universityReader: {
+        async getActiveCourse() {
+          return null;
+        },
+        async getPassiveProfile() {
+          return {
+            ...UNIVERSITY_EMPTY_PASSIVE_PROFILE,
+            faction: {
+              ...UNIVERSITY_EMPTY_PASSIVE_PROFILE.faction,
+              factionCharismaAura: 0.05,
+            },
+            social: {
+              ...UNIVERSITY_EMPTY_PASSIVE_PROFILE.social,
+              communityInfluenceMultiplier: 1.25,
+            },
+          };
+        },
+      },
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+    const playerId = getOnlyPlayerId(state);
+    attachMembership(state, playerId, 'faccao-amigos', 'general');
+
+    state.casesByFavelaId.set('favela-zona-norte', [
+      {
+        accusedCharismaCommunity: 40,
+        accusedCharismaFaction: 42,
+        accusedName: 'Buiu',
+        accusedStatement: 'Buiu insiste que pagaria a carga depois do baile.',
+        accuserCharismaCommunity: 63,
+        accuserCharismaFaction: 68,
+        accuserName: 'Jana',
+        accuserStatement: 'Jana diz que Buiu comeu a carga e peitou a cobrança.',
+        antigaoHint: 'hint legado',
+        antigaoSuggestedPunishment: 'matar',
+        caseType: 'divida_drogas',
+        communitySupports: 'accuser',
+        conceitoImpact: null,
+        createdAt: new Date('2026-03-11T13:00:00.000Z'),
+        favelaId: 'favela-zona-norte',
+        id: 'caseo-politico',
+        judgedAt: null,
+        judgedBy: null,
+        moralFacaoImpact: null,
+        moralMoradoresImpact: null,
+        punishmentChosen: null,
+        truthSide: 'accuser',
+      },
+    ]);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        punishment: 'matar',
+      },
+      url: '/api/tribunal/favelas/favela-zona-norte/case/judgment',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().judgment).toMatchObject({
+      faccaoImpact: 11,
+      moradoresImpact: -6,
+    });
+    expect(state.factions.get('faccao-amigos')?.internalSatisfaction).toBe(65);
+    expect(state.favelas.get('favela-zona-norte')?.satisfaction).toBe(32);
+  });
+
+  it('opens tribunal cues automatically for leadership and returns the pending case', async () => {
+    const accessToken = await registerAndExtractToken(app.server);
+    const playerId = getOnlyPlayerId(state);
+    attachMembership(state, playerId, 'faccao-amigos', 'patrao');
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/tribunal/cues',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().cues).toHaveLength(1);
+    expect(response.json().cues[0]).toMatchObject({
+      kind: 'opened',
+      title: 'Tribunal aberto · Morro da Coroa',
+    });
+    expect(response.json().cues[0].case.status).toBe('open');
+    expect(response.json().cues[0].case.decisionDeadlineAt).toBeTruthy();
+  });
+
+  it('auto resolves an expired tribunal by NPC with the worst punishment for moradores', async () => {
+    const accessToken = await registerAndExtractToken(app.server);
+    const playerId = getOnlyPlayerId(state);
+    attachMembership(state, playerId, 'faccao-amigos', 'general');
+
+    state.casesByFavelaId.set('favela-zona-norte', [
+      {
+        accusedCharismaCommunity: 44,
+        accusedCharismaFaction: 37,
+        accusedName: 'Buiu',
+        accusedStatement: 'Buiu fala que a divida virou teatro para tomar a casa dele.',
+        accuserCharismaCommunity: 52,
+        accuserCharismaFaction: 61,
+        accuserName: 'Rosana',
+        accuserStatement: 'Rosana diz que Buiu sumiu com o dinheiro e debochou da cobrança.',
+        antigaoHint: 'hint legado',
+        antigaoSuggestedPunishment: 'surra',
+        caseType: 'divida_jogo',
+        communitySupports: 'accused',
+        conceitoImpact: null,
+        createdAt: new Date('2026-03-11T11:30:00.000Z'),
+        favelaId: 'favela-zona-norte',
+        id: 'caseo-expirado',
+        judgedAt: null,
+        judgedBy: null,
+        moralFacaoImpact: null,
+        moralMoradoresImpact: null,
+        punishmentChosen: null,
+        truthSide: 'accuser',
+      },
+    ]);
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/tribunal/cues',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().cues).toHaveLength(2);
+    expect(response.json().cues[0].kind).toBe('opened');
+    expect(response.json().cues[1]).toMatchObject({
+      kind: 'resolved',
+      outcome: {
+        conceitoDelta: 0,
+        punishmentChosen: 'queimar_no_pneu',
+        resolutionSource: 'npc',
+      },
+    });
+
+    const latestCase = state.casesByFavelaId.get('favela-zona-norte')?.[0];
+    expect(latestCase?.judgedAt).toBeTruthy();
+    expect(latestCase?.judgedBy).toBeNull();
+    expect(latestCase?.punishmentChosen).toBe('queimar_no_pneu');
+  });
+
+  it('returns an empty tribunal cue feed for faction members without leadership rank', async () => {
+    const accessToken = await registerAndExtractToken(app.server);
+    const playerId = getOnlyPlayerId(state);
+    attachMembership(state, playerId, 'faccao-amigos', 'soldado');
+
+    const response = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/tribunal/cues',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().cues).toEqual([]);
   });
 
   it('blocks access when the faction rank is below general', async () => {
@@ -584,7 +809,12 @@ describe('tribunal routes', () => {
   });
 });
 
-async function buildTestApp(input: { randomSequence: number[]; state: TestState }) {
+async function buildTestApp(input: {
+  now?: () => Date;
+  randomSequence: number[];
+  state: TestState;
+  universityReader?: ConstructorParameters<typeof TribunalService>[0]['universityReader'];
+}) {
   const server = Fastify();
   const repository = new InMemoryAuthTribunalRepository(input.state);
   const keyValueStore = new InMemoryKeyValueStore();
@@ -593,8 +823,10 @@ async function buildTestApp(input: { randomSequence: number[]; state: TestState 
     repository,
   });
   const tribunalService = new TribunalService({
+    now: input.now ?? (() => new Date('2026-03-11T14:00:00.000Z')),
     random: createRandomSequence(input.randomSequence),
     repository,
+    universityReader: input.universityReader,
   });
 
   await server.register(async (api) => {

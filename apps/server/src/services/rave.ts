@@ -45,6 +45,7 @@ import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './fac
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
+  buildPropertySabotageStatusSummary,
   resolvePropertyDailyUpkeep,
   roundCurrency,
 } from './property.js';
@@ -111,6 +112,9 @@ interface RaveSnapshotRecord {
   operationCostMultiplier: number;
   policePressure: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: RaveSoldierRosterRecord[];
   suspended: boolean;
   wealthIndex: number;
@@ -586,6 +590,9 @@ export class DatabaseRaveRepository implements RaveRepository {
         operationCostMultiplier: regions.operationCostMultiplier,
         policePressure: regions.policePressure,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         suspended: properties.suspended,
         wealthIndex: regions.wealthIndex,
       })
@@ -674,6 +681,9 @@ export class DatabaseRaveRepository implements RaveRepository {
       operationCostMultiplier: roundCurrency(Number.parseFloat(String(row.operationCostMultiplier))),
       policePressure: row.policePressure,
       regionId: row.regionId as RegionId,
+      sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: row.sabotageResolvedAt,
+      sabotageState: row.sabotageState,
       soldierRoster: soldiersByPropertyId.get(row.id)
         ? [soldiersByPropertyId.get(row.id) as RaveSoldierRosterRecord]
         : [],
@@ -1093,6 +1103,13 @@ export class RaveService implements RaveServiceContract {
       lastMaintenanceAt: maintenanceStatus.lastMaintenanceAt,
       suspended: maintenanceStatus.blocked,
     };
+    const sabotageStatus = buildPropertySabotageStatusSummary({
+      now: this.now(),
+      sabotageRecoveryReadyAt: propertyAfterMaintenance.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: propertyAfterMaintenance.sabotageResolvedAt,
+      sabotageState: propertyAfterMaintenance.sabotageState,
+      type: 'rave',
+    });
     const cycleMs = RAVE_OPERATION_CYCLE_MINUTES * 60 * 1000;
     const elapsedCycles = Math.floor(
       Math.max(0, this.now().getTime() - propertyAfterMaintenance.lastSaleAt.getTime()) / cycleMs,
@@ -1109,7 +1126,7 @@ export class RaveService implements RaveServiceContract {
     );
     const nextLineup = propertyAfterMaintenance.lineup.map((entry) => ({ ...entry }));
 
-    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended) {
+    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended && !sabotageStatus.blocked) {
       for (const lineupEntry of nextLineup) {
         const visitorsPerCycle = buildRaveVisitorsPerCycle(
           propertyAfterMaintenance,
@@ -1133,7 +1150,8 @@ export class RaveService implements RaveServiceContract {
           configuredUnitPrice *
             quantitySold *
             passiveProfile.business.passiveRevenueMultiplier *
-            regionalDominationBonus.revenueMultiplier,
+            regionalDominationBonus.revenueMultiplier *
+            sabotageStatus.operationalMultiplier,
         );
         const commissionAmount = roundCurrency(grossRevenue * effectiveFactionCommissionRate);
         const netRevenue = roundCurrency(grossRevenue - commissionAmount);
@@ -1307,6 +1325,13 @@ function serializeRaveSummary(
 ): RaveSummary {
   const propertyDefinition = resolveEconomyPropertyDefinition(configCatalog, 'rave');
   const eventProfile = resolvePropertyEventProfile(configCatalog, 'rave');
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: rave.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: rave.sabotageResolvedAt,
+    sabotageState: rave.sabotageState,
+    type: 'rave',
+  });
   const locationMultiplier = buildRaveLocationMultiplier(rave);
   const lineup = rave.lineup.map((entry) => ({
     baseUnitPrice: entry.baseUnitPrice,
@@ -1325,7 +1350,8 @@ function serializeRaveSummary(
         entry.configuredUnitPrice *
           Math.min(entry.quantity, entry.estimatedVisitorsPerCycle) *
           passiveProfile.business.passiveRevenueMultiplier *
-          regionalDominationBonus.revenueMultiplier,
+          regionalDominationBonus.revenueMultiplier *
+          sabotageStatus.operationalMultiplier,
       0,
     ) * (60 / RAVE_OPERATION_CYCLE_MINUTES),
   );
@@ -1367,8 +1393,15 @@ function serializeRaveSummary(
       moneySpentOnSync: maintenanceStatus.moneySpentOnSync,
       overdueDays: maintenanceStatus.overdueDays,
     },
+    sabotageStatus,
     regionId: rave.regionId,
-    status: maintenanceStatus.blocked ? 'maintenance_blocked' : lineup.length > 0 ? 'active' : 'no_lineup',
+    status: sabotageStatus.blocked
+      ? 'sabotage_blocked'
+      : maintenanceStatus.blocked
+        ? 'maintenance_blocked'
+        : lineup.length > 0
+          ? 'active'
+          : 'no_lineup',
   };
 }
 

@@ -143,7 +143,7 @@ export function buildHudContextTarget(entityId: string): HudContextTarget {
         },
       ],
       entityId,
-      subtitle: 'Ponto de consumo e recuperação de embalo',
+      subtitle: 'Ponto de consumo e recuperação de brisa',
       title: entityId.includes('baile') ? 'Baile Funk' : 'Rave',
     };
   }
@@ -164,7 +164,7 @@ export function buildHudContextTarget(entityId: string): HudContextTarget {
         },
       ],
       entityId,
-      subtitle: 'Recuperação, vício, DST e cirurgia',
+      subtitle: 'Recuperação, vício, plano e cirurgia',
       title: 'Hospital',
     };
   }

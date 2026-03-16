@@ -1,0 +1,37 @@
+export function createSceneGraphRoot({
+  assetType,
+  category,
+  density,
+  dominantHeight,
+  silhouette,
+  materials,
+  requiredModules,
+  forbiddenModules,
+  composition,
+  styleGuide,
+}) {
+  return {
+    version: 1,
+    assetType,
+    category,
+    density,
+    dominantHeight,
+    silhouette,
+    materials,
+    requiredModules,
+    forbiddenModules,
+    composition,
+    styleGuide: {
+      profile: styleGuide.name,
+      resolvedProfile: styleGuide.resolvedProfile,
+      family: styleGuide.family ?? null,
+      perspective: styleGuide.projection,
+      paletteIntent: styleGuide.visual?.paletteIntent ?? null,
+      compositionPolicy: styleGuide.compositionPolicy ?? {},
+      modulePolicy: styleGuide.modulePolicy ?? {},
+      variationPolicy: styleGuide.variationPolicy ?? {},
+      visualRules: styleGuide.visualRules ?? [],
+    },
+    nodes: [],
+  };
+}

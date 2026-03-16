@@ -433,8 +433,8 @@ export const SOLDIER_TEMPLATE_SEED = [
 const SOLO_CRIME_LEVELS = [
   {
     level: 1,
-    staminaRange: [5, 15],
-    nerveRange: [0, 0],
+    cansacoRange: [5, 15],
+    disposicaoRange: [0, 0],
     rewardRange: [150, 1800],
     minPowerBase: 50,
     arrestChance: 5,
@@ -449,8 +449,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 2,
-    staminaRange: [8, 18],
-    nerveRange: [0, 0],
+    cansacoRange: [8, 18],
+    disposicaoRange: [0, 0],
     rewardRange: [500, 5000],
     minPowerBase: 150,
     arrestChance: 8,
@@ -466,8 +466,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 3,
-    staminaRange: [15, 25],
-    nerveRange: [5, 10],
+    cansacoRange: [15, 25],
+    disposicaoRange: [5, 10],
     rewardRange: [3000, 18000],
     minPowerBase: 600,
     arrestChance: 12,
@@ -483,8 +483,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 4,
-    staminaRange: [20, 30],
-    nerveRange: [10, 15],
+    cansacoRange: [20, 30],
+    disposicaoRange: [10, 15],
     rewardRange: [12000, 60000],
     minPowerBase: 1800,
     arrestChance: 16,
@@ -500,8 +500,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 5,
-    staminaRange: [24, 34],
-    nerveRange: [15, 20],
+    cansacoRange: [24, 34],
+    disposicaoRange: [15, 20],
     rewardRange: [30000, 140000],
     minPowerBase: 4500,
     arrestChance: 20,
@@ -517,8 +517,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 6,
-    staminaRange: [28, 38],
-    nerveRange: [20, 25],
+    cansacoRange: [28, 38],
+    disposicaoRange: [20, 25],
     rewardRange: [80000, 320000],
     minPowerBase: 9000,
     arrestChance: 24,
@@ -534,8 +534,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 7,
-    staminaRange: [32, 44],
-    nerveRange: [30, 40],
+    cansacoRange: [32, 44],
+    disposicaoRange: [30, 40],
     rewardRange: [250000, 900000],
     minPowerBase: 18000,
     arrestChance: 28,
@@ -551,8 +551,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 8,
-    staminaRange: [36, 48],
-    nerveRange: [40, 50],
+    cansacoRange: [36, 48],
+    disposicaoRange: [40, 50],
     rewardRange: [800000, 3000000],
     minPowerBase: 32000,
     arrestChance: 32,
@@ -567,8 +567,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 9,
-    staminaRange: [40, 50],
-    nerveRange: [50, 50],
+    cansacoRange: [40, 50],
+    disposicaoRange: [50, 50],
     rewardRange: [2500000, 8000000],
     minPowerBase: 50000,
     arrestChance: 36,
@@ -582,8 +582,8 @@ const SOLO_CRIME_LEVELS = [
   },
   {
     level: 10,
-    staminaRange: [50, 50],
-    nerveRange: [50, 50],
+    cansacoRange: [50, 50],
+    disposicaoRange: [50, 50],
     rewardRange: [10000000, 25000000],
     minPowerBase: 80000,
     arrestChance: 40,
@@ -648,11 +648,11 @@ export const CRIME_SEED = [
   ...SOLO_CRIME_LEVELS.flatMap((tier) =>
     tier.names.map((name, index) => {
       const progress = tier.names.length === 1 ? 0 : index / (tier.names.length - 1);
-      const staminaCost = Math.round(
-        tier.staminaRange[0] + (tier.staminaRange[1] - tier.staminaRange[0]) * progress,
+      const cansacoCost = Math.round(
+        tier.cansacoRange[0] + (tier.cansacoRange[1] - tier.cansacoRange[0]) * progress,
       );
-      const nerveCost = Math.round(
-        tier.nerveRange[0] + (tier.nerveRange[1] - tier.nerveRange[0]) * progress,
+      const disposicaoCost = Math.round(
+        tier.disposicaoRange[0] + (tier.disposicaoRange[1] - tier.disposicaoRange[0]) * progress,
       );
       const rewardMin = Math.round(
         tier.rewardRange[0] + (tier.rewardRange[1] - tier.rewardRange[0]) * progress,
@@ -664,8 +664,8 @@ export const CRIME_SEED = [
         name,
         crimeType: 'solo' as const,
         levelRequired: tier.level,
-        staminaCost,
-        nerveCost,
+        cansacoCost,
+        disposicaoCost,
         minPower: Math.round(tier.minPowerBase * (1 + progress * 0.75)),
         rewardMin: String(rewardMin),
         rewardMax: String(rewardMax),
@@ -680,8 +680,8 @@ export const CRIME_SEED = [
     name: crime.name,
     crimeType: 'faccao' as const,
     levelRequired: crime.levelRequired,
-    staminaCost: 30,
-    nerveCost: 20,
+    cansacoCost: 30,
+    disposicaoCost: 20,
     minPower: crime.minPower,
     rewardMin: crime.rewardMin,
     rewardMax: crime.rewardMax,
@@ -1807,15 +1807,15 @@ export async function seedDatabase(): Promise<void> {
       .insert(drugs)
       .values(
         DRUG_SEED.map(
-          ([name, type, staminaRecovery, moralBoost, price, addictionRate, nerveBoost, productionLevel, weight]) => ({
+          ([name, type, cansacoRecovery, brisaBoost, price, addictionRate, disposicaoBoost, productionLevel, weight]) => ({
             code: slugify(name),
             name,
             type,
-            staminaRecovery,
-            moralBoost,
+            cansacoRecovery,
+            brisaBoost,
             price,
             addictionRate,
-            nerveBoost,
+            disposicaoBoost,
             productionLevel,
             weight,
           }),

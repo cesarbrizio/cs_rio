@@ -5,11 +5,13 @@
 Criar uma camada interna de operações para desenvolvimento e playtest que permita:
 
 - preparar contas e cenários rapidamente
-- evitar esperar stamina, nervos, dinheiro, cooldown e timers naturais
+- evitar esperar cansaço, disposição, dinheiro, cooldown e timers naturais
 - ajustar uma rodada sem editar o banco manualmente
 - operar tudo por **CLI interno**, sem painel admin e sem client exposto ao usuário
 
 Este sistema é para **desenvolvimento, QA e operação interna**.
+
+Para QA funcional, a leitura de pronto/parcial/planejado deve seguir a matriz em [PRODUCT_STATUS.md](./PRODUCT_STATUS.md), e nao apenas a ambicao total descrita no `JOGO.md`.
 
 ## Princípios
 
@@ -99,7 +101,7 @@ Exemplos desejados:
 ```bash
 npm run ops:player --workspace @cs-rio/server -- --player flucesar --set-money 500000
 npm run ops:player --workspace @cs-rio/server -- --player flucesar --set-region zona_norte
-npm run ops:player --workspace @cs-rio/server -- --player flucesar --set-stamina 100 --set-nerve 100
+npm run ops:player --workspace @cs-rio/server -- --player flucesar --set-cansaco 100 --set-disposicao 100
 npm run ops:player --workspace @cs-rio/server -- --player flucesar --grant-item weapon:pistola_380:1
 ```
 
@@ -286,9 +288,9 @@ Operações disponíveis:
   - `--add-bank-money`
 - recursos:
   - `--set-hp`
-  - `--set-stamina`
-  - `--set-nerve`
-  - `--set-morale`
+  - `--set-cansaco`
+  - `--set-disposicao`
+  - `--set-brisa`
   - `--set-addiction`
   - `--full-resources`
 - progressão:
@@ -653,9 +655,9 @@ Critério:
 Comandos mínimos:
 
 - `set-hp`
-- `set-stamina`
-- `set-nerve`
-- `set-morale`
+- `set-cansaco`
+- `set-disposicao`
+- `set-brisa`
 - `set-addiction`
 - `full-resources`
 
@@ -663,7 +665,7 @@ Regras:
 
 - respeitar piso e teto dos recursos quando fizer sentido
 - `full-resources` deve encher tudo de uma vez
-- `set-morale` e `set-addiction` precisam seguir a nomenclatura vigente do backend
+- `set-brisa` e `set-addiction` precisam seguir a nomenclatura vigente do backend
 
 Critério:
 
@@ -766,7 +768,7 @@ Critério:
 Se, ao tentar preparar um jogador para teste, ainda acontecer qualquer um destes casos:
 
 - “precisei editar banco manualmente”
-- “precisei esperar stamina / nervos / dinheiro”
+- “precisei esperar cansaço / disposição / dinheiro”
 - “precisei fazer 10 comandos para um ajuste simples”
 
 então a Fase 1 falhou.
@@ -784,7 +786,7 @@ então a Fase 1 falhou.
 
 - [x] o CLI aceita `playerId`, `nickname` ou `email`
 - [x] dinheiro e banco podem ser ajustados sem SQL manual
-- [x] stamina / nervos / HP / vício / moral podem ser ajustados instantaneamente
+- [x] cansaço / disposição / HP / vício / brisa podem ser ajustados instantaneamente
 - [x] conceito / nível / vocação podem ser alterados com segurança
 - [x] região e posição podem ser forçadas
 - [x] prisão e hospital podem ser limpos ou forçados
@@ -1107,15 +1109,15 @@ Critério:
 ### 3.6 — `hospital-ready`
 
 Entrega:
-- jogador hospitalizado ou viciado/DST
+- jogador hospitalizado ou viciado
 
 Regras:
 - deve aceitar variantes:
   - internação por combate
   - internação por overdose
   - vício alto
-  - DST
 - deve expor serviços realmente úteis ao teste do hospital
+- cenários de DST ficam restritos ao fluxo de `Puteiro` / GPs, não ao estado do jogador
 
 Critério:
 - hospital deixa de depender de “causar dano no jogo” para poder ser testado
@@ -1124,27 +1126,31 @@ Critério:
 
 Entrega:
 - facção controlando favela
-- caso pronto para julgamento
+- caso ativo com prazo correndo
+- desfecho assíncrono reproduzível
 
 Regras:
 - deve garantir jogador numa facção com permissões mínimas
 - deve garantir favela válida e caso ativo
-- deve deixar a tela do tribunal pronta para validar leitura, escolha e impacto
+- deve deixar a tela do tribunal pronta para validar leitura, escolha, expiração de prazo e impacto
+- deve permitir validar o fallback NPC quando o prazo acabar
+- se o jogador estiver ausente, o resultado precisa continuar consultável no retorno
 
 Critério:
-- Tribunal do Tráfico pode ser aberto em estado jogável por um único comando
+- Tribunal do Tráfico pode ser testado da abertura ao resultado assíncrono por um único comando
 
 ### 3.8 — `war-ready`
 
 Entrega:
 - duas facções com caixa
 - favela disputável
-- preparação de guerra
+- preparação de guerra ou perda territorial pendente
 
 Regras:
 - deve preparar os dois lados
 - deve garantir caixa, região e domínio coerentes
-- deve deixar a guerra declarável ou já em estado de preparação, conforme o preset
+- deve deixar a guerra declarável, em preparação ou já com desfecho territorial pendente, conforme o preset
+- deve permitir validar notificação de perda de território e replay no retorno ao app
 
 Critério:
 - a guerra deixa de depender de uma longa preparação multi-etapa
@@ -1345,6 +1351,7 @@ Regras:
 - `trigger-event` precisa permitir alvo e payload mínimo quando aplicável
 - `disable-event` e `enable-event` devem preferir feature flags/overrides, não SQL solto
 - `expire-event` deve encerrar o evento de forma coerente com o ciclo de vida dele
+- disparar ou expirar um evento deve permitir validar tambem a fila de resultado assíncrono e o histórico de retorno dos afetados
 
 Critério:
 

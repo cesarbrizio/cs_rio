@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "node ./scripts/run-expo-with-root-env.mjs start --clear",
     "generate:map-structures": "node ./scripts/generate-map-structure-svgs.mjs",
+    "generate:map-structures:catalog": "node ./scripts/generate-map-structure-svgs.mjs --catalog-only",
+    "asset:pipeline": "node ./scripts/asset-pipeline/cli.mjs",
     "build": "tsc --noEmit && node -e \"const fs=require('node:fs'); fs.mkdirSync('build',{recursive:true}); fs.writeFileSync('build/.stamp','mobile-bootstrap');\"",
     "lint": "eslint \"App.tsx\" \"src/**/*.{ts,tsx}\" \"test/**/*.ts\"",
     "test": "vitest run",
@@ -47,8 +49,10 @@
   },
   "devDependencies": {
     "@babel/plugin-transform-class-static-block": "^7.28.6",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.3.18",
     "babel-plugin-module-resolver": "^5.0.2",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "svgo": "^4.0.1"
   }
 }

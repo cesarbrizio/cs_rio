@@ -29,6 +29,7 @@ cs_rio/
 │   ├── shared/          # Tipos e constantes compartilhados
 │   └── game-engine/     # Engine isométrica (Skia)
 ├── JOGO.md              # Game Design Document completo
+├── PRODUCT_STATUS.md    # Matriz de aderencia entre documento e produto real
 ├── TODO.md              # Roadmap técnico histórico + prioridades abertas
 ├── MAPA.md              # Estado final aprovado do mapa
 ├── CHEATS.md            # Operações internas / cheats de desenvolvimento
@@ -39,7 +40,7 @@ cs_rio/
 
 - Build atual: **Pré-Alpha funcional**
 - Estado operacional: **fase de testes e ajuste fino**
-- Esteira técnica: `typecheck`, `lint`, `test` e `build` verdes no monorepo
+- Esteira técnica: validar `typecheck`, `lint`, `test` e `build` conforme [ROLL_OUT.md](./ROLL_OUT.md) antes de promoção ou playtest crítico
 - Sistemas já jogáveis:
   - auth + criação de personagem
   - home/mapa local e macro mapa do Rio
@@ -74,13 +75,14 @@ O foco imediato não é mais abrir grandes features, e sim:
 - Propriedades pertencem ao jogador, nunca a faccao.
 - Faccao atua como camada de protecao, influencia operacional e arrecadacao sobre negocios lucrativos.
 - Propriedades lucrativas repassam comissao fixa para a faccao do jogador quando ele for faccionado.
-- Propriedades patrimoniais nao geram renda direta; servem para prestigio, conforto, logistica e capacidade, mas exigem manutencao.
+- Propriedades patrimoniais nao geram renda direta; servem para conforto, logistica, capacidade e protecao, mas exigem manutencao.
 - Dominio territorial total de uma regiao concede vantagem forte em protecao, risco e eficiencia operacional, mas nao cria invulnerabilidade.
 - Ao trocar de faccao, os ativos continuam do jogador; muda a camada de protecao/comissao associada a eles.
 
 ## Documentos
 
 - **[JOGO.md](./JOGO.md)** — Game Design Document com todas as mecânicas
+- **[PRODUCT_STATUS.md](./PRODUCT_STATUS.md)** — Contrato funcional entre `JOGO.md`, produto real, roadmap e QA
 - **[TODO.md](./TODO.md)** — Roadmap técnico histórico e backlog ainda aberto
 - **[MAPA.md](./MAPA.md)** — Estado final aprovado do mapa para o escopo atual
 - **[CHEATS.md](./CHEATS.md)** — Catálogo e arquitetura dos comandos internos de operação

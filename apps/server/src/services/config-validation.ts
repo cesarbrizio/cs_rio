@@ -1064,12 +1064,12 @@ function assertPropertyUtility(value: unknown): void {
     assertIntegerInRange(readNumberField(value, 'inventoryWeightBonus'), 0, 10_000, 'utility.inventoryWeightBonus');
   }
 
-  if ('staminaRecoveryPerHourBonus' in value) {
+  if ('cansacoRecoveryPerHourBonus' in value) {
     assertIntegerInRange(
-      readNumberField(value, 'staminaRecoveryPerHourBonus'),
+      readNumberField(value, 'cansacoRecoveryPerHourBonus'),
       0,
       10_000,
-      'utility.staminaRecoveryPerHourBonus',
+      'utility.cansacoRecoveryPerHourBonus',
     );
   }
 

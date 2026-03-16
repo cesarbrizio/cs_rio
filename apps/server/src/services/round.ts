@@ -334,9 +334,7 @@ class DatabaseRoundRepository implements RoundRepository {
         .set({
           bankInterestSyncedAt: input.now,
           bankMoney: '0',
-          dstRecoversAt: null,
           factionId: null,
-          hasDst: false,
           healthPlanCycleKey: null,
         });
 
@@ -371,17 +369,16 @@ class DatabaseRoundRepository implements RoundRepository {
             conceito: 0,
             factionId: null,
             forca: attributes.forca,
-            hasDst: false,
             healthPlanCycleKey: null,
             hp: 100,
             inteligencia: attributes.inteligencia,
             level: 1,
-            morale: 100,
-            nerve: 100,
+            brisa: 100,
+            disposicao: 100,
             positionX: spawnPoint.spawnPositionX,
             positionY: spawnPoint.spawnPositionY,
             resistencia: attributes.resistencia,
-            stamina: 100,
+            cansaco: 100,
             money: String(legacyBonus?.moneyBonus ?? 0),
           })
           .where(eq(players.id, playerRow.id));

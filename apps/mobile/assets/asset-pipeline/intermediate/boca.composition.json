@@ -1,0 +1,231 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "boca boca",
+  "category": "poor",
+  "styleGuide": {
+    "resolvedProfile": "dense-favela",
+    "family": "boca",
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.06
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium-high",
+      "attachmentVariation": "medium"
+    },
+    "compositionPolicy": {
+      "layout": "compressed-entry",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile",
+    "boca",
+    "market-clandestino",
+    "gym",
+    "hospital",
+    "prison",
+    "university",
+    "factory",
+    "dock-industrial",
+    "junkyard",
+    "residential-tower-simple",
+    "residential-tower-modern",
+    "commercial-block-simple",
+    "commercial-block-modern",
+    "house-simple",
+    "house-wealthy"
+  ],
+  "resolvedModules": [
+    {
+      "id": "awning-3",
+      "module": "awning",
+      "resolved": {
+        "id": "awning",
+        "family": "favela",
+        "footprint": {
+          "width": 24,
+          "depth": 12
+        },
+        "slots": [
+          "facade-front"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "placement": {
+        "x": 0,
+        "y": 9,
+        "scale": 1.039
+      },
+      "variants": {
+        "materialHint": "reboco parcial",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "boca",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve ler como ponto clandestino protegido, nao como comercio formal",
+          "a entrada precisa ser escura e comprimida",
+          "o entorno ainda precisa sugerir favela"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "boca-guarded-entry-2",
+      "module": "boca-guarded-entry",
+      "resolved": {
+        "id": "boca-guarded-entry",
+        "family": "boca",
+        "footprint": {
+          "width": 28,
+          "depth": 16
+        },
+        "slots": [
+          "entry"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 106,
+        "y": 122
+      },
+      "placement": {
+        "x": 10,
+        "y": 0,
+        "scale": 0.979
+      },
+      "variants": {
+        "materialHint": "anexo improvisado",
+        "slotHint": "entry",
+        "profile": "dense-favela",
+        "family": "boca",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve ler como ponto clandestino protegido, nao como comercio formal",
+          "a entrada precisa ser escura e comprimida",
+          "o entorno ainda precisa sugerir favela"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "boca-core-1",
+      "module": "boca-core",
+      "resolved": {
+        "id": "boca-core",
+        "family": "boca",
+        "footprint": {
+          "width": 44,
+          "depth": 18
+        },
+        "slots": [
+          "core"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "placement": {
+        "x": -1,
+        "y": 4,
+        "scale": 1.014
+      },
+      "variants": {
+        "materialHint": "alvenaria simples",
+        "slotHint": "core",
+        "profile": "dense-favela",
+        "family": "boca",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve ler como ponto clandestino protegido, nao como comercio formal",
+          "a entrada precisa ser escura e comprimida",
+          "o entorno ainda precisa sugerir favela"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "external-pipe-4",
+      "module": "external-pipe",
+      "resolved": {
+        "id": "external-pipe",
+        "family": "favela",
+        "footprint": {
+          "width": 8,
+          "depth": 6
+        },
+        "slots": [
+          "utility-side"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 106,
+        "y": 114
+      },
+      "placement": {
+        "x": 11,
+        "y": -6,
+        "scale": 0.993
+      },
+      "variants": {
+        "materialHint": "alvenaria simples",
+        "slotHint": "utility-side",
+        "profile": "dense-favela",
+        "family": "boca",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve ler como ponto clandestino protegido, nao como comercio formal",
+          "a entrada precisa ser escura e comprimida",
+          "o entorno ainda precisa sugerir favela"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/boca.composition.svg"
+}

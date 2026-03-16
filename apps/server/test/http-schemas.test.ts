@@ -5,6 +5,7 @@ import { installGlobalHttpErrorHandler } from '../src/api/http-errors.js';
 import { createAuthRoutes } from '../src/api/routes/auth.js';
 import { createBankRoutes } from '../src/api/routes/bank.js';
 import { createBichoRoutes } from '../src/api/routes/bicho.js';
+import { createContactRoutes } from '../src/api/routes/contacts.js';
 import { createCrimeRoutes } from '../src/api/routes/crimes.js';
 import { createDrugSaleRoutes } from '../src/api/routes/drug-sales.js';
 import { createFactionRoutes } from '../src/api/routes/factions.js';
@@ -61,8 +62,10 @@ describe('HTTP route schemas', () => {
     const app = await createAuthenticatedRouteTestApp(
       createPlayerRoutes({
         playerService: {
+          changeVocation: unexpectedAsyncCall('players.changeVocation'),
           createCharacter: unexpectedAsyncCall('players.createCharacter'),
           getPlayerProfile: unexpectedAsyncCall('players.getPlayerProfile'),
+          getVocationCenter: unexpectedAsyncCall('players.getVocationCenter'),
           travelToRegion: unexpectedAsyncCall('players.travelToRegion'),
         } as never,
       }),
@@ -79,6 +82,98 @@ describe('HTTP route schemas', () => {
         },
         vocation: 'chefe_final',
       },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('rejects invalid public profile nickname params before reaching the service', async () => {
+    const app = await createRouteTestApp(
+      createPlayerRoutes({
+        playerService: {
+          getPublicProfileByNickname: unexpectedAsyncCall('players.getPublicProfileByNickname'),
+        } as never,
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/players/public/ab',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('rejects invalid vocation change payload before reaching the service', async () => {
+    const app = await createAuthenticatedRouteTestApp(
+      createPlayerRoutes({
+        playerService: {
+          changeVocation: unexpectedAsyncCall('players.changeVocation'),
+          getVocationCenter: unexpectedAsyncCall('players.getVocationCenter'),
+        } as never,
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/players/vocation/change',
+      payload: {
+        vocation: 'rei_do_crime',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('rejects invalid contact creation payload before reaching the service', async () => {
+    const app = await createAuthenticatedRouteTestApp(
+      createContactRoutes({
+        contactService: {
+          addContact: unexpectedAsyncCall('contacts.addContact'),
+          listContacts: unexpectedAsyncCall('contacts.listContacts'),
+          removeContact: unexpectedAsyncCall('contacts.removeContact'),
+        } as never,
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/contacts',
+      payload: {
+        nickname: 'ab',
+        type: 'aliado',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('rejects invalid contact params before reaching the service', async () => {
+    const app = await createAuthenticatedRouteTestApp(
+      createContactRoutes({
+        contactService: {
+          addContact: unexpectedAsyncCall('contacts.addContact'),
+          listContacts: unexpectedAsyncCall('contacts.listContacts'),
+          removeContact: unexpectedAsyncCall('contacts.removeContact'),
+        } as never,
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/contacts/%20',
     });
 
     expect(response.statusCode).toBe(400);
@@ -476,6 +571,9 @@ describe('HTTP route schemas', () => {
   it('rejects invalid property purchase payload before reaching the service', async () => {
     const app = await createAuthenticatedRouteTestApp(
       createPropertyRoutes({
+        actionIdempotency: {
+          run: unexpectedAsyncCall('actionIdempotency.property'),
+        } as never,
         propertyService: new Proxy(
           {},
           {
@@ -492,6 +590,32 @@ describe('HTTP route schemas', () => {
         type: 'castelo',
       },
       url: '/properties',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      category: 'validation',
+    });
+  });
+
+  it('rejects invalid property sabotage params before reaching the service', async () => {
+    const app = await createAuthenticatedRouteTestApp(
+      createPropertyRoutes({
+        actionIdempotency: {
+          run: unexpectedAsyncCall('actionIdempotency.property'),
+        } as never,
+        propertyService: new Proxy(
+          {},
+          {
+            get: (_target, key) => unexpectedAsyncCall(`property.${String(key)}`),
+          },
+        ) as never,
+      }),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/properties/%20/sabotage',
     });
 
     expect(response.statusCode).toBe(400);

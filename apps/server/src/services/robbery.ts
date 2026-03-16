@@ -77,11 +77,11 @@ interface RobberyPlayerRecord {
   id: string;
   level: number;
   money: number;
-  nerve: number;
+  disposicao: number;
   nickname: string;
   regionId: RegionId;
   resistencia: number;
-  stamina: number;
+  cansaco: number;
   vocation: VocationType;
 }
 
@@ -132,11 +132,11 @@ interface PlayerRobberyResolution {
   hospitalizationDurationMinutes: number | null;
   message: string;
   netAmount: number;
-  nerveCost: number;
+  disposicaoCost: number;
   outcome: RobberyFailureOutcome | 'success';
   prisonDurationMinutes: number | null;
   regionPolicePressureDelta: number;
-  staminaCost: number;
+  cansacoCost: number;
   success: boolean;
 }
 
@@ -451,12 +451,12 @@ export class RobberyService implements RobberyServiceContract {
       );
     }
 
-    if (player.stamina < definitionPlayerStaminaCost(definition.id)) {
-      throw new RobberyError('insufficient_resources', 'Estamina insuficiente para esse roubo.');
+    if (player.cansaco < definitionPlayerCansacoCost(definition.id)) {
+      throw new RobberyError('insufficient_resources', 'Cansaço insuficiente para esse roubo.');
     }
 
-    if (player.nerve < definitionPlayerNerveCost(definition.id)) {
-      throw new RobberyError('insufficient_resources', 'Nervos insuficientes para esse roubo.');
+    if (player.disposicao < definitionPlayerDisposicaoCost(definition.id)) {
+      throw new RobberyError('insufficient_resources', 'Disposição insuficiente para esse roubo.');
     }
 
     const [heatBefore, passiveProfile] = await Promise.all([
@@ -474,8 +474,8 @@ export class RobberyService implements RobberyServiceContract {
     });
     const nextPolicePressure = clamp(region.policePressure + resolution.regionPolicePressureDelta, 0, 100);
     const nextMoney = roundCurrency(player.money + resolution.netAmount);
-    const nextStamina = Math.max(0, player.stamina - resolution.staminaCost);
-    const nextNerve = Math.max(0, player.nerve - resolution.nerveCost);
+    const nextCansaco = Math.max(0, player.cansaco - resolution.cansacoCost);
+    const nextDisposicao = Math.max(0, player.disposicao - resolution.disposicaoCost);
     const nextHp = clamp(player.hp + resolution.hpDelta, 1, 100);
     const effectiveCommissionAmount =
       player.factionId !== null ? roundCurrency(resolution.grossAmount * resolution.effectiveCommissionRate) : 0;
@@ -504,8 +504,8 @@ export class RobberyService implements RobberyServiceContract {
         .set({
           hp: nextHp,
           money: nextMoney.toFixed(2),
-          nerve: nextNerve,
-          stamina: nextStamina,
+          disposicao: nextDisposicao,
+          cansaco: nextCansaco,
         })
         .where(eq(players.id, player.id));
 
@@ -605,13 +605,13 @@ export class RobberyService implements RobberyServiceContract {
         moneyAfter: nextMoney,
         moneyBefore: player.money,
         moneyDelta: effectiveNetAmount,
-        nerveAfter: nextNerve,
-        nerveBefore: player.nerve,
-        nerveDelta: nextNerve - player.nerve,
+        disposicaoAfter: nextDisposicao,
+        disposicaoBefore: player.disposicao,
+        disposicaoDelta: nextDisposicao - player.disposicao,
         prison: prisonStatus,
-        staminaAfter: nextStamina,
-        staminaBefore: player.stamina,
-        staminaDelta: nextStamina - player.stamina,
+        cansacoAfter: nextCansaco,
+        cansacoBefore: player.cansaco,
+        cansacoDelta: nextCansaco - player.cansaco,
       },
       policyDisplacedFromRegionId: policyContext.policyDisplacedFromRegionId,
       regionId: region.id,
@@ -1053,11 +1053,11 @@ async function getRobberyPlayer(playerId: string): Promise<RobberyPlayerRecord |
       id: players.id,
       level: players.level,
       money: players.money,
-      nerve: players.nerve,
+      disposicao: players.disposicao,
       nickname: players.nickname,
       regionId: players.regionId,
       resistencia: players.resistencia,
-      stamina: players.stamina,
+      cansaco: players.cansaco,
       vocation: players.vocation,
     })
     .from(players)
@@ -1079,11 +1079,11 @@ async function getRobberyPlayer(playerId: string): Promise<RobberyPlayerRecord |
     id: row.id,
     level: row.level,
     money: parseFloat(String(row.money)),
-    nerve: row.nerve,
+    disposicao: row.disposicao,
     nickname: row.nickname,
     regionId: row.regionId as RegionId,
     resistencia: row.resistencia,
-    stamina: row.stamina,
+    cansaco: row.cansaco,
     vocation: row.vocation as VocationType,
   };
 }
@@ -1216,8 +1216,8 @@ function resolvePlayerRobbery(input: {
   random: () => number;
   region: RobberyRegionRecord;
 }): PlayerRobberyResolution {
-  const staminaCost = definitionPlayerStaminaCost(input.definition.id);
-  const nerveCost = definitionPlayerNerveCost(input.definition.id);
+  const cansacoCost = definitionPlayerCansacoCost(input.definition.id);
+  const disposicaoCost = definitionPlayerDisposicaoCost(input.definition.id);
   const baseReward = randomBetween(
     input.random,
     input.definition.baseRewardRange.min,
@@ -1254,11 +1254,11 @@ function resolvePlayerRobbery(input: {
       hospitalizationDurationMinutes: null,
       message: buildSuccessMessage(input.definition, input.region, 'player'),
       netAmount: roundCurrency(grossAmount - grossAmount * effectiveCommissionRate),
-      nerveCost,
+      disposicaoCost,
       outcome: 'success',
       prisonDurationMinutes: null,
       regionPolicePressureDelta: heatDelta,
-      staminaCost,
+      cansacoCost,
       success: true,
     };
   }
@@ -1281,11 +1281,11 @@ function resolvePlayerRobbery(input: {
       ? `O bote azedou e a policia fechou o cerco em ${input.region.name}.`
       : `O bote azedou e voce saiu ferido tentando escapar em ${input.region.name}.`,
     netAmount: 0,
-    nerveCost,
+    disposicaoCost,
     outcome: imprisoned ? 'imprisoned' : 'hospitalized',
     prisonDurationMinutes: imprisoned ? resolvePrisonDurationMinutes(input.definition.id) : null,
     regionPolicePressureDelta: Math.max(1, Math.round(heatDelta * 0.8)),
-    staminaCost,
+    cansacoCost,
     success: false,
   };
 }
@@ -1704,7 +1704,7 @@ function resolvePlayerVocationBonus(vocation: VocationType): number {
   }
 }
 
-function definitionPlayerStaminaCost(robberyType: RobberyType): number {
+function definitionPlayerCansacoCost(robberyType: RobberyType): number {
   switch (robberyType) {
     case 'pedestrian':
       return 5;
@@ -1719,7 +1719,7 @@ function definitionPlayerStaminaCost(robberyType: RobberyType): number {
   }
 }
 
-function definitionPlayerNerveCost(robberyType: RobberyType): number {
+function definitionPlayerDisposicaoCost(robberyType: RobberyType): number {
   switch (robberyType) {
     case 'pedestrian':
       return 4;

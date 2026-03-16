@@ -18,6 +18,11 @@ import {
   sortUniversityCourses,
   summarizeUniversityPassives,
 } from '../features/university';
+import {
+  resolveUniversityScopeNotice,
+  resolveUniversityScopeSubtitle,
+  resolveUniversityTrackTitle,
+} from '../features/vocationScope';
 import { useNotifications } from '../notifications/NotificationProvider';
 import { formatApiError, universityApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
@@ -39,6 +44,8 @@ export function UniversityScreen(): JSX.Element {
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<'danger' | 'info'>('info');
   const activeCourseId = center?.activeCourse?.code ?? null;
+  const currentVocation = center?.player.vocation ?? player?.vocation ?? VocationType.Cria;
+  const currentVocationLabel = formatUniversityVocation(currentVocation);
 
   const loadUniversityCenter = useCallback(async () => {
     setIsLoading(true);
@@ -186,12 +193,22 @@ export function UniversityScreen(): JSX.Element {
     navigation.navigate('Training');
   }, [navigation]);
 
+  const handleOpenVocation = useCallback(() => {
+    navigation.navigate('Vocation');
+  }, [navigation]);
+
   return (
     <InGameScreenLayout
-      subtitle="Acompanhe a árvore da sua vocação, veja os passivos ativos e matricule-se em cursos com timer real."
+      subtitle={resolveUniversityScopeSubtitle()}
       title="Universidade do Crime"
     >
       <View style={styles.topActionRow}>
+        <Pressable
+          onPress={handleOpenVocation}
+          style={({ pressed }) => [styles.secondaryButton, pressed ? styles.buttonPressed : null]}
+        >
+          <Text style={styles.secondaryButtonLabel}>Abrir central de vocação</Text>
+        </Pressable>
         <Pressable
           onPress={handleOpenTraining}
           style={({ pressed }) => [styles.secondaryButton, pressed ? styles.buttonPressed : null]}
@@ -209,7 +226,7 @@ export function UniversityScreen(): JSX.Element {
         <SummaryCard
           label="Vocação"
           tone={colors.accent}
-          value={formatUniversityVocation(center?.player.vocation ?? player?.vocation ?? VocationType.Cria)}
+          value={currentVocationLabel}
         />
         <SummaryCard
           label="Concluidos"
@@ -222,6 +239,46 @@ export function UniversityScreen(): JSX.Element {
           value={`${passiveLines.length}`}
         />
       </View>
+
+      <View style={styles.card}>
+        <Text style={styles.helperCopy}>{resolveUniversityScopeNotice(currentVocationLabel)}</Text>
+      </View>
+
+      {center?.progression ? (
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderCopy}>
+              <Text style={styles.cardTitle}>{center.progression.trackLabel}</Text>
+              <Text style={styles.cardSubtitle}>
+                {center.progression.completedPerks}/{center.progression.totalPerks} perks concluídos · etapa {center.progression.stage}
+              </Text>
+            </View>
+            <View style={[styles.statusPill, center.progression.masteryUnlocked ? styles.statusPillComplete : styles.statusPillAvailable]}>
+              <Text style={styles.statusPillLabel}>
+                {center.progression.masteryUnlocked ? 'Maestria' : 'Em progresso'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.metricRow}>
+            <MetricPill label="Conclusão" value={`${Math.round(center.progression.completionRatio * 100)}%`} />
+            <MetricPill
+              label="Perk atual"
+              value={center.progression.currentPerkCode ? center.progression.currentPerkCode.split('_').join(' ') : '--'}
+            />
+            <MetricPill
+              label="Próximo"
+              value={center.progression.nextPerk ? center.progression.nextPerk.label : 'Trilha fechada'}
+            />
+          </View>
+
+          <Text style={styles.helperCopy}>
+            {center.progression.nextPerk
+              ? `${center.progression.nextPerk.label} · ${formatUniversityProgressionStatus(center.progression.nextPerk.status)} · ${center.progression.nextPerk.effectSummary}`
+              : 'Todas as vantagens exclusivas da vocação atual já foram liberadas.'}
+          </Text>
+        </View>
+      ) : null}
 
       <NpcInflationPanel summary={center?.npcInflation ?? null} />
 
@@ -277,14 +334,14 @@ export function UniversityScreen(): JSX.Element {
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Nenhum curso em andamento</Text>
             <Text style={styles.emptyCopy}>
-              Escolha um curso abaixo para converter dinheiro em passivos permanentes da sua vocação.
+              Escolha um curso abaixo para converter dinheiro em passivos permanentes compatíveis com a sua vocação atual.
             </Text>
           </View>
         )}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Árvore da vocação</Text>
+        <Text style={styles.sectionTitle}>{resolveUniversityTrackTitle()}</Text>
         {sortedCourses.map((course) => {
           const isSelected = selectedCourse?.code === course.code;
           const stateLabel = resolveUniversityCourseStateLabel(course);
@@ -539,6 +596,19 @@ function formatDateLabel(value: string | null): string {
     minute: '2-digit',
     month: '2-digit',
   });
+}
+
+function formatUniversityProgressionStatus(status: UniversityCenterResponse['progression']['perks'][number]['status']): string {
+  switch (status) {
+    case 'available':
+      return 'disponível';
+    case 'completed':
+      return 'concluído';
+    case 'in_progress':
+      return 'em andamento';
+    default:
+      return 'travado';
+  }
 }
 
 const UNIVERSITY_PASSIVE_FALLBACK = {

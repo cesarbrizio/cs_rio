@@ -95,7 +95,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -148,9 +148,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.state.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -179,12 +179,12 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     player.hp = 100;
     player.inteligencia = attributes.inteligencia;
     player.level = 6;
-    player.morale = 100;
-    player.nerve = 100;
+    player.brisa = 100;
+    player.disposicao = 100;
     player.positionX = spawnPoint.positionX;
     player.positionY = spawnPoint.positionY;
     player.resistencia = attributes.resistencia;
-    player.stamina = 100;
+    player.cansaco = 100;
     player.vocation = input.vocation;
 
     return this.getPlayerProfile(playerId);
@@ -212,16 +212,16 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '3000',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 0,
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -273,11 +273,11 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       addictionRate: 1,
       code: drugId,
       drugId,
-      moralBoost: 2,
+      brisaBoost: 2,
       name: 'Maconha',
-      nerveBoost: 0,
+      disposicaoBoost: 0,
       productionLevel: 2,
-      staminaRecovery: 1,
+      cansacoRecovery: 1,
       type: 'maconha' as const,
     };
   }
@@ -398,9 +398,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 
   setPlayerMoney(playerId: string, money: number): void {

@@ -122,7 +122,7 @@ export function CrimeResultModal({
           <View style={styles.resourceBlock}>
             <Text style={styles.sectionTitle}>Recursos após a ação</Text>
             <Text style={styles.resourceCopy}>
-              HP {result.resources.hp} · Estamina {result.resources.stamina} · Nervos {result.resources.nerve}
+              HP {result.resources.hp} · Cansaço {result.resources.cansaco} · Disposição {result.resources.disposicao}
             </Text>
             <Text style={styles.resourceCopy}>
               Conceito {result.resources.conceito} · Dinheiro {formatCrimeCurrency(result.resources.money)}

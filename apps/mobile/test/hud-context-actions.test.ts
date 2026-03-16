@@ -31,4 +31,11 @@ describe('hud context actions', () => {
       'collect',
     ]);
   });
+
+  it('describes hospital flow without DST as a player service', () => {
+    const target = buildHudContextTarget('room_centro:hospital');
+
+    expect(target.title).toBe('Hospital');
+    expect(target.subtitle).toBe('Recuperação, vício, plano e cirurgia');
+  });
 });

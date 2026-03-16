@@ -1,0 +1,95 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-4.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 13,
+      "deltaY": 22,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 25,
+      "max": 112,
+      "palette": [
+        "#8a7869",
+        "#2f241f",
+        "#65564b",
+        "#725d52",
+        "#8b7d58",
+        "#3f5144",
+        "#c8b7a8",
+        "#776257",
+        "#8b7568",
+        "#74655a",
+        "#314b67",
+        "#3f6790",
+        "#6a97be",
+        "#baa694",
+        "#725e52",
+        "#816c60",
+        "#d5c3b4",
+        "#886f61",
+        "#997d6d",
+        "#78685d",
+        "#c5b59f",
+        "#7a6558",
+        "#8a7466",
+        "#567362",
+        "#796d63"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 76,
+    "pathCount": 0,
+    "colorCount": 25,
+    "resolvedMaxColors": 112,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 62,
+      "minY": 68,
+      "maxX": 124,
+      "maxY": 136,
+      "width": 62,
+      "height": 68,
+      "centerX": 93,
+      "centerY": 102
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "barraco barraco-4",
+  "category": "favela",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-4.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-4.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-4.preview.json"
+}

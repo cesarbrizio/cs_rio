@@ -103,7 +103,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -156,9 +156,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.state.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -187,12 +187,12 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     player.hp = 100;
     player.inteligencia = attributes.inteligencia;
     player.level = 6;
-    player.morale = 100;
-    player.nerve = 100;
+    player.brisa = 100;
+    player.disposicao = 100;
     player.positionX = spawnPoint.positionX;
     player.positionY = spawnPoint.positionY;
     player.resistencia = attributes.resistencia;
-    player.stamina = 100;
+    player.cansaco = 100;
     player.vocation = input.vocation;
 
     return this.getPlayerProfile(playerId);
@@ -220,16 +220,16 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '3000',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 0,
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -287,11 +287,11 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       addictionRate: record.productionLevel,
       code: record.code,
       drugId: record.drugId,
-      moralBoost: record.productionLevel,
+      brisaBoost: record.productionLevel,
       name: record.name,
-      nerveBoost: record.productionLevel - 1,
+      disposicaoBoost: record.productionLevel - 1,
       productionLevel: record.productionLevel,
-      staminaRecovery: record.productionLevel,
+      cansacoRecovery: record.productionLevel,
       type: record.code as 'maconha' | 'bala',
     };
   }
@@ -412,9 +412,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 }
 
@@ -430,7 +430,7 @@ class InMemoryDrugSaleRepository implements DrugSaleRepository {
     netRevenue: number;
     playerId: string;
     quantitySold: number;
-    staminaCost: number;
+    cansacoCost: number;
   }) {
     const player = this.state.players.get(input.playerId);
     const inventory = this.state.inventoryByPlayerId.get(input.playerId) ?? [];
@@ -442,7 +442,7 @@ class InMemoryDrugSaleRepository implements DrugSaleRepository {
 
     const inventoryItem = inventory[inventoryIndex];
 
-    if (!inventoryItem || inventoryItem.quantity < input.quantitySold || player.stamina < input.staminaCost) {
+    if (!inventoryItem || inventoryItem.quantity < input.quantitySold || player.cansaco < input.cansacoCost) {
       return null;
     }
 
@@ -459,12 +459,12 @@ class InMemoryDrugSaleRepository implements DrugSaleRepository {
     }
 
     player.money = (Number.parseFloat(player.money) + input.netRevenue).toFixed(2);
-    player.stamina -= input.staminaCost;
+    player.cansaco -= input.cansacoCost;
     this.state.inventoryByPlayerId.set(input.playerId, inventory);
 
     return {
       playerMoneyAfterSale: Number.parseFloat(player.money),
-      playerStaminaAfterSale: player.stamina,
+      playerCansacoAfterSale: player.cansaco,
       remainingQuantity,
       soldAt: new Date('2026-03-10T19:55:00.000Z'),
     };
@@ -509,7 +509,7 @@ class InMemoryDrugSaleRepository implements DrugSaleRepository {
       level: player.level,
       money: Number.parseFloat(player.money),
       regionId: player.regionId as RegionId,
-      stamina: player.stamina,
+      cansaco: player.cansaco,
     };
   }
 
@@ -706,7 +706,7 @@ describe('drug sale routes', () => {
     await app.close();
   });
 
-  it('quotes and sells drugs via street traffic with stamina cost and commission', async () => {
+  it('quotes and sells drugs via street traffic with cansaco cost and commission', async () => {
     const { accessToken, playerId } = await registerAndCreateCharacter(
       app,
       'street@example.com',
@@ -739,7 +739,7 @@ describe('drug sale routes', () => {
     const quoteBody = quoteResponse.json();
 
     expect(quoteBody.channel.id).toBe('street');
-    expect(quoteBody.channel.staminaCost).toBe(5);
+    expect(quoteBody.channel.cansacoCost).toBe(5);
     expect(quoteBody.pricing.commissionAmount).toBeGreaterThan(0);
     expect(quoteBody.quantity.sellable).toBeGreaterThan(0);
 
@@ -760,7 +760,7 @@ describe('drug sale routes', () => {
     const sellBody = sellResponse.json();
 
     expect(sellBody.playerMoneyAfterSale).toBeGreaterThan(3000);
-    expect(sellBody.playerStaminaAfterSale).toBe(95);
+    expect(sellBody.playerCansacoAfterSale).toBe(95);
     expect(sellBody.quantity.remainingAfterSale).toBe(18 - sellBody.quantity.sellable);
   });
 

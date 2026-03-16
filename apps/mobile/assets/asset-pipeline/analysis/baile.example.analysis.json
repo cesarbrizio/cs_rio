@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "stage": "analysis",
+  "generatedAt": "2026-03-15T17:36:36.469Z",
+  "assetType": "baile",
+  "styleGuide": "simcity-urban",
+  "category": "nightlife",
+  "resolvedStyleGuide": {
+    "name": "cs-rio-semirealista",
+    "version": 1,
+    "selectedStyleGuide": "simcity-urban",
+    "resolvedProfile": "simcity-urban",
+    "projection": "isometric-2:1",
+    "principles": [
+      "legibilidade urbana acima de detalhismo decorativo",
+      "silhueta forte antes de microdetalhe",
+      "semi-realista e nao fotorealista",
+      "volumetria coerente com SimCity-like isometrico",
+      "evitar icone generico sem arquitetura"
+    ],
+    "outlinePolicy": {
+      "mode": "selective",
+      "maxStrokeWidth": 2.5
+    },
+    "visual": {
+      "shadowAlpha": 0.14,
+      "baseStrokeWidth": 1.75,
+      "maxAccentColors": 2,
+      "contrastBias": "clean-urban",
+      "silhouettePriority": "high",
+      "materialNoise": "low",
+      "lightingReadability": "required",
+      "frontagePriority": "high"
+    },
+    "category": "nightlife",
+    "categoryOverride": {
+      "preferredProfile": "simcity-urban",
+      "visual": {
+        "lightingReadability": "required",
+        "frontagePriority": "high"
+      }
+    },
+    "description": "Leitura mais limpa e estruturada, com massa urbana organizada e contraste controlado."
+  },
+  "referenceFiles": [
+    {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/funk/baile_funk_1.jpg",
+      "fileName": "baile_funk_1.jpg",
+      "relativeDirectory": "assets/examples/funk",
+      "format": "jpeg",
+      "width": 590,
+      "height": 443,
+      "bytes": 75724,
+      "aspectRatio": 1.3318,
+      "tokens": [
+        "home",
+        "cesar",
+        "projects",
+        "cs",
+        "rio",
+        "apps",
+        "mobile",
+        "assets",
+        "examples",
+        "funk",
+        "baile",
+        "funk",
+        "1",
+        "jpg"
+      ]
+    },
+    {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/party/palco_4.jpg",
+      "fileName": "palco_4.jpg",
+      "relativeDirectory": "assets/examples/party",
+      "format": "jpeg",
+      "width": 800,
+      "height": 533,
+      "bytes": 198971,
+      "aspectRatio": 1.5009,
+      "tokens": [
+        "home",
+        "cesar",
+        "projects",
+        "cs",
+        "rio",
+        "apps",
+        "mobile",
+        "assets",
+        "examples",
+        "party",
+        "palco",
+        "4",
+        "jpg"
+      ]
+    }
+  ],
+  "silhouette": {
+    "primaryMassing": "open-event-structure",
+    "roofProfile": "stage-or-cover",
+    "heightProfile": "low-with-signature-elements",
+    "skyline": "equipment-and-light-rig",
+    "footprintProfile": "wide-frontage",
+    "detailPriority": [
+      "palco",
+      "cobertura",
+      "caixas de som",
+      "luzes",
+      "faixa frontal"
+    ]
+  },
+  "materials": [
+    "lona",
+    "metal pintado",
+    "caixa de som",
+    "luz colorida",
+    "palco improvisado",
+    "cabos",
+    "caixas de som",
+    "luz artificial"
+  ],
+  "volumetry": {
+    "stackCountHint": "1-to-3-open-masses",
+    "mainMassBias": "irregular-main-volume",
+    "averageReferenceSize": {
+      "width": 695,
+      "height": 488
+    },
+    "tallestReference": {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/party/palco_4.jpg",
+      "width": 800,
+      "height": 533
+    }
+  },
+  "requiredElements": [
+    "silhueta clara",
+    "fachada legivel",
+    "entrada visivel",
+    "massa principal reconhecivel",
+    "palco ou area de evento",
+    "luz ou elemento de destaque noturno",
+    "estrutura de som ou cobertura",
+    "frente legivel para atividade social"
+  ],
+  "forbiddenElements": [
+    "fundo solido",
+    "icone abstrato isolado",
+    "simbolo sem volumetria",
+    "detalhe microilegivel",
+    "palco sem area util",
+    "balada genérica de cubo fechado"
+  ],
+  "legibilityRules": [
+    "priorizar silhueta reconhecivel em zoom de mapa",
+    "manter contraste entre massa principal e secundarias",
+    "evitar detalhes finos abaixo da escala de leitura",
+    "destacar entradas, vazios e anexos com hierarquia visual",
+    "o tema noturno deve aparecer por luz e palco, nao por excesso de glow"
+  ],
+  "cameraHints": {
+    "projection": "isometric-2:1",
+    "pitch": "fixed-game-map",
+    "yawBias": "front-left-readable",
+    "framing": "show-frontage-and-stage"
+  },
+  "paletteHints": {
+    "base": [
+      "concreto escuro",
+      "metal escuro",
+      "madeira gasta"
+    ],
+    "accents": [
+      "magenta",
+      "ciano",
+      "ambar",
+      "roxo quente"
+    ],
+    "avoid": [
+      "pastel lavado demais"
+    ]
+  },
+  "compositionHints": {
+    "preferredLayering": [
+      "stage footprint",
+      "cover",
+      "lighting",
+      "equipment"
+    ],
+    "clusterBias": "wide-front-open-core",
+    "readabilityPriority": [
+      "event silhouette",
+      "lights",
+      "social frontage"
+    ]
+  },
+  "projectStyleGuide": {
+    "name": "cs-rio-semirealista",
+    "version": 1,
+    "projection": "isometric-2:1",
+    "baseViewBox": "0 0 160 160",
+    "resolvedProfile": "simcity-urban",
+    "visual": {
+      "shadowAlpha": 0.14,
+      "baseStrokeWidth": 1.75,
+      "maxAccentColors": 2,
+      "contrastBias": "clean-urban",
+      "silhouettePriority": "high",
+      "materialNoise": "low",
+      "lightingReadability": "required",
+      "frontagePriority": "high"
+    }
+  }
+}

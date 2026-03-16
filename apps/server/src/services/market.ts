@@ -31,7 +31,7 @@ import {
   type MarketOrderSummary,
   type MarketTradeSummary,
 } from '@cs-rio/shared/dist/types.js';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
@@ -423,24 +423,33 @@ class DatabaseMarketTransactionRepository implements MarketTransactionRepository
   }
 
   async adjustPlayerMoney(playerId: string, delta: number): Promise<void> {
+    const normalizedDelta = roundCurrency(delta);
+    const [updatedPlayer] = await this.client
+      .update(players)
+      .set({
+        money: sql`round((${players.money} + ${toMoneyString(normalizedDelta)})::numeric, 2)`,
+      })
+      .where(
+        and(
+          eq(players.id, playerId),
+          sql`(${players.money} + ${toMoneyString(normalizedDelta)}) >= 0`,
+        ),
+      )
+      .returning({
+        id: players.id,
+      });
+
+    if (updatedPlayer) {
+      return;
+    }
+
     const player = await this.getPlayer(playerId);
 
     if (!player) {
       throw new MarketError('not_found', 'Jogador nao encontrado para ajuste financeiro.');
     }
 
-    const nextMoney = roundCurrency(player.money + delta);
-
-    if (nextMoney < 0) {
-      throw new MarketError('insufficient_funds', 'Saldo insuficiente para concluir a operacao.');
-    }
-
-    await this.client
-      .update(players)
-      .set({
-        money: toMoneyString(nextMoney),
-      })
-      .where(eq(players.id, playerId));
+    throw new MarketError('insufficient_funds', 'Saldo insuficiente para concluir a operacao.');
   }
 
   async createAuction(input: {

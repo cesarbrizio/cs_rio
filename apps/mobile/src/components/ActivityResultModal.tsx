@@ -32,7 +32,7 @@ export function ActivityResultModal({
             <>
               <View style={styles.metrics}>
                 <MetricCard label="Custo" value={cue.costLabel} />
-                <MetricCard label="Estamina" value={cue.staminaLabel} />
+                <MetricCard label="Cansaço" value={cue.cansacoLabel} />
                 <MetricCard label="Streak" value={cue.streakLabel} />
                 <MetricCard label="Mult." value={cue.multiplierLabel} />
               </View>

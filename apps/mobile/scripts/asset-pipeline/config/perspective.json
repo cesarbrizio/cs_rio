@@ -1,0 +1,12 @@
+{
+  "projection": "isometric-2:1",
+  "tileRatio": "2:1",
+  "camera": {
+    "yaw": "front-left",
+    "pitch": "game-map-fixed"
+  },
+  "composition": {
+    "groundPlane": "implied",
+    "background": "transparent"
+  }
+}

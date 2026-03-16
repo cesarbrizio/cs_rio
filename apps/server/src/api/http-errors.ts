@@ -5,6 +5,7 @@ import { BankError } from '../services/bank.js';
 import { BichoError } from '../services/bicho.js';
 import { BocaError } from '../services/boca.js';
 import { CrimeError } from '../systems/CrimeSystem.js';
+import { ContactError } from '../services/contact.js';
 import { DrugSaleError } from '../services/drug-sale.js';
 import { FactionError } from '../services/faction.js';
 import { FactoryError } from '../services/factory.js';
@@ -16,6 +17,7 @@ import { PrisonError } from '../services/prison.js';
 import { PropertyError } from '../services/property.js';
 import { PuteiroError } from '../services/puteiro.js';
 import { PvpError } from '../services/pvp.js';
+import { PrivateMessageError } from '../services/private-message.js';
 import { RaveError } from '../services/rave.js';
 import { RobberyError } from '../services/robbery.js';
 import { SlotMachineError } from '../services/slot-machine.js';
@@ -207,6 +209,20 @@ function normalizeKnownDomainError(error: unknown): RouteHttpError | null {
     );
   }
 
+  if (error instanceof ContactError) {
+    return createMappedError(
+      error,
+      {
+        conflict: 409,
+        forbidden: 403,
+        not_found: 404,
+        unauthorized: 401,
+        validation: 400,
+      },
+      409,
+    );
+  }
+
   if (error instanceof DrugSaleError) {
     return createMappedError(
       error,
@@ -215,6 +231,20 @@ function normalizeKnownDomainError(error: unknown): RouteHttpError | null {
         not_found: 404,
       },
       400,
+    );
+  }
+
+  if (error instanceof PrivateMessageError) {
+    return createMappedError(
+      error,
+      {
+        conflict: 409,
+        forbidden: 403,
+        not_found: 404,
+        unauthorized: 401,
+        validation: 400,
+      },
+      409,
     );
   }
 

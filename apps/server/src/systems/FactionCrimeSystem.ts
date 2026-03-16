@@ -44,7 +44,7 @@ interface FactionCrimePersistenceUpdate {
   logType: 'faction_crime_failure' | 'faction_crime_success';
   moneyDelta: number;
   nextLevel: number;
-  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'money' | 'nerve' | 'stamina'>;
+  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'money' | 'disposicao' | 'cansaco'>;
   playerId: string;
 }
 
@@ -100,11 +100,11 @@ export class DatabaseFactionCrimeRepository implements FactionCrimeRepository {
         inteligencia: players.inteligencia,
         level: players.level,
         money: players.money,
-        nerve: players.nerve,
+        disposicao: players.disposicao,
         nickname: players.nickname,
         rank: factionMembers.rank,
         resistencia: players.resistencia,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
         vocation: players.vocation,
       })
       .from(factionMembers)
@@ -196,8 +196,8 @@ export class DatabaseFactionCrimeRepository implements FactionCrimeRepository {
           conceito: member.conceito,
           hp: member.hp,
           money: roundMoney(Number.parseFloat(String(member.money))),
-          nerve: member.nerve,
-          stamina: member.stamina,
+          disposicao: member.disposicao,
+          cansaco: member.cansaco,
         },
         vocation: member.vocation as CrimePlayerContext['player']['vocation'],
       },
@@ -215,8 +215,8 @@ export class DatabaseFactionCrimeRepository implements FactionCrimeRepository {
             hp: update.nextResources.hp,
             level: update.nextLevel,
             money: update.nextResources.money.toFixed(2),
-            nerve: update.nextResources.nerve,
-            stamina: update.nextResources.stamina,
+            disposicao: update.nextResources.disposicao,
+            cansaco: update.nextResources.cansaco,
           })
           .where(eq(players.id, update.playerId));
 
@@ -435,8 +435,8 @@ export class FactionCrimeSystem {
         conceito: Math.max(0, participant.player.resources.conceito + conceitoRewardPerParticipant),
         hp: clamp(participant.player.resources.hp + hpDelta, 0, 100),
         money: roundMoney(participant.player.resources.money + moneyDelta),
-        nerve: clamp(participant.player.resources.nerve - crime.nerveCost, 0, 100),
-        stamina: clamp(participant.player.resources.stamina - crime.staminaCost, 0, 100),
+        disposicao: clamp(participant.player.resources.disposicao - crime.disposicaoCost, 0, 100),
+        cansaco: clamp(participant.player.resources.cansaco - crime.cansacoCost, 0, 100),
       };
       const levelProgression = this.levelSystem.resolve(nextResources.conceito, participant.player.level);
 
@@ -447,12 +447,12 @@ export class FactionCrimeSystem {
         level: levelProgression.level,
         leveledUp: levelProgression.leveledUp,
         moneyDelta,
-        nerveSpent: crime.nerveCost,
+        disposicaoSpent: crime.disposicaoCost,
         nickname: participant.player.nickname,
         playerPower: participantPowers[index] ?? 0,
         rank: participant.rank,
         resources: nextResources,
-        staminaSpent: crime.staminaCost,
+        cansacoSpent: crime.cansacoCost,
       };
     });
 
@@ -526,10 +526,10 @@ export class FactionCrimeSystem {
       minimumCrewSize: factionCrimePolicy.minCrewSize,
       minPower: crime.minPower,
       name: crime.name,
-      nerveCost: crime.nerveCost,
+      disposicaoCost: crime.disposicaoCost,
       rewardMax: crime.rewardMax,
       rewardMin: crime.rewardMin,
-      staminaCost: crime.staminaCost,
+      cansacoCost: crime.cansacoCost,
       type: crime.type,
     };
   }
@@ -548,8 +548,8 @@ export class FactionCrimeSystem {
       rank: participant.rank,
       resources: {
         hp: participant.player.resources.hp,
-        nerve: participant.player.resources.nerve,
-        stamina: participant.player.resources.stamina,
+        disposicao: participant.player.resources.disposicao,
+        cansaco: participant.player.resources.cansaco,
       },
     };
   }
@@ -670,10 +670,10 @@ function mapCrimeDefinition(crime: typeof crimes.$inferSelect): CrimeDefinitionR
     levelRequired: crime.levelRequired,
     minPower: crime.minPower,
     name: crime.name,
-    nerveCost: crime.nerveCost,
+    disposicaoCost: crime.disposicaoCost,
     rewardMax: roundMoney(Number.parseFloat(String(crime.rewardMax))),
     rewardMin: roundMoney(Number.parseFloat(String(crime.rewardMin))),
-    staminaCost: crime.staminaCost,
+    cansacoCost: crime.cansacoCost,
     type: crime.crimeType as CrimeType,
   };
 }
@@ -701,12 +701,12 @@ function resolveParticipantCrimeLockReason(
     return `Nivel insuficiente. Requer nivel ${crime.levelRequired}.`;
   }
 
-  if (participant.player.resources.stamina < crime.staminaCost) {
-    return 'Estamina insuficiente.';
+  if (participant.player.resources.cansaco < crime.cansacoCost) {
+    return 'Cansaço insuficiente.';
   }
 
-  if (participant.player.resources.nerve < crime.nerveCost) {
-    return 'Nervos insuficientes.';
+  if (participant.player.resources.disposicao < crime.disposicaoCost) {
+    return 'Disposição insuficiente.';
   }
 
   return null;
@@ -723,12 +723,12 @@ function resolveParticipantReadinessLockReason(
     return 'HP esgotado.';
   }
 
-  if (participant.player.resources.stamina <= 0) {
-    return 'Estamina esgotada.';
+  if (participant.player.resources.cansaco <= 0) {
+    return 'Cansaço esgotado.';
   }
 
-  if (participant.player.resources.nerve <= 0) {
-    return 'Nervos esgotados.';
+  if (participant.player.resources.disposicao <= 0) {
+    return 'Disposição esgotada.';
   }
 
   return null;

@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/hospital.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 15,
+      "deltaY": 35,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 13,
+      "max": 36,
+      "palette": [
+        "#d8e4eb",
+        "#2f241f",
+        "#3f5144",
+        "#d8edf8",
+        "#87a8bb",
+        "#ffffff",
+        "#d7dde3",
+        "#81909d",
+        "#97a5b2",
+        "#e4eaef",
+        "#abb8c2",
+        "#98cde3",
+        "#f3f5f7"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 46,
+    "pathCount": 0,
+    "colorCount": 13,
+    "resolvedMaxColors": 36,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 61,
+      "minY": 88,
+      "maxX": 129,
+      "maxY": 142,
+      "width": 68,
+      "height": 54,
+      "centerX": 95,
+      "centerY": 115
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "hospital hospital",
+  "category": "hospital",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/hospital.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/hospital.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/hospital.preview.json"
+}

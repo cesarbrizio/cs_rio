@@ -28,6 +28,7 @@ export const env = {
   corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS?.trim(),
   jwtSecret: process.env.JWT_SECRET?.trim(),
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET?.trim(),
+  trustProxy: process.env.TRUST_PROXY?.trim(),
 };
 
 type JwtSecretsInput = {
@@ -72,6 +73,47 @@ export function getValidatedServerBootEnv() {
     ...env,
     ...secrets,
   };
+}
+
+export function resolveTrustedProxyList(
+  input: string | string[] | false | null | undefined,
+): boolean | string | string[] {
+  if (input === false || input === null || input === undefined) {
+    return false;
+  }
+
+  if (Array.isArray(input)) {
+    const normalizedEntries = input
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+
+    if (normalizedEntries.length === 0) {
+      return false;
+    }
+
+    return normalizedEntries.length === 1 ? normalizedEntries[0]! : normalizedEntries;
+  }
+
+  const normalized = input.trim();
+
+  if (!normalized || normalized === 'false' || normalized === '0' || normalized === 'off') {
+    return false;
+  }
+
+  if (normalized === 'true' || normalized === '1' || normalized === 'on') {
+    return true;
+  }
+
+  const entries = normalized
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  if (entries.length === 0) {
+    return false;
+  }
+
+  return entries.length === 1 ? entries[0]! : entries;
 }
 
 function validateJwtSecret(name: string, value: string | undefined, issues: string[]): void {

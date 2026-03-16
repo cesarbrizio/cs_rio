@@ -108,7 +108,7 @@ export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
           ? `Overdose em ${venueDefinition.label}: internado por ${formatRemainingSeconds(
               response.overdose.hospitalization.remainingSeconds,
             )}.`
-          : `${response.drug.name} consumida em ${venueDefinition.label}. Moral +${response.effects.moraleRecovered}.`,
+          : `${response.drug.name} consumida em ${venueDefinition.label}. Brisa +${response.effects.brisaRecovered}.`,
       );
       const nextDrugItems = filterConsumableDrugItems(response.player.inventory);
       setSelectedInventoryItemId((currentId) =>
@@ -129,8 +129,8 @@ export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
       title="Rave / Baile"
     >
       <View style={styles.summaryRow}>
-        <SummaryCard label="Moral" value={`${player?.resources.morale ?? '--'}`} tone={colors.accent} />
-        <SummaryCard label="Stamina" value={`${player?.resources.stamina ?? '--'}`} tone={colors.success} />
+        <SummaryCard label="Brisa" value={`${player?.resources.brisa ?? '--'}`} tone={colors.accent} />
+        <SummaryCard label="Cansaço" value={`${player?.resources.cansaco ?? '--'}`} tone={colors.success} />
         <SummaryCard label="Vício" value={`${player?.resources.addiction ?? '--'}`} tone={colors.warning} />
         <SummaryCard
           label="Internação"
@@ -207,8 +207,8 @@ export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
                   </Text>
                   <Text style={styles.drugCardTitle}>{item.itemName ?? 'Droga sem nome'}</Text>
                   <Text style={styles.drugCardMeta}>
-                    +{definition?.staminaRecovery ?? 0} STA · +{definition?.moraleBoost ?? 0} MOR · +
-                    {definition?.nerveBoost ?? 0} NRV
+                    +{definition?.cansacoRecovery ?? 0} CAN · +{definition?.brisaBoost ?? 0} BRI · +
+                    {definition?.disposicaoBoost ?? 0} DIS
                   </Text>
                 </Pressable>
               );
@@ -237,9 +237,9 @@ export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
             </View>
 
             <View style={styles.metricRow}>
-              <InfoPill label="Estamina" value={`+${selectedDrugDefinition.staminaRecovery}`} />
-              <InfoPill label="Moral" value={`+${selectedDrugDefinition.moraleBoost}`} />
-              <InfoPill label="Nervos" value={`+${selectedDrugDefinition.nerveBoost}`} />
+              <InfoPill label="Cansaço" value={`+${selectedDrugDefinition.cansacoRecovery}`} />
+              <InfoPill label="Brisa" value={`+${selectedDrugDefinition.brisaBoost}`} />
+              <InfoPill label="Disposição" value={`+${selectedDrugDefinition.disposicaoBoost}`} />
               <InfoPill label="Vício" value={`+${selectedDrugDefinition.addictionRate}`} />
             </View>
 
@@ -280,8 +280,8 @@ export function DrugUseScreen({ route }: DrugUseScreenProps): JSX.Element {
           <View style={styles.resultCard}>
             <Text style={styles.resultTitle}>{result.drug.name} aplicada com sucesso</Text>
             <Text style={styles.resultCopy}>
-              Efeitos: +{result.effects.staminaRecovered} STA · +{result.effects.moraleRecovered} MOR · +
-              {result.effects.nerveRecovered} NRV · vício +{result.effects.addictionGained}
+              Efeitos: +{result.effects.cansacoRecovered} CAN · +{result.effects.brisaRecovered} BRI · +
+              {result.effects.disposicaoRecovered} DIS · vício +{result.effects.addictionGained}
             </Text>
             <Text style={styles.resultCopy}>
               Tolerancia atual: {result.tolerance.current} · eficiencia{' '}

@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "assetType": "favela-cluster",
+  "category": "favela",
+  "density": "high",
+  "dominantHeight": "mid-rise-irregular",
+  "silhouette": {
+    "primaryMassing": "clustered-lowrise",
+    "roofProfile": "mixed-flat-and-patched",
+    "heightProfile": "low-spread",
+    "skyline": "broken-dense",
+    "footprintProfile": "irregular-cluster",
+    "detailPriority": [
+      "telhados sobrepostos",
+      "anexos",
+      "escadas externas",
+      "caixas d'agua",
+      "adensamento"
+    ]
+  },
+  "materials": [
+    "concreto cru",
+    "reboco gasto",
+    "tijolo aparente",
+    "telha metalica",
+    "caixa d'agua",
+    "lona",
+    "metal remendado"
+  ],
+  "requiredModules": [
+    "cluster-core-dense",
+    "cluster-step-left",
+    "cluster-step-right",
+    "cluster-roofline",
+    "cluster-service-strip",
+    "water-tank",
+    "stair",
+    "building-3f",
+    "building-2f",
+    "wide-building",
+    "narrow-building",
+    "external-pipe",
+    "awning",
+    "corrugated-roof",
+    "rooftop-slab"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "truss",
+    "speaker-stack",
+    "street-segment",
+    "crowd-mass"
+  ],
+  "composition": {
+    "layout": "compressed-terraced-cluster",
+    "primaryAxis": "diagonal-left-to-right",
+    "stacking": "compressed",
+    "streetPresence": "low",
+    "edgeNoise": "high",
+    "anchorMass": "center-left",
+    "layering": [
+      "cluster-core",
+      "terraces",
+      "roofline",
+      "service-strip",
+      "utility"
+    ],
+    "variationPriority": [
+      "roof-height",
+      "annex-offset",
+      "utility-top"
+    ]
+  },
+  "styleGuide": {
+    "profile": "cs-rio-semirealista",
+    "resolvedProfile": "dense-favela",
+    "family": "favela-cluster",
+    "perspective": "isometric-2:1",
+    "paletteIntent": null,
+    "compositionPolicy": {
+      "layout": "compressed-hillside",
+      "baseAnchor": {
+        "x": 82,
+        "y": 130
+      },
+      "columns": 4,
+      "xStep": 14,
+      "yStep": 5,
+      "rowLift": 10,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "foreground",
+        "foreground",
+        "midground",
+        "midground",
+        "midground",
+        "midground",
+        "midground",
+        "background",
+        "background",
+        "background",
+        "overlay",
+        "overlay"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 14,
+      "primaryModules": [
+        "cluster-core-dense",
+        "cluster-step-left",
+        "cluster-step-right",
+        "cluster-roofline"
+      ],
+      "secondaryModules": [
+        "cluster-service-strip",
+        "building-3f",
+        "building-2f",
+        "wide-building",
+        "narrow-building"
+      ],
+      "detailModules": [
+        "water-tank",
+        "stair",
+        "external-pipe",
+        "awning",
+        "corrugated-roof",
+        "rooftop-slab"
+      ],
+      "forbiddenModules": [
+        "stage",
+        "truss",
+        "speaker-stack",
+        "street-segment",
+        "crowd-mass"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 7,
+        "y": 5
+      },
+      "scale": {
+        "min": 0.94,
+        "max": 1.1
+      },
+      "roofVariation": "very-high",
+      "materialVariation": "high",
+      "attachmentVariation": "high"
+    },
+    "visualRules": [
+      "a favela deve ler como massa comprimida, nao como predio unico",
+      "usar skyline quebrado com caixas d'agua e escadas",
+      "priorizar profundidade lateral e encaixe entre blocos"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "cluster-core-dense-1",
+      "module": "cluster-core-dense",
+      "layer": "foreground",
+      "anchor": {
+        "x": 82,
+        "y": 130
+      },
+      "heightTier": "primary",
+      "variationSeed": 1,
+      "children": []
+    },
+    {
+      "id": "cluster-step-left-2",
+      "module": "cluster-step-left",
+      "layer": "foreground",
+      "anchor": {
+        "x": 96,
+        "y": 125
+      },
+      "heightTier": "primary",
+      "variationSeed": 2,
+      "children": []
+    },
+    {
+      "id": "cluster-step-right-3",
+      "module": "cluster-step-right",
+      "layer": "foreground",
+      "anchor": {
+        "x": 110,
+        "y": 120
+      },
+      "heightTier": "primary",
+      "variationSeed": 3,
+      "children": []
+    },
+    {
+      "id": "cluster-roofline-4",
+      "module": "cluster-roofline",
+      "layer": "foreground",
+      "anchor": {
+        "x": 124,
+        "y": 115
+      },
+      "heightTier": "primary",
+      "variationSeed": 4,
+      "children": []
+    },
+    {
+      "id": "cluster-service-strip-5",
+      "module": "cluster-service-strip",
+      "layer": "midground",
+      "anchor": {
+        "x": 82,
+        "y": 120
+      },
+      "heightTier": "primary",
+      "variationSeed": 5,
+      "children": []
+    },
+    {
+      "id": "building-3f-6",
+      "module": "building-3f",
+      "layer": "midground",
+      "anchor": {
+        "x": 96,
+        "y": 115
+      },
+      "heightTier": "secondary",
+      "variationSeed": 6,
+      "children": []
+    },
+    {
+      "id": "building-2f-7",
+      "module": "building-2f",
+      "layer": "midground",
+      "anchor": {
+        "x": 110,
+        "y": 110
+      },
+      "heightTier": "secondary",
+      "variationSeed": 7,
+      "children": []
+    },
+    {
+      "id": "wide-building-8",
+      "module": "wide-building",
+      "layer": "midground",
+      "anchor": {
+        "x": 124,
+        "y": 105
+      },
+      "heightTier": "secondary",
+      "variationSeed": 8,
+      "children": []
+    },
+    {
+      "id": "narrow-building-9",
+      "module": "narrow-building",
+      "layer": "midground",
+      "anchor": {
+        "x": 82,
+        "y": 110
+      },
+      "heightTier": "secondary",
+      "variationSeed": 9,
+      "children": []
+    },
+    {
+      "id": "water-tank-10",
+      "module": "water-tank",
+      "layer": "background",
+      "anchor": {
+        "x": 96,
+        "y": 105
+      },
+      "heightTier": "secondary",
+      "variationSeed": 10,
+      "children": []
+    },
+    {
+      "id": "stair-11",
+      "module": "stair",
+      "layer": "background",
+      "anchor": {
+        "x": 110,
+        "y": 100
+      },
+      "heightTier": "detail",
+      "variationSeed": 11,
+      "children": []
+    },
+    {
+      "id": "external-pipe-12",
+      "module": "external-pipe",
+      "layer": "background",
+      "anchor": {
+        "x": 124,
+        "y": 95
+      },
+      "heightTier": "detail",
+      "variationSeed": 12,
+      "children": []
+    },
+    {
+      "id": "awning-13",
+      "module": "awning",
+      "layer": "overlay",
+      "anchor": {
+        "x": 82,
+        "y": 100
+      },
+      "heightTier": "detail",
+      "variationSeed": 13,
+      "children": []
+    },
+    {
+      "id": "corrugated-roof-14",
+      "module": "corrugated-roof",
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 95
+      },
+      "heightTier": "detail",
+      "variationSeed": 14,
+      "children": []
+    }
+  ]
+}

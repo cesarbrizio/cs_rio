@@ -5,6 +5,10 @@ import {
   INVENTORY_BASE_MAX_SLOTS,
   INVENTORY_BASE_MAX_WEIGHT,
   INVENTORY_REPAIR_MIN_COST,
+  VOCATION_BASE_ATTRIBUTES,
+  VOCATIONS,
+  VOCATION_CHANGE_COOLDOWN_HOURS,
+  VOCATION_CHANGE_CREDITS_COST,
   type CharacterAppearance,
   type DrugConsumeResponse,
   type DrugType,
@@ -15,12 +19,19 @@ import {
   type InventoryListResponse,
   type InventoryRepairResponse,
   type OverdoseTrigger,
+  type PlayerPublicProfile,
   type PlayerCreationInput,
   type PlayerProfile,
   type PlayerPropertySummary,
+  type PlayerVocationCenterResponse,
+  type PlayerVocationChangeInput,
+  type PlayerVocationChangeResponse,
+  type PlayerVocationOptionSummary,
+  type PlayerVocationStatus,
   type PropertyType,
   type RegionId,
   VocationType,
+  normalizeAuthNickname,
 } from '@cs-rio/shared';
 
 import { env } from '../config/env.js';
@@ -33,10 +44,10 @@ import {
 import { AddictionSystem } from '../systems/AddictionSystem.js';
 import { DrugToleranceSystem } from '../systems/DrugToleranceSystem.js';
 import { LevelSystem } from '../systems/LevelSystem.js';
-import { NerveSystem } from '../systems/NerveSystem.js';
+import { DisposicaoSystem } from '../systems/DisposicaoSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 import { type PrisonSystemContract, PrisonSystem } from '../systems/PrisonSystem.js';
-import { StaminaSystem } from '../systems/StaminaSystem.js';
+import { CansacoSystem } from '../systems/CansacoSystem.js';
 import { resolveCachedEconomyPropertyDefinition } from './economy-config.js';
 import { type FactionUpgradeEffectReaderContract } from './faction/types.js';
 import { buildPlayerProfileCacheKey } from './player-cache.js';
@@ -47,6 +58,8 @@ import {
   type PlayerDrugConsumptionInput,
   PlayerError,
   type PlayerOverdosePenaltyInput,
+  type PlayerPublicProfileReader,
+  type PlayerPublicProfileRecord,
   type PlayerProfileRecord,
   type PlayerRepository,
   type PlayerServiceOptions,
@@ -63,6 +76,8 @@ export type {
   PlayerDrugConsumptionInput,
   PlayerOverdosePenaltyInput,
   PlayerOverdosePenaltyResult,
+  PlayerPublicProfileReader,
+  PlayerPublicProfileRecord,
   PlayerProfileRecord,
   PlayerRepository,
   PlayerRuntimeStateInput,
@@ -80,7 +95,7 @@ export class PlayerService {
 
   private readonly levelSystem: LevelSystem;
 
-  private readonly nerveSystem: NerveSystem;
+  private readonly disposicaoSystem: DisposicaoSystem;
 
   private readonly overdoseSystem: OverdoseSystem;
 
@@ -88,9 +103,13 @@ export class PlayerService {
 
   private readonly prisonSystem: PrisonSystemContract;
 
+  private readonly publicProfileReader: PlayerPublicProfileReader;
+
   private readonly repository: PlayerRepository;
 
-  private readonly staminaSystem: StaminaSystem;
+  private readonly now: () => Date;
+
+  private readonly cansacoSystem: CansacoSystem;
 
   constructor(options: PlayerServiceOptions = {}) {
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
@@ -109,11 +128,13 @@ export class PlayerService {
       },
     };
     this.levelSystem = options.levelSystem ?? new LevelSystem();
-    this.nerveSystem = options.nerveSystem ?? new NerveSystem({ keyValueStore: this.keyValueStore });
+    this.disposicaoSystem = options.disposicaoSystem ?? new DisposicaoSystem({ keyValueStore: this.keyValueStore });
     this.overdoseSystem =
       options.overdoseSystem ?? new OverdoseSystem({ keyValueStore: this.keyValueStore });
     this.repository = options.repository ?? new DatabasePlayerRepository();
-    this.staminaSystem = options.staminaSystem ?? new StaminaSystem({ keyValueStore: this.keyValueStore });
+    this.publicProfileReader = options.publicProfileReader ?? new DatabasePlayerRepository();
+    this.now = options.now ?? (() => new Date());
+    this.cansacoSystem = options.cansacoSystem ?? new CansacoSystem({ keyValueStore: this.keyValueStore });
     this.ownsPrisonSystem = !options.prisonSystem;
     this.prisonSystem =
       options.prisonSystem ??
@@ -125,12 +146,12 @@ export class PlayerService {
   async close(): Promise<void> {
     await this.addictionSystem.close();
     await this.drugToleranceSystem.close();
-    await this.nerveSystem.close();
+    await this.disposicaoSystem.close();
     await this.overdoseSystem.close();
     if (this.ownsPrisonSystem) {
       await this.prisonSystem.close?.();
     }
-    await this.staminaSystem.close();
+    await this.cansacoSystem.close();
     await this.keyValueStore.close?.();
   }
 
@@ -188,6 +209,68 @@ export class PlayerService {
     return this.buildHydratedPlayerProfile(playerId);
   }
 
+  async getPublicProfileByNickname(rawNickname: string): Promise<PlayerPublicProfile> {
+    const nickname = normalizeAuthNickname(rawNickname);
+    const profile = await this.publicProfileReader.getPublicProfileByNickname(nickname);
+
+    if (!profile || !profile.player.characterCreatedAt) {
+      throw new PlayerError('not_found', 'Perfil publico nao encontrado.');
+    }
+
+    return serializePublicPlayerProfile(profile);
+  }
+
+  async getVocationCenter(playerId: string): Promise<PlayerVocationCenterResponse> {
+    const profile = await this.loadRepositoryProfile(playerId);
+    ensureCharacterCreated(profile, 'Crie seu personagem antes de gerenciar a vocacao.');
+
+    return buildPlayerVocationCenter(profile, this.now());
+  }
+
+  async changeVocation(
+    playerId: string,
+    input: PlayerVocationChangeInput,
+  ): Promise<PlayerVocationChangeResponse> {
+    const profile = await this.loadRepositoryProfile(playerId);
+    ensureCharacterCreated(profile, 'Crie seu personagem antes de gerenciar a vocacao.');
+
+    const nextVocation = validateVocation(input.vocation);
+    const now = this.now();
+    const center = buildPlayerVocationCenter(profile, now);
+
+    if (center.status.currentVocation === nextVocation) {
+      throw new PlayerError('conflict', 'Essa ja e a vocacao atual do personagem.');
+    }
+
+    if (!center.availability.available) {
+      throw new PlayerError(
+        'conflict',
+        center.availability.reason ?? 'A troca de vocacao nao esta disponivel agora.',
+      );
+    }
+
+    const updatedProfile = await this.repository.changeVocation(playerId, {
+      changedAt: now,
+      creditsCost: center.availability.creditsCost,
+      nextVocation,
+    });
+
+    if (!updatedProfile) {
+      throw new PlayerError(
+        'conflict',
+        'Nao foi possivel concluir a troca de vocacao. Confira cooldown e creditos antes de tentar novamente.',
+      );
+    }
+
+    const player = await this.refreshPlayerProfileCache(playerId, updatedProfile);
+
+    return {
+      center: buildPlayerVocationCenter(updatedProfile, now),
+      message: `Vocacao alterada para ${resolveVocationLabel(nextVocation)}. Cooldown global de ${VOCATION_CHANGE_COOLDOWN_HOURS}h iniciado.`,
+      player,
+    };
+  }
+
   async getInventory(playerId: string): Promise<InventoryListResponse> {
     const profile = await this.getPlayerProfile(playerId);
     ensureCharacterCreated(profile);
@@ -212,6 +295,13 @@ export class PlayerService {
       throw new PlayerError(
         'conflict',
         `Nivel insuficiente para equipar ${item.itemName ?? 'este item'}.`,
+      );
+    }
+
+    if ((item.durability ?? 0) <= 0) {
+      throw new PlayerError(
+        'conflict',
+        `${item.itemName ?? 'Este item'} esta quebrado e precisa de reparo antes de equipar.`,
       );
     }
 
@@ -339,17 +429,17 @@ export class PlayerService {
 
     const toleranceBeforeUse = await this.drugToleranceSystem.sync(playerId, drug.drugId);
     const effectivenessMultiplier = resolveDrugEffectivenessMultiplier(toleranceBeforeUse.current);
-    const moraleRecovered = resolveDrugRecoveredEffect(drug.moralBoost, effectivenessMultiplier);
-    const nerveRecovered = resolveDrugRecoveredEffect(drug.nerveBoost, effectivenessMultiplier);
-    const staminaRecovered = resolveDrugRecoveredEffect(drug.staminaRecovery, effectivenessMultiplier);
+    const brisaRecovered = resolveDrugRecoveredEffect(drug.brisaBoost, effectivenessMultiplier);
+    const disposicaoRecovered = resolveDrugRecoveredEffect(drug.disposicaoBoost, effectivenessMultiplier);
+    const cansacoRecovered = resolveDrugRecoveredEffect(drug.cansacoRecovery, effectivenessMultiplier);
     const addictionGained = resolveDrugAddictionGain(drug);
     const toleranceGained = resolveDrugToleranceGain(drug);
-    const rawNextStamina = profile.player.stamina + staminaRecovered;
+    const rawNextCansaco = profile.player.cansaco + cansacoRecovered;
     const nextResources = {
       addiction: clampNumber(profile.player.addiction + addictionGained, 0, 100),
-      morale: clampNumber(profile.player.morale + moraleRecovered, 0, 100),
-      nerve: clampNumber(profile.player.nerve + nerveRecovered, 0, 100),
-      stamina: clampNumber(profile.player.stamina + staminaRecovered, 0, 100),
+      brisa: clampNumber(profile.player.brisa + brisaRecovered, 0, 100),
+      disposicao: clampNumber(profile.player.disposicao + disposicaoRecovered, 0, 100),
+      cansaco: clampNumber(profile.player.cansaco + cansacoRecovered, 0, 100),
     } satisfies PlayerDrugConsumptionInput;
     const consumed = await this.repository.consumeDrugInventoryItem(playerId, inventoryItemId, nextResources);
 
@@ -364,7 +454,7 @@ export class PlayerService {
     ]);
     const overdoseTrigger = resolveDrugOverdoseTrigger({
       nextAddiction: nextResources.addiction,
-      rawNextStamina,
+      rawNextCansaco,
       recentDrugTypes: recentDrugMix.distinctTypes,
     });
     let overdose: DrugConsumeResponse['overdose'] = null;
@@ -385,7 +475,7 @@ export class PlayerService {
         penalties: {
           addictionResetTo: penalties.addiction,
           conceitoLost: penalties.conceitoLost,
-          moraleResetTo: penalties.morale,
+          brisaResetTo: penalties.brisa,
         },
         recentDrugTypes: recentDrugMix.distinctTypes,
         trigger: overdoseTrigger,
@@ -407,9 +497,9 @@ export class PlayerService {
       },
       effects: {
         addictionGained: Math.max(0, nextResources.addiction - profile.player.addiction),
-        moraleRecovered,
-        nerveRecovered,
-        staminaRecovered,
+        brisaRecovered,
+        disposicaoRecovered,
+        cansacoRecovered,
       },
       overdose,
       player: nextProfile,
@@ -524,12 +614,12 @@ export class PlayerService {
   }
 
   private async synchronizeRuntimeState(profile: PlayerProfileRecord): Promise<void> {
-    const staminaRecoveryPerHour = resolveStaminaRecoveryPerHour(profile);
-    const [staminaSync, nerveSync, addictionSync] = await Promise.all([
-      this.staminaSystem.sync(profile.player.id, profile.player.stamina, {
-        recoveryPerHour: staminaRecoveryPerHour,
+    const cansacoRecoveryPerHour = resolveCansacoRecoveryPerHour(profile);
+    const [cansacoSync, disposicaoSync, addictionSync] = await Promise.all([
+      this.cansacoSystem.sync(profile.player.id, profile.player.cansaco, {
+        recoveryPerHour: cansacoRecoveryPerHour,
       }),
-      this.nerveSystem.sync(profile.player.id, profile.player.nerve),
+      this.disposicaoSystem.sync(profile.player.id, profile.player.disposicao),
       this.addictionSystem.sync(profile.player.id, profile.player.addiction),
     ]);
     const levelProgression = this.levelSystem.resolve(
@@ -538,8 +628,8 @@ export class PlayerService {
     );
 
     if (
-      !staminaSync.changed &&
-      !nerveSync.changed &&
+      !cansacoSync.changed &&
+      !disposicaoSync.changed &&
       !addictionSync.changed &&
       !levelProgression.leveledUp &&
       levelProgression.level === profile.player.level
@@ -549,15 +639,15 @@ export class PlayerService {
 
     profile.player.addiction = addictionSync.nextValue;
     profile.player.level = levelProgression.level;
-    profile.player.nerve = nerveSync.nextValue;
-    profile.player.stamina = staminaSync.nextValue;
+    profile.player.disposicao = disposicaoSync.nextValue;
+    profile.player.cansaco = cansacoSync.nextValue;
 
     await this.repository.updateRuntimeState(profile.player.id, {
       addiction: profile.player.addiction,
       level: profile.player.level,
-      morale: profile.player.morale,
-      nerve: profile.player.nerve,
-      stamina: profile.player.stamina,
+      brisa: profile.player.brisa,
+      disposicao: profile.player.disposicao,
+      cansaco: profile.player.cansaco,
     });
   }
 
@@ -666,6 +756,136 @@ function serializePlayerProfile(profile: PlayerProfileRecord): PlayerProfile {
   };
 }
 
+function serializePublicPlayerProfile(profile: PlayerPublicProfileRecord): PlayerPublicProfile {
+  const summary = toPlayerSummary(profile.player);
+
+  return {
+    conceito: summary.resources.conceito,
+    faction: profile.faction,
+    id: summary.id,
+    level: summary.level,
+    location: {
+      positionX: profile.player.positionX,
+      positionY: profile.player.positionY,
+      regionId: profile.player.regionId as RegionId,
+    },
+    nickname: summary.nickname,
+    ranking: profile.ranking,
+    regionId: summary.regionId,
+    title: summary.title,
+    visibility: {
+      inventoryItemCount: profile.inventoryItemCount,
+      preciseLocationVisible: true,
+      propertyCount: profile.propertiesCount,
+    },
+    vocation: summary.vocation,
+  };
+}
+
+function buildPlayerVocationCenter(
+  profile: PlayerProfileRecord,
+  now: Date,
+): PlayerVocationCenterResponse {
+  const status = resolvePlayerVocationStatus(profile.player, now);
+
+  return {
+    availability: resolvePlayerVocationAvailability(profile.player.credits, status),
+    cooldownHours: VOCATION_CHANGE_COOLDOWN_HOURS,
+    options: VOCATIONS.map((option) => ({
+      baseAttributes: VOCATION_BASE_ATTRIBUTES[option.id],
+      id: option.id,
+      isCurrent: option.id === status.currentVocation,
+      label: option.label,
+      primaryAttribute: option.primaryAttribute,
+      secondaryAttribute: option.secondaryAttribute,
+    }) satisfies PlayerVocationOptionSummary),
+    player: {
+      credits: profile.player.credits,
+      level: profile.player.level,
+      nickname: profile.player.nickname,
+      vocation: status.currentVocation,
+    },
+    status,
+  };
+}
+
+function resolvePlayerVocationStatus(
+  player: PlayerProfileRecord['player'],
+  now: Date,
+): PlayerVocationStatus {
+  const currentVocation = player.vocation as VocationType;
+  const pendingVocation = (player.vocationTarget as VocationType | null) ?? null;
+  const transitionEndsAtDate = player.vocationTransitionEndsAt;
+  const cooldownEndsAtDate = player.vocationChangedAt
+    ? new Date(player.vocationChangedAt.getTime() + VOCATION_CHANGE_COOLDOWN_HOURS * 60 * 60 * 1000)
+    : null;
+  const nextAvailabilityDate = [transitionEndsAtDate, cooldownEndsAtDate]
+    .filter((entry): entry is Date => entry instanceof Date)
+    .sort((left, right) => right.getTime() - left.getTime())[0] ?? null;
+  const nextChangeAvailableAt =
+    nextAvailabilityDate && nextAvailabilityDate.getTime() > now.getTime()
+      ? nextAvailabilityDate
+      : null;
+  const state =
+    transitionEndsAtDate && transitionEndsAtDate.getTime() > now.getTime() && pendingVocation
+      ? 'transition'
+      : nextChangeAvailableAt
+        ? 'cooldown'
+        : 'ready';
+
+  return {
+    changedAt: player.vocationChangedAt?.toISOString() ?? null,
+    cooldownEndsAt: cooldownEndsAtDate?.toISOString() ?? null,
+    cooldownRemainingSeconds: nextChangeAvailableAt
+      ? Math.max(0, Math.ceil((nextChangeAvailableAt.getTime() - now.getTime()) / 1000))
+      : 0,
+    currentVocation,
+    nextChangeAvailableAt: nextChangeAvailableAt?.toISOString() ?? null,
+    pendingVocation,
+    state,
+    transitionEndsAt: transitionEndsAtDate?.toISOString() ?? null,
+  };
+}
+
+function resolvePlayerVocationAvailability(
+  credits: number,
+  status: PlayerVocationStatus,
+) {
+  if (status.state === 'transition') {
+    return {
+      available: false,
+      creditsCost: VOCATION_CHANGE_CREDITS_COST,
+      reason: 'Existe uma transicao de vocacao em andamento. Aguarde o termino dela antes de trocar novamente.',
+    };
+  }
+
+  if (status.state === 'cooldown') {
+    return {
+      available: false,
+      creditsCost: VOCATION_CHANGE_CREDITS_COST,
+      reason: `A troca de vocacao esta em cooldown global de ${VOCATION_CHANGE_COOLDOWN_HOURS}h.`,
+    };
+  }
+
+  if (credits < VOCATION_CHANGE_CREDITS_COST) {
+    return {
+      available: false,
+      creditsCost: VOCATION_CHANGE_CREDITS_COST,
+      reason: 'Creditos insuficientes para mudar de vocacao.',
+    };
+  }
+
+  return {
+    available: true,
+    creditsCost: VOCATION_CHANGE_CREDITS_COST,
+    reason: null,
+  };
+}
+
+function resolveVocationLabel(vocation: VocationType): string {
+  return VOCATIONS.find((entry) => entry.id === vocation)?.label ?? vocation;
+}
+
 function buildInventoryListResponse(
   profile: Pick<PlayerProfile, 'inventory' | 'properties'> | Pick<PlayerProfileRecord, 'inventory' | 'properties'>,
 ): InventoryListResponse {
@@ -677,6 +897,7 @@ function buildInventoryListResponse(
 
 function ensureCharacterCreated(
   profile: Pick<PlayerProfileRecord, 'player'> | Pick<PlayerProfile, 'hasCharacter'>,
+  message = 'Crie seu personagem antes de acessar o inventario.',
 ): void {
   const hasCharacter =
     'hasCharacter' in profile
@@ -684,7 +905,7 @@ function ensureCharacterCreated(
       : Boolean(profile.player.characterCreatedAt);
 
   if (!hasCharacter) {
-    throw new PlayerError('conflict', 'Crie seu personagem antes de acessar o inventario.');
+    throw new PlayerError('conflict', message);
   }
 }
 
@@ -715,14 +936,14 @@ function resolveInventoryEquipSlot(itemType: InventoryItemType): InventoryEquipS
   return null;
 }
 
-function resolveStaminaRecoveryPerHour(profile: PlayerProfileRecord): number {
+function resolveCansacoRecoveryPerHour(profile: PlayerProfileRecord): number {
   let recoveryPerHour = 12;
 
   if (profile.faction) {
     recoveryPerHour += 1;
   }
 
-  recoveryPerHour += resolveResidentialBonuses(profile.properties).staminaRecoveryPerHourBonus;
+  recoveryPerHour += resolveResidentialBonuses(profile.properties).cansacoRecoveryPerHourBonus;
 
   recoveryPerHour -= Math.min(5, Math.floor(profile.player.addiction / 20));
 
@@ -734,7 +955,7 @@ function resolveResidentialBonuses(
 ): {
   inventorySlotsBonus: number;
   inventoryWeightBonus: number;
-  staminaRecoveryPerHourBonus: number;
+  cansacoRecoveryPerHourBonus: number;
 } {
   return properties.reduce(
     (bestBonus, property) => {
@@ -747,16 +968,16 @@ function resolveResidentialBonuses(
       return {
         inventorySlotsBonus: Math.max(bestBonus.inventorySlotsBonus, utility.inventorySlotsBonus),
         inventoryWeightBonus: Math.max(bestBonus.inventoryWeightBonus, utility.inventoryWeightBonus),
-        staminaRecoveryPerHourBonus: Math.max(
-          bestBonus.staminaRecoveryPerHourBonus,
-          utility.staminaRecoveryPerHourBonus,
+        cansacoRecoveryPerHourBonus: Math.max(
+          bestBonus.cansacoRecoveryPerHourBonus,
+          utility.cansacoRecoveryPerHourBonus,
         ),
       };
     },
     {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
     },
   );
 }
@@ -777,10 +998,10 @@ function resolveDrugAddictionGain(drug: Pick<DrugDefinitionRecord, 'addictionRat
 }
 
 function resolveDrugToleranceGain(
-  drug: Pick<DrugDefinitionRecord, 'addictionRate' | 'nerveBoost' | 'staminaRecovery'>,
+  drug: Pick<DrugDefinitionRecord, 'addictionRate' | 'disposicaoBoost' | 'cansacoRecovery'>,
 ): number {
   const baseGain = Math.ceil(drug.addictionRate);
-  const effectBonus = Math.floor((drug.nerveBoost + drug.staminaRecovery) / 6);
+  const effectBonus = Math.floor((drug.disposicaoBoost + drug.cansacoRecovery) / 6);
 
   return Math.max(1, baseGain + effectBonus);
 }
@@ -802,11 +1023,11 @@ function resolveDrugRecoveredEffect(baseEffect: number, effectivenessMultiplier:
 
 function resolveDrugOverdoseTrigger(input: {
   nextAddiction: number;
-  rawNextStamina: number;
+  rawNextCansaco: number;
   recentDrugTypes: DrugType[];
 }): OverdoseTrigger | null {
-  if (input.rawNextStamina > 100) {
-    return 'stamina_overflow';
+  if (input.rawNextCansaco > 100) {
+    return 'cansaco_overflow';
   }
 
   if (input.nextAddiction >= 100) {
@@ -832,7 +1053,7 @@ function resolveDrugOverdosePenaltyState(
     addiction: 50,
     conceito: Math.max(0, conceito - conceitoLost),
     conceitoLost,
-    morale: 0,
+    brisa: 0,
   };
 }
 

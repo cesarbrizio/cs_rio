@@ -1,5 +1,5 @@
 import type { FactionRank, PlayerSummary, RegionId } from '@cs-rio/shared';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
@@ -13,6 +13,10 @@ import {
   toPlayerSummary,
 } from './auth.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
+import {
+  NoopUniversityEffectReader,
+  type UniversityEffectReaderContract,
+} from './university.js';
 
 interface TribunalCaseRecord {
   accusedCharismaCommunity: number;
@@ -31,8 +35,12 @@ interface TribunalCaseRecord {
   favelaId: string;
   id: string;
   judgedAt: Date | null;
+  judgedBy: string | null;
+  moralFacaoImpact: number | null;
+  moralMoradoresImpact: number | null;
   punishmentChosen: TribunalPunishment | null;
   truthSide: TribunalCaseSide;
+  conceitoImpact: number | null;
 }
 
 interface TribunalFavelaRecord {
@@ -111,14 +119,19 @@ interface TribunalCaseSummary {
   caseType: TribunalCaseType;
   communitySupports: TribunalCaseSide;
   createdAt: string;
+  decisionDeadlineAt: string;
   definition: TribunalCaseDefinitionSummary;
   favelaId: string;
   id: string;
   judgedAt: string | null;
   punishmentChosen: TribunalPunishment | null;
+  resolutionSource: TribunalResolutionSource | null;
+  status: TribunalCaseStatus;
   summary: string;
   truthRead: TribunalCaseSide;
 }
+
+type TribunalCaseStatus = 'open' | 'resolved_by_npc' | 'resolved_by_player';
 
 type TribunalPunishmentRead =
   | 'brutal'
@@ -152,6 +165,8 @@ interface TribunalAntigaoAdviceProfile extends TribunalAntigaoAdviceSummary {
 interface TribunalCenterResponse {
   activeCase: TribunalCaseSummary | null;
   favela: TribunalFavelaSummary;
+  latestResolvedCase: TribunalCaseSummary | null;
+  latestResolvedOutcome: TribunalResolutionSummary | null;
   player: PlayerSummary;
 }
 
@@ -170,12 +185,45 @@ interface TribunalJudgmentSummary {
   moradoresImpact: number;
   punishmentChosen: TribunalPunishment;
   read: TribunalJudgmentRead;
+  resolvedAt: string;
+  resolutionSource: TribunalResolutionSource;
   summary: string;
 }
 
 interface TribunalJudgmentResponse extends TribunalCenterResponse {
   activeCase: TribunalCaseSummary;
   judgment: TribunalJudgmentSummary;
+}
+
+type TribunalResolutionSource = 'npc' | 'player';
+
+interface TribunalResolutionSummary {
+  conceitoDelta: number;
+  faccaoImpact: number;
+  moradoresImpact: number;
+  punishmentChosen: TribunalPunishment;
+  read: TribunalJudgmentRead;
+  resolvedAt: string;
+  resolutionSource: TribunalResolutionSource;
+  summary: string;
+}
+
+type TribunalCueKind = 'opened' | 'resolved';
+
+interface TribunalCueSummary {
+  body: string;
+  case: TribunalCaseSummary;
+  favela: TribunalFavelaSummary;
+  headline: string;
+  kind: TribunalCueKind;
+  occurredAt: string;
+  outcome: TribunalResolutionSummary | null;
+  title: string;
+}
+
+interface TribunalCueListResponse {
+  cues: TribunalCueSummary[];
+  generatedAt: string;
 }
 
 const TRIBUNAL_CASE_DEFINITIONS: TribunalCaseDefinitionSummary[] = [
@@ -469,9 +517,12 @@ export interface TribunalRepository {
   createCase(input: TribunalCaseCreateInput): Promise<TribunalCaseRecord | null>;
   getFaction(factionId: string): Promise<TribunalFactionRecord | null>;
   getFavela(favelaId: string): Promise<TribunalFavelaRecord | null>;
+  getLatestCase(favelaId: string): Promise<TribunalCaseRecord | null>;
   getOpenCase(favelaId: string): Promise<TribunalCaseRecord | null>;
   getPlayer(playerId: string): Promise<AuthPlayerRecord | null>;
   getPlayerFactionMembership(playerId: string): Promise<TribunalFactionMembershipRecord | null>;
+  listControlledFavelas(factionId: string): Promise<TribunalFavelaRecord[]>;
+  listLatestCasesByFavelaIds(favelaIds: string[]): Promise<TribunalCaseRecord[]>;
 }
 
 export interface TribunalServiceOptions {
@@ -480,11 +531,13 @@ export interface TribunalServiceOptions {
   now?: () => Date;
   random?: () => number;
   repository?: TribunalRepository;
+  universityReader?: UniversityEffectReaderContract;
 }
 
 export interface TribunalServiceContract {
   close?(): Promise<void>;
   getTribunalCenter(playerId: string, favelaId: string): Promise<TribunalCenterResponse>;
+  getTribunalCues(playerId: string): Promise<TribunalCueListResponse>;
   generateCase(playerId: string, favelaId: string): Promise<TribunalCaseGenerateResponse>;
   judgeCase(playerId: string, favelaId: string, input: TribunalJudgmentInput): Promise<TribunalJudgmentResponse>;
 }
@@ -525,16 +578,16 @@ interface GeneratedTribunalCase {
 
 interface TribunalApplyJudgmentInput {
   caseId: string;
-  conceitoAfter: number;
+  conceitoAfter: number | null;
   conceitoImpact: number;
   factionId: string;
   factionInternalSatisfactionAfter: number;
   judgedAt: Date;
-  judgedBy: string;
+  judgedBy: string | null;
   moralFacaoImpact: number;
   moralMoradoresImpact: number;
-  playerId: string;
-  playerLevelAfter: number;
+  playerId: string | null;
+  playerLevelAfter: number | null;
   punishmentChosen: TribunalPunishment;
   satisfactionAfter: number;
 }
@@ -542,7 +595,7 @@ interface TribunalApplyJudgmentInput {
 interface TribunalApplyJudgmentResult {
   caseRecord: TribunalCaseRecord;
   factionInternalSatisfactionAfter: number;
-  playerRecord: AuthPlayerRecord;
+  playerRecord: AuthPlayerRecord | null;
   satisfactionAfter: number;
 }
 
@@ -571,17 +624,27 @@ export class DatabaseTribunalRepository implements TribunalRepository {
         return null;
       }
 
-      const [updatedPlayer] = await tx
-        .update(players)
-        .set({
-          conceito: input.conceitoAfter,
-          level: input.playerLevelAfter,
-        })
-        .where(eq(players.id, input.playerId))
-        .returning();
+      let updatedPlayer: AuthPlayerRecord | null = null;
 
-      if (!updatedPlayer) {
-        return null;
+      if (
+        input.playerId &&
+        input.conceitoAfter !== null &&
+        input.playerLevelAfter !== null
+      ) {
+        const [playerRecord] = await tx
+          .update(players)
+          .set({
+            conceito: input.conceitoAfter,
+            level: input.playerLevelAfter,
+          })
+          .where(eq(players.id, input.playerId))
+          .returning();
+
+        if (!playerRecord) {
+          return null;
+        }
+
+        updatedPlayer = playerRecord;
       }
 
       const [updatedFaction] = await tx
@@ -686,6 +749,17 @@ export class DatabaseTribunalRepository implements TribunalRepository {
       : null;
   }
 
+  async getLatestCase(favelaId: string): Promise<TribunalCaseRecord | null> {
+    const [caseRecord] = await db
+      .select()
+      .from(tribunalCases)
+      .where(eq(tribunalCases.favelaId, favelaId))
+      .orderBy(desc(tribunalCases.createdAt))
+      .limit(1);
+
+    return caseRecord ?? null;
+  }
+
   async getOpenCase(favelaId: string): Promise<TribunalCaseRecord | null> {
     const [caseRecord] = await db
       .select()
@@ -720,9 +794,51 @@ export class DatabaseTribunalRepository implements TribunalRepository {
         }
       : null;
   }
+
+  async listControlledFavelas(factionId: string): Promise<TribunalFavelaRecord[]> {
+    const records = await db
+      .select()
+      .from(favelas)
+      .where(and(eq(favelas.controllingFactionId, factionId), eq(favelas.state, 'controlled')));
+
+    return records.map((favela) => ({
+      controllingFactionId: favela.controllingFactionId,
+      id: favela.id,
+      name: favela.name,
+      population: favela.population,
+      regionId: favela.regionId as RegionId,
+      satisfaction: favela.satisfaction,
+      state: favela.state,
+    }));
+  }
+
+  async listLatestCasesByFavelaIds(favelaIds: string[]): Promise<TribunalCaseRecord[]> {
+    if (favelaIds.length === 0) {
+      return [];
+    }
+
+    const caseRecords = await db
+      .select()
+      .from(tribunalCases)
+      .where(inArray(tribunalCases.favelaId, favelaIds))
+      .orderBy(desc(tribunalCases.createdAt));
+
+    const latestByFavelaId = new Map<string, TribunalCaseRecord>();
+
+    for (const caseRecord of caseRecords) {
+      if (!latestByFavelaId.has(caseRecord.favelaId)) {
+        latestByFavelaId.set(caseRecord.favelaId, caseRecord);
+      }
+    }
+
+    return [...latestByFavelaId.values()];
+  }
 }
 
 const ALLOWED_TRIBUNAL_RANKS = new Set<FactionRank>(['patrao', 'general']);
+const TRIBUNAL_AUTO_CASE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const TRIBUNAL_CUE_REPLAY_WINDOW_MS = 72 * 60 * 60 * 1000;
+const TRIBUNAL_DECISION_WINDOW_MS = 2 * 60 * 60 * 1000;
 const TRIBUNAL_NAME_BANK = [
   'Marreta',
   'Tainha',
@@ -1006,6 +1122,7 @@ export class TribunalService implements TribunalServiceContract {
   private readonly now: () => Date;
   private readonly random: () => number;
   private readonly repository: TribunalRepository;
+  private readonly universityReader: UniversityEffectReaderContract;
 
   constructor(options: TribunalServiceOptions = {}) {
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
@@ -1013,6 +1130,7 @@ export class TribunalService implements TribunalServiceContract {
     this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
     this.repository = options.repository ?? new DatabaseTribunalRepository();
+    this.universityReader = options.universityReader ?? new NoopUniversityEffectReader();
   }
 
   async close(): Promise<void> {
@@ -1021,32 +1139,83 @@ export class TribunalService implements TribunalServiceContract {
 
   async getTribunalCenter(playerId: string, favelaId: string): Promise<TribunalCenterResponse> {
     const context = await this.resolveContext(playerId, favelaId);
-    const activeCase = await this.repository.getOpenCase(favelaId);
+    const controlledFavelas = await this.repository.listControlledFavelas(context.faction.id);
+    const latestCasesByFavelaId = await this.syncAutomaticTribunalFlow({
+      controlledFavelas,
+      faction: context.faction,
+      now: this.now(),
+      preferredFavelaId: favelaId,
+    });
+
+    return this.buildCenterResponse({
+      favela: context.favela,
+      latestCase: latestCasesByFavelaId.get(favelaId) ?? null,
+      player: context.player,
+    });
+  }
+
+  async getTribunalCues(playerId: string): Promise<TribunalCueListResponse> {
+    const now = this.now();
+    const context = await this.resolveCueContext(playerId);
+
+    if (!context) {
+      return {
+        cues: [],
+        generatedAt: now.toISOString(),
+      };
+    }
+
+    const latestCasesByFavelaId = await this.syncAutomaticTribunalFlow({
+      controlledFavelas: context.controlledFavelas,
+      faction: context.faction,
+      now,
+    });
 
     return {
-      activeCase: activeCase ? toTribunalCaseSummary(activeCase, context.favela) : null,
-      favela: toTribunalFavelaSummary(context.favela),
-      player: toPlayerSummary(context.player),
+      cues: buildTribunalCues({
+        controlledFavelas: context.controlledFavelas,
+        latestCasesByFavelaId,
+        now,
+      }),
+      generatedAt: now.toISOString(),
     };
   }
 
   async generateCase(playerId: string, favelaId: string): Promise<TribunalCaseGenerateResponse> {
     const context = await this.resolveContext(playerId, favelaId);
-    const existingCase = await this.repository.getOpenCase(favelaId);
+    const now = this.now();
+    const controlledFavelas = await this.repository.listControlledFavelas(context.faction.id);
+    const latestCasesByFavelaId = await this.syncAutomaticTribunalFlow({
+      allowAutoGenerate: false,
+      controlledFavelas,
+      faction: context.faction,
+      now,
+      preferredFavelaId: favelaId,
+    });
+    const existingCase = latestCasesByFavelaId.get(favelaId) ?? null;
 
-    if (existingCase) {
+    if (existingCase && !existingCase.judgedAt) {
       return {
-        activeCase: toTribunalCaseSummary(existingCase, context.favela),
         created: false,
-        favela: toTribunalFavelaSummary(context.favela),
-        player: toPlayerSummary(context.player),
+        ...this.buildCenterResponse({
+          favela: context.favela,
+          latestCase: existingCase,
+          player: context.player,
+        }),
       };
+    }
+
+    if ([...latestCasesByFavelaId.values()].some((caseRecord) => !caseRecord.judgedAt)) {
+      throw new TribunalError(
+        'validation',
+        'Ja existe um tribunal em pauta em outra favela dominada. Resolva esse caso antes de abrir outro.',
+      );
     }
 
     const generatedCase = this.buildCase(context.favela);
     const createdCase = await this.repository.createCase({
       ...generatedCase,
-      createdAt: this.now(),
+      createdAt: now,
       favelaId,
     });
 
@@ -1055,19 +1224,38 @@ export class TribunalService implements TribunalServiceContract {
     }
 
     return {
-      activeCase: toTribunalCaseSummary(createdCase, context.favela),
       created: true,
-      favela: toTribunalFavelaSummary(context.favela),
-      player: toPlayerSummary(context.player),
+      ...this.buildCenterResponse({
+        favela: context.favela,
+        latestCase: createdCase,
+        player: context.player,
+      }),
     };
   }
 
   async judgeCase(playerId: string, favelaId: string, input: TribunalJudgmentInput): Promise<TribunalJudgmentResponse> {
     const context = await this.resolveContext(playerId, favelaId);
-    const activeCase = await this.repository.getOpenCase(favelaId);
+    const now = this.now();
+    const controlledFavelas = await this.repository.listControlledFavelas(context.faction.id);
+    const latestCasesByFavelaId = await this.syncAutomaticTribunalFlow({
+      controlledFavelas,
+      faction: context.faction,
+      now,
+      preferredFavelaId: favelaId,
+    });
+    const activeCase = latestCasesByFavelaId.get(favelaId) ?? null;
 
     if (!activeCase) {
       throw new TribunalError('not_found', 'Nenhum caso aberto foi encontrado para esta favela.');
+    }
+
+    if (activeCase.judgedAt) {
+      throw new TribunalError(
+        'validation',
+        activeCase.judgedBy
+          ? 'Esse caso ja foi encerrado.'
+          : 'O prazo acabou e o comando local decidiu o caso antes da sua resposta.',
+      );
     }
 
     const definition = getTribunalDefinition(activeCase.caseType as TribunalCaseType);
@@ -1076,10 +1264,14 @@ export class TribunalService implements TribunalServiceContract {
       throw new TribunalError('validation', 'Punicao invalida para este tipo de caso.');
     }
 
-    const impact = getPunishmentImpact(
-      activeCase.caseType as TribunalCaseType,
-      input.punishment,
-      activeCase.communitySupports as TribunalCaseSide,
+    const universityPassiveProfile = await this.universityReader.getPassiveProfile(playerId);
+    const impact = applyTribunalUniversityModifiers(
+      getPunishmentImpact(
+        activeCase.caseType as TribunalCaseType,
+        input.punishment,
+        activeCase.communitySupports as TribunalCaseSide,
+      ),
+      universityPassiveProfile,
     );
     const judgmentRead = resolveJudgmentRead(
       activeCase.caseType as TribunalCaseType,
@@ -1101,7 +1293,7 @@ export class TribunalService implements TribunalServiceContract {
       0,
       100,
     );
-    const judgedAt = this.now();
+    const judgedAt = now;
 
     const updated = await this.repository.applyJudgment({
       caseId: activeCase.id,
@@ -1123,11 +1315,21 @@ export class TribunalService implements TribunalServiceContract {
       throw new Error('Falha ao registrar o julgamento do tribunal.');
     }
 
+    if (!updated.playerRecord) {
+      throw new Error('Falha ao atualizar o jogador do tribunal.');
+    }
+
     await invalidatePlayerProfileCache(this.keyValueStore, playerId);
 
+    const centerResponse = this.buildCenterResponse({
+      favela: context.favela,
+      latestCase: updated.caseRecord,
+      player: updated.playerRecord,
+    });
+
     return {
+      ...centerResponse,
       activeCase: toTribunalCaseSummary(updated.caseRecord, context.favela),
-      favela: toTribunalFavelaSummary(context.favela),
       judgment: {
         conceitoAfter,
         conceitoDelta,
@@ -1139,6 +1341,8 @@ export class TribunalService implements TribunalServiceContract {
         moradoresImpact: impact.moradores,
         punishmentChosen: input.punishment,
         read: judgmentRead,
+        resolvedAt: judgedAt.toISOString(),
+        resolutionSource: 'player',
         summary: buildJudgmentSummary({
           caseLabel: definition.label,
           conceitoDelta,
@@ -1151,6 +1355,191 @@ export class TribunalService implements TribunalServiceContract {
       },
       player: toPlayerSummary(updated.playerRecord),
     };
+  }
+
+  private buildCenterResponse(input: {
+    favela: TribunalFavelaRecord;
+    latestCase: TribunalCaseRecord | null;
+    player: AuthPlayerRecord;
+  }): TribunalCenterResponse {
+    const activeCase =
+      input.latestCase && !input.latestCase.judgedAt
+        ? toTribunalCaseSummary(input.latestCase, input.favela)
+        : null;
+    const latestResolvedCase =
+      input.latestCase && input.latestCase.judgedAt
+        ? toTribunalCaseSummary(input.latestCase, input.favela)
+        : null;
+    const latestResolvedOutcome =
+      input.latestCase && input.latestCase.judgedAt
+        ? toTribunalResolutionSummary(input.latestCase, input.favela)
+        : null;
+
+    return {
+      activeCase,
+      favela: toTribunalFavelaSummary(input.favela),
+      latestResolvedCase,
+      latestResolvedOutcome,
+      player: toPlayerSummary(input.player),
+    };
+  }
+
+  private async resolveCueContext(playerId: string): Promise<{
+    controlledFavelas: TribunalFavelaRecord[];
+    faction: TribunalFactionRecord;
+  } | null> {
+    const [player, membership] = await Promise.all([
+      this.repository.getPlayer(playerId),
+      this.repository.getPlayerFactionMembership(playerId),
+    ]);
+
+    if (!player?.characterCreatedAt) {
+      return null;
+    }
+
+    if (!membership || !player.factionId || membership.factionId !== player.factionId) {
+      return null;
+    }
+
+    if (!ALLOWED_TRIBUNAL_RANKS.has(membership.rank)) {
+      return null;
+    }
+
+    const [faction, controlledFavelas] = await Promise.all([
+      this.repository.getFaction(membership.factionId),
+      this.repository.listControlledFavelas(membership.factionId),
+    ]);
+
+    if (!faction || controlledFavelas.length === 0) {
+      return null;
+    }
+
+    return {
+      controlledFavelas,
+      faction,
+    };
+  }
+
+  private async syncAutomaticTribunalFlow(input: {
+    allowAutoGenerate?: boolean;
+    controlledFavelas: TribunalFavelaRecord[];
+    faction: TribunalFactionRecord;
+    now: Date;
+    preferredFavelaId?: string | null;
+  }): Promise<Map<string, TribunalCaseRecord>> {
+    const latestCasesByFavelaId = new Map(
+      (
+        await this.repository.listLatestCasesByFavelaIds(input.controlledFavelas.map((favela) => favela.id))
+      ).map((caseRecord) => [caseRecord.favelaId, caseRecord]),
+    );
+    const favelasById = new Map(input.controlledFavelas.map((favela) => [favela.id, { ...favela }]));
+    let currentFaction = { ...input.faction };
+
+    for (const caseRecord of [...latestCasesByFavelaId.values()]) {
+      if (caseRecord.judgedAt || !isTribunalCaseExpired(caseRecord, input.now)) {
+        continue;
+      }
+
+      const favela = favelasById.get(caseRecord.favelaId);
+
+      if (!favela) {
+        continue;
+      }
+
+      const resolved = await this.resolveCaseByNpc({
+        caseRecord,
+        faction: currentFaction,
+        favela,
+        judgedAt: input.now,
+      });
+
+      latestCasesByFavelaId.set(caseRecord.favelaId, resolved.caseRecord);
+      currentFaction = {
+        ...currentFaction,
+        internalSatisfaction: resolved.factionInternalSatisfactionAfter,
+      };
+      favelasById.set(caseRecord.favelaId, {
+        ...favela,
+        satisfaction: resolved.satisfactionAfter,
+      });
+    }
+
+    const hasOpenCase = [...latestCasesByFavelaId.values()].some((caseRecord) => !caseRecord.judgedAt);
+
+    if (hasOpenCase) {
+      return latestCasesByFavelaId;
+    }
+
+    if (input.allowAutoGenerate === false) {
+      return latestCasesByFavelaId;
+    }
+
+    const favelaToGenerate = pickAutomaticFavelaForTribunal({
+      controlledFavelas: [...favelasById.values()],
+      latestCasesByFavelaId,
+      preferredFavelaId: input.preferredFavelaId ?? null,
+      random: this.random,
+      now: input.now,
+    });
+
+    if (!favelaToGenerate) {
+      return latestCasesByFavelaId;
+    }
+
+    const generatedCase = this.buildCase(favelaToGenerate);
+    const createdCase = await this.repository.createCase({
+      ...generatedCase,
+      createdAt: input.now,
+      favelaId: favelaToGenerate.id,
+    });
+
+    if (!createdCase) {
+      throw new Error('Falha ao gerar o caso automatico do tribunal.');
+    }
+
+    latestCasesByFavelaId.set(favelaToGenerate.id, createdCase);
+    return latestCasesByFavelaId;
+  }
+
+  private async resolveCaseByNpc(input: {
+    caseRecord: TribunalCaseRecord;
+    faction: TribunalFactionRecord;
+    favela: TribunalFavelaRecord;
+    judgedAt: Date;
+  }): Promise<TribunalApplyJudgmentResult> {
+    const punishment = pickWorstPunishmentForPopulation(input.caseRecord);
+    const impact = getPunishmentImpact(
+      input.caseRecord.caseType as TribunalCaseType,
+      punishment,
+      input.caseRecord.communitySupports as TribunalCaseSide,
+    );
+    const factionInternalSatisfactionAfter = clamp(
+      input.faction.internalSatisfaction + impact.faccao,
+      0,
+      100,
+    );
+    const favelaSatisfactionAfter = clamp(input.favela.satisfaction + impact.moradores, 0, 100);
+    const updated = await this.repository.applyJudgment({
+      caseId: input.caseRecord.id,
+      conceitoAfter: null,
+      conceitoImpact: 0,
+      factionId: input.faction.id,
+      factionInternalSatisfactionAfter,
+      judgedAt: input.judgedAt,
+      judgedBy: null,
+      moralFacaoImpact: impact.faccao,
+      moralMoradoresImpact: impact.moradores,
+      playerId: null,
+      playerLevelAfter: null,
+      punishmentChosen: punishment,
+      satisfactionAfter: favelaSatisfactionAfter,
+    });
+
+    if (!updated) {
+      throw new Error('Falha ao resolver o tribunal automaticamente.');
+    }
+
+    return updated;
   }
 
   private buildCase(favela: TribunalFavelaRecord): GeneratedTribunalCase {
@@ -1452,6 +1841,39 @@ function getPunishmentImpact(
   return impact;
 }
 
+function applyTribunalUniversityModifiers(
+  impact: TribunalImpactProfile,
+  passiveProfile: Awaited<ReturnType<UniversityEffectReaderContract['getPassiveProfile']>>,
+): TribunalImpactProfile {
+  const communityMultiplier = passiveProfile.social.communityInfluenceMultiplier;
+  const factionAura = passiveProfile.faction.factionCharismaAura;
+
+  return {
+    faccao: applySignedImpactMultiplier(
+      impact.faccao,
+      factionAura > 0 ? 1 + factionAura : 1,
+      factionAura > 0 ? Math.max(0, 1 - factionAura) : 1,
+    ),
+    moradores: applySignedImpactMultiplier(
+      impact.moradores,
+      communityMultiplier,
+      communityMultiplier > 0 ? 1 / communityMultiplier : 1,
+    ),
+  };
+}
+
+function applySignedImpactMultiplier(
+  impact: number,
+  positiveMultiplier: number,
+  negativeMultiplier: number,
+): number {
+  if (impact === 0) {
+    return 0;
+  }
+
+  return Math.round(impact * (impact > 0 ? positiveMultiplier : negativeMultiplier));
+}
+
 function classifyPunishmentRead(
   caseType: TribunalCaseType,
   punishment: TribunalPunishment,
@@ -1599,7 +2021,9 @@ function buildJudgmentSummary(input: {
 }): string {
   const punishmentText = punishmentLabel(input.punishment);
   const conceitoText =
-    input.conceitoDelta >= 0
+    input.conceitoDelta === 0
+      ? 'Seu conceito ficou estavel.'
+      : input.conceitoDelta >= 0
       ? `Voce ganhou ${input.conceitoDelta} de conceito.`
       : `Voce perdeu ${Math.abs(input.conceitoDelta)} de conceito.`;
   const moradoresText = formatImpactLabel('moradores', input.moradoresImpact);
@@ -1633,6 +2057,106 @@ function formatImpactLabel(target: 'facção' | 'moradores', amount: number): st
   return `${capitalize(target)} ficam estaveis.`;
 }
 
+function getTribunalDecisionDeadline(caseRecord: Pick<TribunalCaseRecord, 'createdAt'>): Date {
+  return new Date(caseRecord.createdAt.getTime() + TRIBUNAL_DECISION_WINDOW_MS);
+}
+
+function isTribunalCaseExpired(
+  caseRecord: Pick<TribunalCaseRecord, 'createdAt' | 'judgedAt'>,
+  now: Date,
+): boolean {
+  return !caseRecord.judgedAt && getTribunalDecisionDeadline(caseRecord).getTime() <= now.getTime();
+}
+
+function resolveTribunalResolutionSource(
+  caseRecord: Pick<TribunalCaseRecord, 'judgedAt' | 'judgedBy'>,
+): TribunalResolutionSource | null {
+  if (!caseRecord.judgedAt) {
+    return null;
+  }
+
+  return caseRecord.judgedBy ? 'player' : 'npc';
+}
+
+function resolveTribunalCaseStatus(
+  caseRecord: Pick<TribunalCaseRecord, 'judgedAt' | 'judgedBy'>,
+): TribunalCaseStatus {
+  const resolutionSource = resolveTribunalResolutionSource(caseRecord);
+
+  if (!resolutionSource) {
+    return 'open';
+  }
+
+  return resolutionSource === 'player' ? 'resolved_by_player' : 'resolved_by_npc';
+}
+
+function getCaseLastActivityAt(
+  caseRecord: Pick<TribunalCaseRecord, 'createdAt' | 'judgedAt'>,
+): Date {
+  return caseRecord.judgedAt ?? caseRecord.createdAt;
+}
+
+function pickAutomaticFavelaForTribunal(input: {
+  controlledFavelas: TribunalFavelaRecord[];
+  latestCasesByFavelaId: Map<string, TribunalCaseRecord>;
+  now: Date;
+  preferredFavelaId: string | null;
+  random: () => number;
+}): TribunalFavelaRecord | null {
+  const cutoff = input.now.getTime() - TRIBUNAL_AUTO_CASE_COOLDOWN_MS;
+  const eligibleFavelas = input.controlledFavelas.filter((favela) => {
+    const latestCase = input.latestCasesByFavelaId.get(favela.id);
+
+    if (!latestCase) {
+      return true;
+    }
+
+    return getCaseLastActivityAt(latestCase).getTime() <= cutoff;
+  });
+
+  if (eligibleFavelas.length === 0) {
+    return null;
+  }
+
+  if (input.preferredFavelaId) {
+    const preferredFavela =
+      eligibleFavelas.find((favela) => favela.id === input.preferredFavelaId) ?? null;
+
+    if (preferredFavela) {
+      return preferredFavela;
+    }
+  }
+
+  return pickOne(eligibleFavelas, input.random);
+}
+
+function pickWorstPunishmentForPopulation(caseRecord: TribunalCaseRecord): TribunalPunishment {
+  const definition = getTribunalDefinition(caseRecord.caseType as TribunalCaseType);
+  let pickedPunishment = definition.allowedPunishments[0] ?? 'surra';
+  let pickedImpact = Number.POSITIVE_INFINITY;
+  let pickedSeverity = Number.NEGATIVE_INFINITY;
+
+  for (const punishment of definition.allowedPunishments) {
+    const impact = getPunishmentImpact(
+      caseRecord.caseType as TribunalCaseType,
+      punishment,
+      caseRecord.communitySupports as TribunalCaseSide,
+    );
+    const severity = PUNISHMENT_SEVERITY_SCORE[punishment];
+
+    if (
+      impact.moradores < pickedImpact ||
+      (impact.moradores === pickedImpact && severity > pickedSeverity)
+    ) {
+      pickedPunishment = punishment;
+      pickedImpact = impact.moradores;
+      pickedSeverity = severity;
+    }
+  }
+
+  return pickedPunishment;
+}
+
 function toTribunalFavelaSummary(favela: TribunalFavelaRecord): TribunalFavelaSummary {
   return {
     id: favela.id,
@@ -1646,6 +2170,7 @@ function toTribunalCaseSummary(
   favela: Pick<TribunalFavelaRecord, 'id' | 'name'>,
 ): TribunalCaseSummary {
   const definition = getTribunalDefinition(caseRecord.caseType as TribunalCaseType);
+  const resolutionSource = resolveTribunalResolutionSource(caseRecord);
   const antigaoAdvice = buildAntigaoAdviceProfile({
     caseType: caseRecord.caseType as TribunalCaseType,
     communitySupports: caseRecord.communitySupports as TribunalCaseSide,
@@ -1672,14 +2197,124 @@ function toTribunalCaseSummary(
     caseType: caseRecord.caseType as TribunalCaseType,
     communitySupports: caseRecord.communitySupports as TribunalCaseSide,
     createdAt: caseRecord.createdAt.toISOString(),
+    decisionDeadlineAt: getTribunalDecisionDeadline(caseRecord).toISOString(),
     definition,
     favelaId: caseRecord.favelaId,
     id: caseRecord.id,
     judgedAt: caseRecord.judgedAt ? caseRecord.judgedAt.toISOString() : null,
     punishmentChosen: caseRecord.punishmentChosen as TribunalPunishment | null,
+    resolutionSource,
+    status: resolveTribunalCaseStatus(caseRecord),
     summary: buildCaseSummary(caseRecord, favela.name, definition.label),
     truthRead: caseRecord.truthSide as TribunalCaseSide,
   };
+}
+
+function toTribunalResolutionSummary(
+  caseRecord: TribunalCaseRecord,
+  favela: Pick<TribunalFavelaRecord, 'name'>,
+): TribunalResolutionSummary {
+  if (!caseRecord.judgedAt || !caseRecord.punishmentChosen) {
+    throw new TribunalError('validation', 'Tentativa de resumir um tribunal sem julgamento concluido.');
+  }
+
+  const definition = getTribunalDefinition(caseRecord.caseType as TribunalCaseType);
+  const punishmentChosen = caseRecord.punishmentChosen as TribunalPunishment;
+  const read = resolveJudgmentRead(
+    caseRecord.caseType as TribunalCaseType,
+    punishmentChosen,
+    caseRecord.truthSide as TribunalCaseSide,
+  );
+  const resolutionSource = resolveTribunalResolutionSource(caseRecord);
+
+  if (!resolutionSource) {
+    throw new TribunalError('validation', 'Nao foi possivel determinar quem resolveu o tribunal.');
+  }
+
+  const conceitoDelta = caseRecord.conceitoImpact ?? 0;
+  const faccaoImpact = caseRecord.moralFacaoImpact ?? 0;
+  const moradoresImpact = caseRecord.moralMoradoresImpact ?? 0;
+
+  return {
+    conceitoDelta,
+    faccaoImpact,
+    moradoresImpact,
+    punishmentChosen,
+    read,
+    resolvedAt: caseRecord.judgedAt.toISOString(),
+    resolutionSource,
+    summary: buildJudgmentSummary({
+      caseLabel: definition.label,
+      conceitoDelta,
+      faccaoImpact,
+      favelaName: favela.name,
+      judgmentRead: read,
+      moradoresImpact,
+      punishment: punishmentChosen,
+    }),
+  };
+}
+
+function buildTribunalCues(input: {
+  controlledFavelas: TribunalFavelaRecord[];
+  latestCasesByFavelaId: Map<string, TribunalCaseRecord>;
+  now: Date;
+}): TribunalCueSummary[] {
+  const replayCutoff = input.now.getTime() - TRIBUNAL_CUE_REPLAY_WINDOW_MS;
+  const favelasById = new Map(input.controlledFavelas.map((favela) => [favela.id, favela]));
+  const cues: TribunalCueSummary[] = [];
+
+  for (const caseRecord of input.latestCasesByFavelaId.values()) {
+    const favela = favelasById.get(caseRecord.favelaId);
+
+    if (!favela) {
+      continue;
+    }
+
+    if (caseRecord.createdAt.getTime() >= replayCutoff) {
+      const tribunalCase = toTribunalCaseSummary(caseRecord, favela);
+      const definition = getTribunalDefinition(caseRecord.caseType as TribunalCaseType);
+
+      cues.push({
+        body: `${buildCaseSummary(caseRecord, favela.name, definition.label)} Decida ate ${formatTribunalCueTimestamp(tribunalCase.decisionDeadlineAt)} antes que o comando local assuma o julgamento.`,
+        case: tribunalCase,
+        favela: toTribunalFavelaSummary(favela),
+        headline: `${definition.label} entrou em pauta em ${favela.name}.`,
+        kind: 'opened',
+        occurredAt: tribunalCase.createdAt,
+        outcome: null,
+        title: `Tribunal aberto · ${favela.name}`,
+      });
+    }
+
+    if (caseRecord.judgedAt && caseRecord.judgedAt.getTime() >= replayCutoff) {
+      const tribunalCase = toTribunalCaseSummary(caseRecord, favela);
+      const outcome = toTribunalResolutionSummary(caseRecord, favela);
+      const definition = getTribunalDefinition(caseRecord.caseType as TribunalCaseType);
+      const sourceLine =
+        outcome.resolutionSource === 'npc'
+          ? `Voce perdeu o prazo e o comando local escolheu ${punishmentLabel(outcome.punishmentChosen).toLowerCase()}.`
+          : `O martelo caiu com ${punishmentLabel(outcome.punishmentChosen).toLowerCase()}.`;
+
+      cues.push({
+        body: `${sourceLine} ${outcome.summary}`,
+        case: tribunalCase,
+        favela: toTribunalFavelaSummary(favela),
+        headline: `${definition.label} foi encerrado em ${favela.name}.`,
+        kind: 'resolved',
+        occurredAt: outcome.resolvedAt,
+        outcome,
+        title:
+          outcome.resolutionSource === 'npc'
+            ? `Tribunal decidido sem voce · ${favela.name}`
+            : `Tribunal encerrado · ${favela.name}`,
+      });
+    }
+  }
+
+  return cues.sort(
+    (left, right) => new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime(),
+  );
 }
 
 function buildCaseSummary(
@@ -1746,6 +2381,17 @@ function punishmentLabel(punishment: TribunalPunishment): string {
     default:
       return 'Aplicar uma punicao';
   }
+}
+
+function formatTribunalCueTimestamp(value: Date | string): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+  }).format(date);
 }
 
 function pickOne<T>(items: readonly T[], random: () => number): T {

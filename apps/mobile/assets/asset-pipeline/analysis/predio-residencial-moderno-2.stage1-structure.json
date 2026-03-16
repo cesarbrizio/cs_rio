@@ -1,0 +1,266 @@
+{
+  "version": 2,
+  "stage": "stage-1-structure",
+  "status": "ready-for-stage-2",
+  "assetType": "residential-tower-modern predio-residencial-moderno-2",
+  "styleGuide": "simcity-urban",
+  "keepIntermediate": false,
+  "referenceFiles": [
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Residencial_6.jpg",
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Residencial_7.jpg"
+  ],
+  "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-moderno-2.svg",
+  "generatedAt": "2026-03-16T04:16:33.685Z",
+  "architecture": {
+    "moduleLibraryFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "moduleCount": 61,
+    "outputs": {
+      "analysisPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/predio-residencial-moderno-2.analysis.json",
+      "sceneGraphPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/scene-graphs/predio-residencial-moderno-2.scene-graph.json",
+      "moduleManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/predio-residencial-moderno-2.module-library.json"
+    },
+    "pendingStages": [
+      "module-library-base",
+      "scene-graph-enrichment",
+      "modular-composer",
+      "svg-renderer",
+      "preview-renderer"
+    ]
+  },
+  "compositionBlueprint": {
+    "stage": "compose-from-modules",
+    "assetType": "residential-tower-modern predio-residencial-moderno-2",
+    "category": "residential",
+    "styleGuide": {
+      "resolvedProfile": "simcity-urban",
+      "family": "residential-tower-modern",
+      "variationPolicy": {
+        "jitter": {
+          "x": 2,
+          "y": 2
+        },
+        "scale": {
+          "min": 0.99,
+          "max": 1.03
+        },
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low"
+      },
+      "compositionPolicy": {
+        "layout": "single-tower",
+        "baseAnchor": {
+          "x": 92,
+          "y": 126
+        },
+        "columns": 1,
+        "xStep": 0,
+        "yStep": 0,
+        "rowLift": 8,
+        "layerPattern": [
+          "foreground",
+          "midground",
+          "overlay"
+        ]
+      }
+    },
+    "moduleFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "resolvedModules": [
+      {
+        "id": "anchor-shadow-2",
+        "module": "anchor-shadow",
+        "resolved": {
+          "id": "anchor-shadow",
+          "family": "shared",
+          "footprint": {
+            "width": 26,
+            "depth": 10
+          },
+          "slots": [
+            "grounding"
+          ]
+        },
+        "layer": "midground",
+        "anchor": {
+          "x": 92,
+          "y": 118
+        },
+        "placement": {
+          "x": -4,
+          "y": -5,
+          "scale": 1.005
+        },
+        "variants": {
+          "materialHint": "garagem",
+          "slotHint": "grounding",
+          "profile": "simcity-urban",
+          "family": "residential-tower-modern",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a pele de vidro precisa diferenciar bem da torre simples",
+            "nao pode parecer torre corporativa extrema"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "tower-modern-core-1",
+        "module": "tower-modern-core",
+        "resolved": {
+          "id": "tower-modern-core",
+          "family": "residential-tower-modern",
+          "footprint": {
+            "width": 40,
+            "depth": 18
+          },
+          "slots": [
+            "core"
+          ]
+        },
+        "layer": "foreground",
+        "anchor": {
+          "x": 92,
+          "y": 126
+        },
+        "placement": {
+          "x": 0,
+          "y": 3,
+          "scale": 1
+        },
+        "variants": {
+          "materialHint": "alvenaria",
+          "slotHint": "core",
+          "profile": "simcity-urban",
+          "family": "residential-tower-modern",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a pele de vidro precisa diferenciar bem da torre simples",
+            "nao pode parecer torre corporativa extrema"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "tower-modern-core-3",
+        "module": "tower-modern-core",
+        "resolved": {
+          "id": "tower-modern-core",
+          "family": "residential-tower-modern",
+          "footprint": {
+            "width": 40,
+            "depth": 18
+          },
+          "slots": [
+            "core"
+          ]
+        },
+        "layer": "overlay",
+        "anchor": {
+          "x": 92,
+          "y": 110
+        },
+        "placement": {
+          "x": 2,
+          "y": -13,
+          "scale": 1.015
+        },
+        "variants": {
+          "materialHint": "varanda",
+          "slotHint": "core",
+          "profile": "simcity-urban",
+          "family": "residential-tower-modern",
+          "density": "medium-low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "a pele de vidro precisa diferenciar bem da torre simples",
+            "nao pode parecer torre corporativa extrema"
+          ]
+        },
+        "skipped": false
+      }
+    ],
+    "compositionViewBox": "0 0 192 160",
+    "compositionSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 160\" fill=\"none\"><g id=\"placement-anchor-shadow-2\" transform=\"translate(-4 -5) scale(1.005)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-2\" data-layer=\"midground\"></g><g id=\"placement-tower-modern-core-1\" transform=\"translate(0 3) scale(1)\" data-module-id=\"tower-modern-core\" data-node-id=\"tower-modern-core-1\" data-layer=\"foreground\"><g><polygon points=\"92,64 112,73 92,82 72,73\" fill=\"#c7d2db\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"72,73 92,82 92,138 72,129\" fill=\"#607786\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,64 112,73 112,129 92,120\" fill=\"#6f8999\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"82,72 90,76 90,83 82,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,72 104,76 104,83 96,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,84 90,88 90,95 82,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,84 104,88 104,95 96,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,96 90,100 90,107 82,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,96 104,100 104,107 96,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,108 90,112 90,119 82,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,108 104,112 104,119 96,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"76\" y=\"88\" width=\"32\" height=\"6\" fill=\"#7fe2ff\" rx=\"2\" opacity=\"0.85\"/><rect x=\"86\" y=\"110\" width=\"12\" height=\"10\" fill=\"#d2eef8\" rx=\"1\"/></g><g id=\"placement-tower-modern-core-3\" transform=\"translate(2 -13) scale(1.015)\" data-module-id=\"tower-modern-core\" data-node-id=\"tower-modern-core-3\" data-layer=\"overlay\"><g><polygon points=\"92,64 112,73 92,82 72,73\" fill=\"#c7d2db\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"72,73 92,82 92,138 72,129\" fill=\"#607786\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,64 112,73 112,129 92,120\" fill=\"#6f8999\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"82,72 90,76 90,83 82,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,72 104,76 104,83 96,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,84 90,88 90,95 82,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,84 104,88 104,95 96,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,96 90,100 90,107 82,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,96 104,100 104,107 96,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,108 90,112 90,119 82,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,108 104,112 104,119 96,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"76\" y=\"88\" width=\"32\" height=\"6\" fill=\"#7fe2ff\" rx=\"2\" opacity=\"0.85\"/><rect x=\"86\" y=\"110\" width=\"12\" height=\"10\" fill=\"#d2eef8\" rx=\"1\"/></g></svg>",
+    "skippedModules": [],
+    "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca."
+  },
+  "renderBlueprint": {
+    "stage": "render-svg",
+    "assetType": "residential-tower-modern predio-residencial-moderno-2",
+    "category": "residential",
+    "status": "rendered",
+    "targetViewBox": "0 0 160 160",
+    "sourceViewBox": "0 0 192 160",
+    "fit": {
+      "scale": 0.7292,
+      "translateX": 10,
+      "translateY": 21.67,
+      "padding": 10
+    },
+    "finalSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 160\" fill=\"none\"><g id=\"residential-tower-modern predio-residencial-moderno-2-asset\" data-asset-type=\"residential-tower-modern predio-residencial-moderno-2\" data-category=\"residential\" data-density=\"medium-low\"><g transform=\"translate(10 21.67) scale(0.7292)\" id=\"residential-tower-modern predio-residencial-moderno-2-render-root\"><g id=\"placement-anchor-shadow-2\" transform=\"translate(-4 -5) scale(1.005)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-2\" data-layer=\"midground\"></g><g id=\"placement-tower-modern-core-1\" transform=\"translate(0 3) scale(1)\" data-module-id=\"tower-modern-core\" data-node-id=\"tower-modern-core-1\" data-layer=\"foreground\"><g><polygon points=\"92,64 112,73 92,82 72,73\" fill=\"#c7d2db\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"72,73 92,82 92,138 72,129\" fill=\"#607786\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,64 112,73 112,129 92,120\" fill=\"#6f8999\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"82,72 90,76 90,83 82,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,72 104,76 104,83 96,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,84 90,88 90,95 82,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,84 104,88 104,95 96,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,96 90,100 90,107 82,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,96 104,100 104,107 96,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,108 90,112 90,119 82,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,108 104,112 104,119 96,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"76\" y=\"88\" width=\"32\" height=\"6\" fill=\"#7fe2ff\" rx=\"2\" opacity=\"0.85\"/><rect x=\"86\" y=\"110\" width=\"12\" height=\"10\" fill=\"#d2eef8\" rx=\"1\"/></g><g id=\"placement-tower-modern-core-3\" transform=\"translate(2 -13) scale(1.015)\" data-module-id=\"tower-modern-core\" data-node-id=\"tower-modern-core-3\" data-layer=\"overlay\"><g><polygon points=\"92,64 112,73 92,82 72,73\" fill=\"#c7d2db\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"72,73 92,82 92,138 72,129\" fill=\"#607786\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,64 112,73 112,129 92,120\" fill=\"#6f8999\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"82,72 90,76 90,83 82,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,72 104,76 104,83 96,79\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,84 90,88 90,95 82,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,84 104,88 104,95 96,91\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,96 90,100 90,107 82,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,96 104,100 104,107 96,103\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"82,108 90,112 90,119 82,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"96,108 104,112 104,119 96,115\" fill=\"#96d0ea\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"76\" y=\"88\" width=\"32\" height=\"6\" fill=\"#7fe2ff\" rx=\"2\" opacity=\"0.85\"/><rect x=\"86\" y=\"110\" width=\"12\" height=\"10\" fill=\"#d2eef8\" rx=\"1\"/></g></g></g></svg>",
+    "note": "Etapa 5 concluida: o renderer final agora materializa um SVG final a partir da composicao modular.",
+    "compositionSummary": {
+      "nodeCount": 3,
+      "resolvedModules": 3,
+      "skippedModules": 0
+    }
+  },
+  "previewBlueprint": {
+    "stage": "render-preview",
+    "assetType": "residential-tower-modern predio-residencial-moderno-2",
+    "category": "residential",
+    "status": "pending-stage-6",
+    "ok": false,
+    "message": "Preview PNG agora e gerado apenas na Etapa 6, a partir do SVG final."
+  }
+}

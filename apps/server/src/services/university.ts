@@ -1,6 +1,7 @@
 import {
   UNIVERSITY_COURSE_DEFINITIONS,
   UNIVERSITY_EMPTY_PASSIVE_PROFILE,
+  type UniversityPerkStatus,
   type UniversityCenterResponse,
   type UniversityCourseCode,
   type UniversityCourseDefinitionSummary,
@@ -8,6 +9,9 @@ import {
   type UniversityEnrollInput,
   type UniversityEnrollResponse,
   type UniversityPassiveProfile,
+  type UniversityVocationPerkSummary,
+  type UniversityVocationProgressionSummary,
+  type VocationType,
 } from '@cs-rio/shared';
 import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
 
@@ -438,14 +442,21 @@ export class UniversityService implements UniversityServiceContract {
         trainingGate,
       }),
     );
+    const passiveProfile = buildUniversityPassiveProfile(completedCourseCodes);
+    const progression = buildUniversityVocationProgressionSummary({
+      courses,
+      passiveProfile,
+      vocation: player.vocation as VocationType,
+    });
 
     return {
       activeCourse: courses.find((entry) => entry.isInProgress) ?? null,
       completedCourseCodes,
       courses,
       npcInflation: buildNpcInflationSummary(inflationProfile),
-      passiveProfile: buildUniversityPassiveProfile(completedCourseCodes),
+      passiveProfile,
       player: toPlayerSummary(player),
+      progression,
     };
   }
 
@@ -613,6 +624,46 @@ function buildUniversityCourseSummary(input: {
   };
 }
 
+function buildUniversityVocationProgressionSummary(input: {
+  courses: UniversityCourseSummary[];
+  passiveProfile: UniversityPassiveProfile;
+  vocation: VocationType;
+}): UniversityVocationProgressionSummary {
+  const perks: UniversityVocationPerkSummary[] = input.courses.map((course, index) => ({
+    ...course,
+    isMasteryPerk: course.prerequisiteCourseCodes.length > 0,
+    perkSlot: index + 1,
+    status: resolveUniversityPerkStatus(course),
+  }));
+  const completedPerks = perks.filter((perk) => perk.status === 'completed').length;
+  const currentPerk = perks.find((perk) => perk.status === 'in_progress') ?? null;
+  const nextPerk =
+    currentPerk ??
+    perks.find((perk) => perk.status === 'available') ??
+    perks.find((perk) => perk.status === 'locked') ??
+    null;
+  const masteryUnlocked = perks.some((perk) => perk.isMasteryPerk && perk.status === 'completed');
+  const totalPerks = Math.max(perks.length, 1);
+
+  return {
+    completedPerks,
+    completionRatio: roundPassive(completedPerks / totalPerks),
+    currentPerkCode: currentPerk?.code ?? null,
+    masteryUnlocked,
+    nextPerk,
+    passiveProfile: input.passiveProfile,
+    perks,
+    stage: resolveUniversityVocationProgressionStage({
+      completedPerks,
+      currentPerk,
+      masteryUnlocked,
+    }),
+    totalPerks: perks.length,
+    trackLabel: resolveUniversityVocationTrackLabel(input.vocation),
+    vocation: input.vocation,
+  };
+}
+
 function createEmptyUniversityPassiveProfile(): UniversityPassiveProfile {
   return {
     business: {
@@ -743,4 +794,53 @@ function roundMoney(value: number): number {
 
 function roundPassive(value: number): number {
   return Number.parseFloat(value.toFixed(4));
+}
+
+function resolveUniversityPerkStatus(course: UniversityCourseSummary): UniversityPerkStatus {
+  if (course.isCompleted) {
+    return 'completed';
+  }
+
+  if (course.isInProgress) {
+    return 'in_progress';
+  }
+
+  if (course.isUnlocked && !course.lockReason) {
+    return 'available';
+  }
+
+  return 'locked';
+}
+
+function resolveUniversityVocationProgressionStage(input: {
+  completedPerks: number;
+  currentPerk: UniversityVocationPerkSummary | null;
+  masteryUnlocked: boolean;
+}): UniversityVocationProgressionSummary['stage'] {
+  if (input.masteryUnlocked) {
+    return 'mastered';
+  }
+
+  if (input.completedPerks > 0 || input.currentPerk) {
+    return 'developing';
+  }
+
+  return 'starting';
+}
+
+function resolveUniversityVocationTrackLabel(vocation: VocationType): string {
+  switch (vocation) {
+    case 'cria':
+      return 'Trilha de Rua';
+    case 'gerente':
+      return 'Trilha Operacional';
+    case 'soldado':
+      return 'Trilha de Guerra';
+    case 'politico':
+      return 'Trilha de Influencia';
+    case 'empreendedor':
+      return 'Trilha de Negocios';
+    default:
+      return 'Trilha de Vocacao';
+  }
 }

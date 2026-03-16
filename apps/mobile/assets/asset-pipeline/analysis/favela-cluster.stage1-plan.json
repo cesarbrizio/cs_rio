@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "stage": "stage-1-scaffold",
+  "status": "ready-for-stage-2",
+  "assetType": "favela-cluster",
+  "styleGuide": "dense-favela",
+  "keepIntermediate": false,
+  "referenceFiles": [
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/favela/Favela_1.jpg"
+  ],
+  "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/favela-cluster.svg",
+  "generatedAt": "2026-03-15T17:19:20.853Z",
+  "missingReferences": [],
+  "nextStages": [
+    "analyze-reference",
+    "compose-isometric-scene",
+    "vectorize-with-inkscape",
+    "optimize-svg",
+    "validate-svg"
+  ],
+  "notes": [
+    "A Etapa 1 cria apenas a infraestrutura do pipeline.",
+    "Nenhum SVG final e gerado nesta fase.",
+    "O plano intermediario fica salvo em analysis/ para servir de ponto de partida das proximas etapas."
+  ]
+}

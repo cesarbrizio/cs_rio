@@ -68,9 +68,9 @@ describe('contracts helpers', () => {
         moneyBefore: 8000,
         moneyDelta: 4000,
         nickname: 'Executor',
-        staminaAfter: 38,
-        staminaBefore: 60,
-        staminaDelta: -22,
+        cansacoAfter: 38,
+        cansacoBefore: 60,
+        cansacoDelta: -22,
       },
       contract: {
         acceptedAt: '2026-03-11T12:00:00.000Z',

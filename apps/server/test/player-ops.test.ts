@@ -121,9 +121,9 @@ describe('PlayerOpsService', () => {
     expect(result.player.money).toBe(500_000);
     expect(result.player.bankMoney).toBe(250_000);
     expect(result.player.hp).toBe(100);
-    expect(result.player.stamina).toBe(100);
-    expect(result.player.nerve).toBe(100);
-    expect(result.player.morale).toBe(100);
+    expect(result.player.cansaco).toBe(100);
+    expect(result.player.disposicao).toBe(100);
+    expect(result.player.brisa).toBe(100);
     expect(result.player.addiction).toBe(0);
     expect(result.player.level).toBe(5);
     expect(result.player.conceito).toBeGreaterThanOrEqual(1_500);

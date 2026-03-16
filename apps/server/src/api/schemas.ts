@@ -11,6 +11,7 @@ import {
   DEFAULT_TOKEN_MAX_LENGTH,
   MARKET_AUCTION_MAX_DURATION_MINUTES,
   MARKET_AUCTION_MIN_DURATION_MINUTES,
+  PRIVATE_MESSAGE_MAX_LENGTH,
   NON_EMPTY_TOKEN_PATTERN,
   RAVE_MAX_PRICE_MULTIPLIER,
   RAVE_MIN_PRICE_MULTIPLIER,
@@ -65,6 +66,7 @@ const INVENTORY_ITEM_TYPE_VALUES = [
 const MARKET_AUCTION_ITEM_TYPE_VALUES = ['weapon', 'vest'] as const;
 const MARKET_ORDER_SIDE_VALUES = ['buy', 'sell'] as const;
 const BICHO_BET_MODE_VALUES = ['cabeca', 'grupo', 'dezena'] as const;
+const CONTACT_TYPE_VALUES = ['partner', 'known'] as const;
 const DRUG_SALE_CHANNEL_VALUES = ['street', 'boca', 'rave', 'docks'] as const;
 const PROPERTY_TYPE_VALUES = [
   'boca',
@@ -173,6 +175,7 @@ export const passwordSchema = {
 
 export const regionIdSchema = enumSchema(Object.values(RegionId));
 export const vocationSchema = enumSchema(Object.values(VocationType));
+export const playerContactTypeSchema = enumSchema(CONTACT_TYPE_VALUES);
 export const inventoryItemTypeSchema = enumSchema(INVENTORY_ITEM_TYPE_VALUES);
 export const marketAuctionItemTypeSchema = enumSchema(MARKET_AUCTION_ITEM_TYPE_VALUES);
 export const marketOrderSideSchema = enumSchema(MARKET_ORDER_SIDE_VALUES);
@@ -259,6 +262,15 @@ export const playerTravelBodySchema = {
   required: ['regionId'],
   properties: {
     regionId: regionIdSchema,
+  },
+} satisfies JsonSchema;
+
+export const playerVocationChangeBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['vocation'],
+  properties: {
+    vocation: vocationSchema,
   },
 } satisfies JsonSchema;
 
@@ -472,6 +484,52 @@ export const playerBankMovementBodySchema = {
   },
 } satisfies JsonSchema;
 
+export const playerPublicProfileParamsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['nickname'],
+  properties: {
+    nickname: nicknameSchema,
+  },
+} satisfies JsonSchema;
+
+export const playerContactCreateBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['nickname', 'type'],
+  properties: {
+    nickname: nicknameSchema,
+    type: playerContactTypeSchema,
+  },
+} satisfies JsonSchema;
+
+export const playerContactParamsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['contactId'],
+  properties: {
+    contactId: idSchema,
+  },
+} satisfies JsonSchema;
+
+export const privateMessageParamsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['contactId'],
+  properties: {
+    contactId: idSchema,
+  },
+} satisfies JsonSchema;
+
+export const privateMessageSendBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['message'],
+  properties: {
+    message: freeformStringSchema(PRIVATE_MESSAGE_MAX_LENGTH),
+  },
+} satisfies JsonSchema;
+
 export const inventoryGrantBodySchema = {
   type: 'object',
   additionalProperties: false,
@@ -589,6 +647,8 @@ export const propertyHireSoldiersBodySchema = {
     type: soldierTypeSchema,
   },
 } satisfies JsonSchema;
+
+export const propertySabotageParamsSchema = buildIdParamsSchema('propertyId');
 
 export const bocaStockBodySchema = {
   type: 'object',

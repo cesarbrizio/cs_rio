@@ -43,6 +43,7 @@ import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './fac
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
+  buildPropertySabotageStatusSummary,
   resolvePropertyDailyUpkeep,
   roundCurrency,
 } from './property.js';
@@ -112,6 +113,9 @@ interface PuteiroSnapshotRecord {
   operationCostMultiplier: number;
   policePressure: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: PuteiroSoldierRosterRecord[];
   suspended: boolean;
   totalDeaths: number;
@@ -630,6 +634,9 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
         operationCostMultiplier: regions.operationCostMultiplier,
         policePressure: regions.policePressure,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         suspended: properties.suspended,
         totalDeaths: puteiroOperations.totalDeaths,
         totalDstIncidents: puteiroOperations.totalDstIncidents,
@@ -717,6 +724,9 @@ export class DatabasePuteiroRepository implements PuteiroRepository {
       operationCostMultiplier: roundCurrency(Number.parseFloat(String(row.operationCostMultiplier))),
       policePressure: row.policePressure,
       regionId: row.regionId as RegionId,
+      sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: row.sabotageResolvedAt,
+      sabotageState: row.sabotageState,
       soldierRoster: soldiersByPropertyId.get(row.id)
         ? [soldiersByPropertyId.get(row.id) as PuteiroSoldierRosterRecord]
         : [],
@@ -983,6 +993,13 @@ export class PuteiroService implements PuteiroServiceContract {
       suspended: maintenanceStatus.blocked,
       workers: puteiro.workers.map((worker) => ({ ...worker })),
     };
+    const sabotageStatus = buildPropertySabotageStatusSummary({
+      now: this.now(),
+      sabotageRecoveryReadyAt: propertyAfterMaintenance.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: propertyAfterMaintenance.sabotageResolvedAt,
+      sabotageState: propertyAfterMaintenance.sabotageState,
+      type: 'puteiro',
+    });
     const cycleMs = PUTEIRO_OPERATION_CYCLE_MINUTES * 60 * 1000;
     const elapsedCycles = Math.floor(
       Math.max(0, this.now().getTime() - propertyAfterMaintenance.lastRevenueAt.getTime()) / cycleMs,
@@ -1005,7 +1022,7 @@ export class PuteiroService implements PuteiroServiceContract {
     const nextWorkers = propertyAfterMaintenance.workers.map((worker) => ({ ...worker }));
     let workersRecovered = normalizeWorkerDstRecovery(nextWorkers, this.now());
 
-    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended) {
+    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended && !sabotageStatus.blocked) {
       for (let cycleIndex = 0; cycleIndex < elapsedCycles; cycleIndex += 1) {
         const cycleTime = new Date(
           propertyAfterMaintenance.lastRevenueAt.getTime() + (cycleIndex + 1) * cycleMs,
@@ -1069,7 +1086,8 @@ export class PuteiroService implements PuteiroServiceContract {
             }
           }
 
-          const grossRevenue = buildGpGrossRevenuePerCycle(
+          const grossRevenue = roundCurrency(
+            buildGpGrossRevenuePerCycle(
             propertyAfterMaintenance,
             worker,
             player,
@@ -1077,6 +1095,7 @@ export class PuteiroService implements PuteiroServiceContract {
             passiveProfile,
             regionalDominationBonus,
             eventProfile,
+          ) * sabotageStatus.operationalMultiplier,
           );
 
           if (grossRevenue <= 0) {
@@ -1416,6 +1435,13 @@ function serializePuteiroSummary(
 ): PuteiroSummary {
   const propertyDefinition = resolveEconomyPropertyDefinition(configCatalog, 'puteiro');
   const eventProfile = resolvePropertyEventProfile(configCatalog, 'puteiro');
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: puteiro.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: puteiro.sabotageResolvedAt,
+    sabotageState: puteiro.sabotageState,
+    type: 'puteiro',
+  });
   const locationMultiplier = buildPuteiroLocationMultiplier(puteiro);
   const charismaMultiplier = buildPuteiroCharismaMultiplier(player, puteiro);
   const roster = [...puteiro.workers]
@@ -1481,14 +1507,15 @@ function serializePuteiroSummary(
         label: template.label,
         lastIncidentAt: worker.lastIncidentAt ? worker.lastIncidentAt.toISOString() : null,
         purchasePrice: template.purchasePrice,
-        staminaRestorePercent: template.staminaRestorePercent,
+        cansacoRestorePercent: template.cansacoRestorePercent,
         status: worker.status,
         type: worker.type,
       };
     });
   const activeWorkers = roster.filter((worker) => worker.status === 'active');
   const estimatedHourlyGrossRevenue = roundCurrency(
-    activeWorkers.reduce((total, worker) => total + worker.hourlyGrossRevenueEstimate, 0),
+    activeWorkers.reduce((total, worker) => total + worker.hourlyGrossRevenueEstimate, 0) *
+      sabotageStatus.operationalMultiplier,
   );
   const projectedDailyGrossRevenue = roundCurrency(estimatedHourlyGrossRevenue * 24);
   const dailyUpkeep = resolvePropertyDailyUpkeep(
@@ -1538,8 +1565,11 @@ function serializePuteiroSummary(
     },
     regionId: puteiro.regionId,
     roster,
-    status: maintenanceStatus.blocked
-      ? 'maintenance_blocked'
+    sabotageStatus,
+    status: sabotageStatus.blocked
+      ? 'sabotage_blocked'
+      : maintenanceStatus.blocked
+        ? 'maintenance_blocked'
       : activeWorkers.length > 0
         ? 'active'
         : 'no_gps',

@@ -3,7 +3,7 @@
 > Jogo de RPG criminal multiplayer ambientado no Rio de Janeiro, com visual isométrico 2D.
 > Inspirado em The Crims, adaptado para a realidade carioca.
 > Última atualização operacional: **2026-03-15**.
-> Este documento combina intenção de design com estado real aprovado do Pré-Alpha. Quando houver divergência, prevalece o estado já consolidado no produto, em [MAPA.md](./MAPA.md), [TODO.md](./TODO.md), [CHEATS.md](./CHEATS.md) e [HARDENING.md](./HARDENING.md).
+> Este documento combina intenção de design com estado real aprovado do Pré-Alpha. Quando houver divergência, prevalece o estado já consolidado no produto, em [PRODUCT_STATUS.md](./PRODUCT_STATUS.md), [MAPA.md](./MAPA.md), [TODO.md](./TODO.md), [CHEATS.md](./CHEATS.md) e [HARDENING.md](./HARDENING.md).
 
 ---
 
@@ -42,15 +42,15 @@ No **Pré-Alpha atual**, a leitura espacial foi simplificada para favorecer clar
 
 CS Rio **não é um jogo de ação direta** — é um **jogo estratégico de otimização de recursos em tempo real**. O jogador precisa gerenciar simultaneamente:
 
-- **Estamina** — recurso principal para ações
-- **Nervos** — limita crimes arriscados
+- **Cansaço** — recurso principal para ações
+- **Disposição** — limita crimes arriscados
 - **Vida** — sobrevivência em combate
 - **Vício** — efeito colateral do uso de drogas
 - **Dinheiro** — moeda para tudo
 - **Conceito** — ranking e progressão
-- **Tempo** — tudo regenera/decai com o tempo; nunca deixar estamina cheia parada
+- **Tempo** — tudo regenera/decai com o tempo; nunca deixar o Cansaço cheio parado
 
-Jogadores experientes tratam o jogo como uma **planilha de otimização**: calculam risco/recompensa de cada crime, dosam uso de drogas para maximizar estamina sem overdose, escolhem horários estratégicos para atacar e investem em negócios com melhor retorno.
+Jogadores experientes tratam o jogo como uma **planilha de otimização**: calculam risco/recompensa de cada crime, dosam uso de drogas para maximizar cansaço sem overdose, escolhem horários estratégicos para atacar e investem em negócios com melhor retorno.
 
 ### 1.4 Pilares de Propriedade, Faccao e Territorio
 
@@ -59,7 +59,7 @@ Algumas regras estruturais do jogo orientam toda a economia e a politica do mapa
 - **Toda propriedade pertence ao jogador.** A faccao nunca vira dona direta do ativo.
 - **Faccao funciona como camada de protecao e arrecadacao.** Se o jogador fizer parte de uma faccao, seus negocios lucrativos operam sob protecao dela e repassam comissao fixa para o caixa faccional.
 - **Patrimonio e negocio sao categorias diferentes.**
-  - Patrimonio: casa, carro, barco, iate, joias, obra de arte, helicoptero, aviao, luxo em geral. Nao gera renda direta, mas gera prestigio, conforto, logistica e despesas.
+  - Patrimonio: casa, carro, barco, iate, joias, obra de arte, helicoptero, aviao, luxo em geral. Nao gera renda direta, mas entrega conforto, logistica, mobilidade, capacidade e despesas.
   - Negocio: boca, rave, fabrica, puteiro, loja de fachada, maquininha e outros ativos operacionais. Gera receita, mas tambem custo, risco e comissao faccional.
 - **Troca de faccao nao transfere posse.** Os ativos continuam com o jogador, mas passam a obedecer a nova camada de protecao/comissao apos um periodo de transicao.
 - **Dominio territorial fortalece, nao blinda.** Controlar todas as favelas de uma regiao reduz risco de invasao, roubo e tomada, melhora protecao e eficiencia, mas nunca torna um ativo invulneravel.
@@ -120,9 +120,10 @@ Ao criar o personagem, o jogador escolhe uma **vocação** que define seus bônu
 | **Político** | Carisma | Inteligência | Negociação com PM, influência social, cafetinagem, lavagem |
 | **Empreendedor** | Inteligência | Carisma | Negócios ilícitos, lavagem de dinheiro, investimentos |
 
-- O jogador pode trocar de vocação a qualquer momento mediante pagamento (dinheiro do jogo ou créditos premium)
-- Troca de vocação leva 2 dias de jogo para ser efetivada (período de transição)
-- Cada vocação possui uma **árvore de habilidades** exclusiva desbloqueada por nível
+- No pre-alpha atual, a vocação continua funcionando como escolha inicial de build na criação do personagem
+- O app agora já expõe uma `Central de Vocação` com leitura da build ativa, troca paga em créditos premium e cooldown global de `24h`
+- A **progressão exclusiva por vocação** já existe na `Universidade do Crime`, com trilha própria de perks por vocação e efeitos permanentes de gameplay
+- A `Central de Vocação` e a `Universidade do Crime` agora se complementam: uma cuida da build/troca, a outra da trilha exclusiva, perks e impacto permanente
 
 ### 2.2 Atributos Base
 
@@ -132,7 +133,7 @@ Quatro atributos core determinam todas as capacidades do personagem:
 |---|---|
 | **Força** | Dano em combate, sucesso em roubos físicos, capacidade de carga de armas pesadas |
 | **Inteligência** | Produção em fábricas, planejamento de golpes, sucesso em crimes complexos, eficiência de treino |
-| **Resistência** | Vida máxima (HP), absorção de dano, capacidade de gestão de propriedades, recuperação de estamina passiva |
+| **Resistência** | Vida máxima (HP), absorção de dano, capacidade de gestão de propriedades, recuperação de cansaço passiva |
 | **Carisma** | Lucro com GPs, recrutamento, negociação com PM, desconto em compras, influência em julgamentos |
 
 **Distribuição inicial por vocação:**
@@ -166,7 +167,7 @@ Atributos aumentam através de:
 
 ### 3.1 Conceito (Respeito)
 
-**Conceito** é a moeda de prestígio do jogo. É o que define o ranking do jogador e determina o vencedor da rodada.
+**Conceito** é a métrica central de status e progressão do jogo. É o que define o ranking do jogador e determina o vencedor da rodada.
 
 **Ganha-se Conceito ao:**
 - Completar crimes com sucesso
@@ -205,15 +206,15 @@ Atributos aumentam através de:
 | 9 | **Líder da Facção** | 150.000 | Guerras de facção, negociação de propina com PM, Tribunal do Tráfico |
 | 10 | **Prefeito** | 500.000 | Todas as mecânicas, status lendário, bônus passivos exclusivos |
 
-### 3.3 Estamina (Disposição)
+### 3.3 Cansaço
 
-A estamina é o **recurso principal** do jogo. Determina a capacidade de executar qualquer atividade. Vai de 0% a 100%.
+O **Cansaço** é o recurso principal do jogo. Determina a capacidade de executar qualquer atividade. Vai de `0%` a `100%`.
 
-**Regra de ouro:** estamina cheia parada é estamina desperdiçada. Jogadores otimizados nunca ficam em 100% por muito tempo.
+**Regra de ouro:** Cansaço cheio parado é Cansaço desperdiçado. Jogadores otimizados nunca ficam em `100%` por muito tempo.
 
 **Consumo por atividade:**
 
-| Atividade | Custo de Estamina |
+| Atividade | Custo de Cansaço |
 |---|---|
 | Crimes solo (fáceis) | 5–15% |
 | Crimes solo (médios) | 15–30% |
@@ -226,9 +227,9 @@ A estamina é o **recurso principal** do jogo. Determina a capacidade de executa
 | Visitar GP | 10% |
 
 **Recuperação passiva:**
-A velocidade de recuperação depende do **embalo** (estado temporário de intoxicação/ânimo do jogador). Quanto mais "chapado", mais rápido recupera — mas isso exige uso de drogas, que aumenta o vício.
+A velocidade de recuperação depende da **Brisa** (estado temporário de intoxicação/ânimo do jogador). Quanto mais "chapado", mais rápido recupera — mas isso exige uso de drogas, que aumenta o vício.
 
-**Estados de Embalo (afetam velocidade de recuperação):**
+**Estados de Brisa (afetam velocidade de recuperação):**
 
 | Estado | Recuperação Passiva | Como Atingir |
 |---|---|---|
@@ -239,29 +240,29 @@ A velocidade de recuperação depende do **embalo** (estado temporário de intox
 | Destruído | 1% a cada 2 min | 8+ doses (risco de overdose) |
 
 **Terminologia:**
-- `embalo` é um estado do **jogador**
+- `brisa` é um estado do **jogador**
 - `satisfação dos moradores` é um estado da **favela**
 - `satisfação interna da facção` é um estado da **facção**
 
 **Outras formas de recuperação:**
 - Drogas consumidas em raves/bailes (recuperação instantânea, mas aumenta tolerância e vício)
-- GPs: recuperam estamina + embalo (10-20% instantâneo)
+- GPs: recuperam cansaço + brisa (10-20% instantâneo)
 - Descanso em casa própria: bônus de +50% na recuperação passiva
 - Itens especiais (Tadalafila, etc.)
 
-### 3.4 Nervos (Nerve)
+### 3.4 Disposição
 
-Os nervos são um **recurso secundário** que limita crimes mais arriscados. Vai de 0 a 100.
+A **Disposição** é um recurso secundário que limita crimes mais arriscados. Vai de `0` a `100`.
 
-- Cada crime arriscado consome nervos (crimes fáceis não consomem)
-- Nervos regeneram lentamente com o tempo (1 ponto a cada 5 min reais)
-- Drogas estimulantes (Cocaína, Crack, Bala) restauram nervos parcialmente
-- Se nervos = 0: só pode cometer crimes básicos (nível 1-2)
-- Servem como **limitador natural** para evitar que jogadores farmen crimes pesados infinitamente
+- Cada crime arriscado consome disposição (crimes fáceis não consomem)
+- A Disposição regenera lentamente com o tempo (1 ponto a cada 5 min reais)
+- Drogas estimulantes (Cocaína, Crack, Bala) restauram disposição parcialmente
+- Se disposição = 0: só pode cometer crimes básicos (nível 1-2)
+- Serve como **limitador natural** para evitar que jogadores farmem crimes pesados infinitamente
 
-**Consumo de nervos por tipo de crime:**
+**Consumo de disposição por tipo de crime:**
 
-| Crime | Nervos Consumidos |
+| Crime | Disposição Consumida |
 |---|---|
 | Crimes de rua (nível 1-2) | 0 |
 | Assaltos armados (nível 3-4) | 5-15 |
@@ -292,7 +293,7 @@ O vício é uma **mecânica de risco/recompensa** central no jogo.
 | 41-60% | -10% em atributos, eficiência de drogas reduzida em 25% |
 | 61-80% | -20% em atributos, eficiência de drogas reduzida em 50%, tremores (chance de falhar ações) |
 | 81-99% | -30% em atributos, eficiência de drogas reduzida em 75%, risco de overdose espontânea |
-| 100% | **Overdose automática** — hospitalização, perda de conceito, reset de embalo |
+| 100% | **Overdose automática** — hospitalização, perda de conceito, reset de brisa |
 
 **Desintoxicação:**
 - Feita no Hospital
@@ -319,7 +320,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Furtar turista na praia
 - Arrastão no ônibus
 - Roubar loja de conveniência
-- *(Sem consumo de nervos, só estamina)*
+- *(Sem consumo de disposição, só cansaço)*
 
 **Nível 2 — Aviãozinho:**
 - Assaltar pedestre armado
@@ -327,7 +328,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Furtar carga de van de entrega
 - Golpe do falso delivery
 - Roubar celular no sinal (janela de carro)
-- *(Sem consumo de nervos, só estamina)*
+- *(Sem consumo de disposição, só cansaço)*
 
 **Nível 3 — Fogueteiro:**
 - Assaltar posto de gasolina
@@ -335,7 +336,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Sequestro relâmpago
 - Assalto a ônibus (todos os passageiros)
 - Roubo de moto na pista
-- *(Consome 5-10 nervos)*
+- *(Consome 5-10 disposição)*
 
 **Nível 4 — Vapor:**
 - Roubar joalheria
@@ -343,7 +344,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Roubar carga de caminhão (cigarros, bebidas)
 - Sequestro com resgate
 - Golpe do seguro (carro)
-- *(Consome 10-15 nervos)*
+- *(Consome 10-15 disposição)*
 
 **Nível 5 — Soldado:**
 - Assalto a banco (agência de bairro)
@@ -351,7 +352,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Assalto a shopping
 - Roubo de carga pesada (eletrônicos)
 - Invasão de condomínio
-- *(Consome 15-20 nervos)*
+- *(Consome 15-20 disposição)*
 
 **Nível 6 — Gerente de Boca:**
 - Golpe financeiro (pirâmide)
@@ -359,7 +360,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Assalto ao Aeroporto Tom Jobim / Galeão
 - Sequestro de empresário (alto valor)
 - Roubo de obra de arte
-- *(Consome 20-25 nervos)*
+- *(Consome 20-25 disposição)*
 
 **Nível 7 — Frente:**
 - Roubo ao Porto do Rio
@@ -367,28 +368,28 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 - Golpe na Bolsa de Valores
 - Roubo ao Maracanã (dia de jogo)
 - Interceptação de avião de carga
-- *(Consome 30-40 nervos)*
+- *(Consome 30-40 disposição)*
 
 **Nível 8 — Dono da Boca:**
 - Mega-assalto ao Banco Central
 - Roubo de ouro do Aeroporto
 - Sequestro de político
 - Assalto ao BNDES
-- *(Consome 40-50 nervos)*
+- *(Consome 40-50 disposição)*
 
 **Nível 9 — Líder da Facção:**
 - Golpe bilionário coordenado
 - Roubo ao Tesouro Nacional
 - Sequestro de embaixador
-- *(Consome 50 nervos, requer planejamento prévio de 1 dia de jogo)*
+- *(Consome 50 disposição, requer planejamento prévio de 1 dia de jogo)*
 
 **Nível 10 — Prefeito:**
 - O Grande Golpe (crime lendário, 1x por rodada)
-- *(Consome 50 nervos + 50% estamina, recompensa colossal)*
+- *(Consome 50 disposição + 50% cansaço, recompensa colossal)*
 
 **Cada crime tem:**
-- Custo de estamina
-- Custo de nervos (a partir do nível 3)
+- Custo de cansaço
+- Custo de disposição (a partir do nível 3)
 - Probabilidade de sucesso (baseada em atributos + equipamento)
 - Recompensa (dinheiro + conceito + chance de itens/componentes)
 - Risco de prisão em caso de falha
@@ -397,7 +398,7 @@ Crimes individuais disponíveis conforme o nível do jogador. Quanto mais abaixo
 
 ### 4.2 Crimes de Facção (Coletivos)
 
-Requerem pertencer a uma facção e estar no nível 5+. Todos os membros online participam. Custo fixo de 30% de estamina + 20 nervos por membro.
+Requerem pertencer a uma facção e estar no nível 5+. Todos os membros online participam. Custo fixo de 30% de cansaço + 20 disposição por membro.
 
 **Crimes de facção disponíveis:**
 - Roubo a banco central (mínimo 3 membros)
@@ -429,8 +430,8 @@ Cada crime tem um **poder mínimo** requerido. A probabilidade de sucesso é:
 O jogador vê a **porcentagem estimada** antes de escolher o crime (como no The Crims).
 
 **Falha pode resultar em:**
-- Perda de estamina (sempre, mesmo em falha)
-- Perda de nervos (sempre, se o crime consome nervos)
+- Perda de cansaço (sempre, mesmo em falha)
+- Perda de disposição (sempre, se o crime consome disposição)
 - Perda de dinheiro (parcial)
 - Prisão (probabilidade varia)
 - Hospitalização (crimes violentos)
@@ -441,7 +442,7 @@ O jogador vê a **porcentagem estimada** antes de escolher o crime (como no The 
 
 Roubos formam uma familia propria de atividade criminosa. Eles podem ser executados de duas formas:
 
-- **Pelo jogador**, consumindo estamina/nervos e colocando o proprio personagem em risco.
+- **Pelo jogador**, consumindo cansaço/disposição e colocando o proprio personagem em risco.
 - **Pelos bandidos da favela**, usando o efetivo criminal local da faccao em vez do corpo do jogador.
 
 Todo roubo gera cinco resultados-base:
@@ -466,7 +467,7 @@ Todo roubo gera cinco resultados-base:
 **Regras estruturais:**
 
 - Roubo executado pelo **jogador** pode prender, hospitalizar ou matar o proprio personagem, conforme o tipo de roubo e o nivel de calor acumulado.
-- Roubo executado por **bandidos da favela** nao consome estamina do jogador, mas consome disponibilidade do efetivo da favela e aumenta o calor policial territorial.
+- Roubo executado por **bandidos da favela** nao consome cansaço do jogador, mas consome disponibilidade do efetivo da favela e aumenta o calor policial territorial.
 - O dinheiro liquido do roubo vai para o executor ou caixa operacional da favela; o **repasse da faccao** entra automaticamente no banco faccional.
 - Roubo repetido na mesma regiao aumenta o risco acumulado de resposta policial.
 
@@ -688,7 +689,6 @@ O Mercado Negro é o hub central de comércio do jogo. Localizado em cada regiã
 |---|---|---|---|
 | **Tadalafila** | +20% em todos os atributos por 1 dia de jogo | Mercado Negro, drop de crimes | Esteróides |
 | **Viagra** | Recuperação rápida de vida (cura 50% HP instantaneamente) | Hospital, Mercado Negro | Rápida recuperação |
-| **Camisinha** | Previne DSTs ao usar serviços de GP (1 uso) | Mercado Negro, lojas | Preservativos |
 | **Transfusão de Sangue** | Recupera 100% HP instantaneamente | Hospital | Transfusão de sangue |
 | **Meia Transfusão** | Recupera 50% HP instantaneamente | Hospital, Mercado Negro | Meia transfusão |
 
@@ -745,9 +745,9 @@ Disponível a partir do nível 6 (Gerente de Boca).
 
 ### 7.1 Tipos de Drogas
 
-Drogas são consumidas em raves/bailes para recuperar estamina e elevar o embalo. Também podem ser produzidas em fábricas e vendidas para lucro. São a **espinha dorsal da economia** do jogo.
+Drogas são consumidas em raves/bailes para recuperar cansaço e elevar o brisa. Também podem ser produzidas em fábricas e vendidas para lucro. São a **espinha dorsal da economia** do jogo.
 
-| Droga | Recuperação de Estamina | Aumento de Moral | Preço Base | Nível para Produzir | Bônus de Nervos |
+| Droga | Recuperação de Cansaço | Aumento de Brisa | Preço Base | Nível para Produzir | Bônus de Disposição |
 |---|---|---|---|---|---|
 | **Maconha** | 1% | +1 nível | $50 | 2 | 0 |
 | **Lança** (lança-perfume) | 2% | +1 nível | $150 | 3 | +2 |
@@ -774,7 +774,7 @@ Drogas são consumidas em raves/bailes para recuperar estamina e elevar o embalo
 - Cada uso de droga aumenta a **tolerância específica** àquela droga
 - Com alta tolerância, a eficiência cai (até 1/45 do normal no máximo)
 - **Overdose** acontece se:
-  - Estamina ultrapassar 100% por efeito de droga
+  - Cansaço ultrapassar 100% por efeito de droga
   - Vício chegar a 100%
   - Usar 3+ tipos de droga diferentes em menos de 1 hora de jogo
 - **Efeitos da overdose:**
@@ -782,7 +782,7 @@ Drogas são consumidas em raves/bailes para recuperar estamina e elevar o embalo
   - Perda de todos os contatos do tipo "conhecidos"
   - Perda de 5% do conceito
   - Vício resetado para 50%
-  - Moral vai para Sóbrio
+  - Brisa vai para Sóbrio
 
 ### 7.3 Fábricas de Drogas
 
@@ -806,7 +806,7 @@ Produção = Base da Droga × (1 + Inteligência/1000) × Bônus de Impulso × B
 
 | Canal | Taxa do Canal | Volume | Observação |
 |---|---|---|---|
-| Tráfico direto (rua) | 5% | Baixo | Rápido, estamina 5% |
+| Tráfico direto (rua) | 5% | Baixo | Rápido, cansaço 5% |
 | Boca de fumo própria | 0% | Médio | Venda automática a NPCs e jogadores |
 | Rave/Baile próprio | 0% | Alto | Jogadores consomem no local |
 | Mercado Negro | 5% | Variável | Preço definido por oferta/demanda |
@@ -835,7 +835,8 @@ Todo ativo comprado no jogo pertence ao jogador. A faccao nunca adquire a propri
 
 **Regras estruturais:**
 - Negocios lucrativos repassam comissao fixa para a faccao do dono.
-- Patrimonio pessoal nao gera retorno economico direto; entrega prestigio, conforto, stash, deslocamento, acesso a canais especiais e protecao.
+- `Jogo do Bicho` nao entra nessa camada de comissao, porque e tratado como mini-game manual de aposta, nao como ativo operacional do jogador.
+- Patrimonio pessoal nao gera retorno economico direto; entrega conforto, stash, deslocamento, acesso a canais especiais e protecao.
 - Se o jogador mudar de faccao, os ativos continuam sendo dele.
 - Ao trocar de faccao, a camada de protecao/comissao migra junto apos um cooldown de transicao.
 - "Tomada" de propriedade deve afetar primeiro a **operacao**, o **estoque** e a **seguranca** do ativo; perda definitiva do bem e um evento raro.
@@ -866,7 +867,7 @@ Ponto fixo de venda de drogas. Disponível a partir do nível 4 (Vapor).
 
 ### 8.2 Raves e Bailes Funk
 
-O jogador pode ser dono de estabelecimentos onde outros jogadores consomem drogas e recuperam estamina.
+O jogador pode ser dono de estabelecimentos onde outros jogadores consomem drogas e recuperam cansaço.
 
 **Raves** (nível 4+):
 - Até 10 tipos de drogas disponíveis para consumo
@@ -892,19 +893,20 @@ Casas com **Garotas do Job (GPs)**. Disponível a partir do nível 6 (Gerente de
 - Cada puteiro comporta 5 GPs
 - Lucro depende do **Carisma** do dono
 - Repasse fixo para a faccao do dono, se houver
-- Clientes (NPCs e jogadores) geram receita automática
+- A casa gera receita automática a partir do elenco ativo e do ciclo operacional
 - Coleta de receita manual (1x por dia de jogo)
-- GPs também recuperam estamina e embalo do jogador que as visita
+- No app, a gestao fica centralizada em `Operacoes`: compra do ativo, contratacao de GPs, leitura de incidentes e coleta do caixa
 
 **Riscos com GPs:**
 - Podem fugir (chance diária baixa, reduzida com Carisma alto)
 - Podem morrer (evento raro)
 - Podem ser "roubadas" por rivais (sabotagem)
-- Podem transmitir DSTs a clientes sem Camisinha
+- Podem contrair DSTs, reduzindo rendimento e pressionando a operacao ate a recuperacao
+- DST fica restrita as GPs e ao rendimento do puteiro; o jogador nao entra em estado de DST por usar esse servico
 
 **Tipos de GP (progressão de qualidade e lucro):**
 
-| Tipo | Lucro/Dia | Estamina Restaurada | Preço de Compra |
+| Tipo | Lucro/Dia | Cansaço Restaurada | Preço de Compra |
 |---|---|---|---|
 | Novinha | $2.000 | 10% | $10.000 |
 | Experiente | $5.000 | 12% | $30.000 |
@@ -935,16 +937,18 @@ Os dois sistemas existem no jogo, mas cumprem papéis diferentes e hoje a UX tra
 - Sorteio a cada 2 horas de jogo (`30 min` reais)
 - Pode apostar na cabeça, no grupo ou na dezena
 - Fica exposto no mobile como **tela própria de ação**, não como propriedade
-- Se o jogador estiver faccionado, cada aposta válida também gera **repasse automático** para o banco da facção
+- Funciona como **mini-game puro de aposta**, sem repasse fixo para facção nem posse territorial do sistema
 - O resultado é tratado como ação imediata: seleção inline, confirmação no próprio card e feedback claro no fluxo
 
 **Maquininha de Caça-Níquel**:
 - É tratada como **negócio do jogador**, não como aposta manual instantânea
 - Vive no fluxo de **Operações**
+- A compra e a instalacao acontecem no mesmo fluxo visivel de `Operacoes`, sem depender de descoberta obscura em `Patrimonio`
 - Pode ser instalada, configurada e coletada
 - O dono da maquininha lucra com a margem da casa
 - A operação repassa comissão fixa para a facção do dono, se houver
-- A UX precisa comunicar claramente:
+- A UX comunica claramente:
+  - comprar
   - adquirir/instalar
   - configurar a operação
   - coletar caixa
@@ -955,18 +959,18 @@ Os dois sistemas existem no jogo, mas cumprem papéis diferentes e hoje a UX tra
 
 ### 8.6 Imoveis e Patrimonio Pessoal
 
-Jogadores podem comprar imoveis para moradia e ativos patrimoniais para prestigio, conforto e logistica. Esses bens **nao geram renda direta**, mas:
+Jogadores podem comprar imoveis para moradia e ativos patrimoniais para conforto, logistica e utilidade. Esses bens **nao geram renda direta**, mas:
 
 - exigem manutencao recorrente
 - podem ser protegidos por soldados e pela faccao do jogador
-- aumentam prestigio social e conceito indireto
 - liberam cofres, descansos, canais de transporte, stash e acesso a oportunidades especiais
+- ampliam capacidade, mobilidade, recuperacao e protecao operacional conforme o tipo do ativo
 
 **Imoveis residenciais:**
 
 Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
 
-| Tipo | Preço | Bônus Estamina | Cofre | Localização Típica |
+| Tipo | Preço | Bônus Cansaço | Cofre | Localização Típica |
 |---|---|---|---|---|
 | Barraco | $5.000 | +10% recuperação | $50.000 | Favelas |
 | Kitnet | $20.000 | +15% recuperação | $100.000 | Centro, Z. Norte |
@@ -975,18 +979,18 @@ Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
 | Cobertura | $1.000.000 | +45% recuperação | $5.000.000 | Z. Sul |
 | Mansão | $5.000.000 | +50% recuperação | $20.000.000 | Z. Sudoeste |
 
-- Bônus de Estamina: melhora a regeneração passiva quando "em casa"
+- Bônus de Cansaço: melhora a regeneração passiva quando "em casa"
 - Cofre: dinheiro guardado está protegido de apreensão e roubo (limite do cofre)
-- Localização afeta preço e prestígio
+- Localização afeta preço, conveniência logística e exposição a risco
 - Pode ser invadida por rivais se sem proteção (soldados)
 - Pode guardar itens (inventário extra)
 
 **Outros ativos patrimoniais:**
 - **Carros, motos e vans**: deslocamento, fuga, entrega, logistica urbana
-- **Barcos, lanchas, iates e jet skis**: operacoes em docas, fuga maritima, prestigio
-- **Casa de praia**: descanso premium, prestigio, stash secundario
+- **Barcos, lanchas, iates e jet skis**: operacoes em docas, fuga maritima e mobilidade
+- **Casa de praia**: descanso premium e stash secundario
 - **Avioes e helicopteros**: logistica de alto nivel, mobilidade, status
-- **Joias, arte e artigos de luxo**: conceito/prestigio alto, custo de manutencao/seguranca alto, risco de roubo elevado
+- **Joias, arte e artigos de luxo**: alto custo de manutencao/seguranca, alto risco de roubo e uso patrimonial de luxo
 
 **Protecao de patrimonio:**
 - Jogador sem faccao depende apenas de soldados, cofre, upgrades e discricao
@@ -1020,7 +1024,7 @@ Disponível a partir do nível 3 (Fogueteiro). Principal forma de aumentar atrib
 
 **Ganho base por sessão de treino básico:** 2.400 pontos no atributo principal + 600 nos secundários (por 30 min reais).
 
-- Custa estamina (15%) e dinheiro ($1.000 a $50.000 dependendo do tipo)
+- Custa cansaço (15%) e dinheiro ($1.000 a $50.000 dependendo do tipo)
 - Com **Impulso de Milico**: +30% em todos os atributos ganhos
 - Treinos em sequência sem descanso dão rendimento decrescente (-10% por treino consecutivo)
 - Descanso de 1h real entre treinos restaura o rendimento total
@@ -1042,6 +1046,8 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
   - qual passivo foi liberado
   - qual o impacto prático no personagem
 - No estado atual do produto, a conclusão já segue o padrão assíncrono com notificação e modal de retorno
+- No estado atual do produto, a universidade também já expõe um resumo direto da trilha da vocação: perks concluídos, próxima vantagem e estágio da progressão
+- No estado atual do produto, a `Central de Vocação` mostra o impacto real da build, o custo/cooldown da troca e um atalho direto para a trilha exclusiva da universidade
 
 **Cursos por vocação:**
 
@@ -1052,6 +1058,8 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 | Corrida de Fuga | -20% chance de prisão em falhas | Nível 7, Força 500 |
 | Olho Clínico | Identifica valor real de alvos antes do crime | Nível 8 |
 | Rei da Rua | +25% recompensa em crimes nível 1-4 | Nível 9, todos anteriores |
+
+> Implementação atual: sem `Olho Clínico`, o catálogo de crimes mostra apenas **faixa estimada** de recompensa. Com o perk ativo, a tela passa a mostrar o **valor real** do alvo.
 
 **Gerente — Escola de Logística:**
 | Curso | Efeito | Pré-requisito |
@@ -1076,6 +1084,8 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 | Rede de Contatos | +15% lucro com GPs, -20% custo de suborno | Nível 7, Carisma 500 |
 | Manipulação de Massa | +25% influência em Satisfação dos Moradores | Nível 8 |
 | Poderoso Chefão | Bônus de Carisma para toda a facção (+5%) | Nível 9, todos anteriores |
+
+> Implementação atual: `Manipulação de Massa` e `Poderoso Chefão` já alteram o resultado real do `Tribunal do Tráfico`, reforçando impacto nos moradores e na satisfação interna da facção.
 
 **Empreendedor — Escola de Negócios:**
 | Curso | Efeito | Pré-requisito |
@@ -1172,7 +1182,6 @@ O banco da facção funciona como **tesouraria coletiva real**.
 - serviços monopolizados de favela
 - espólio de guerra
 - percentuais de roubos e operações territoriais
-- repasse automático do **Jogo do Bicho**
 
 **Saídas principais:**
 - saque manual por cargos autorizados
@@ -1193,7 +1202,6 @@ Hoje o ledger já precisa cobrir explicitamente:
 - depósito manual
 - saque manual
 - comissão automática de negócio
-- comissão automática do jogo do bicho
 - gasto com upgrade
 - estorno/correção operacional quando existir
 
@@ -1496,6 +1504,20 @@ Evento aleatório verificado **1x por dia de jogo** por favela. A probabilidade 
 - bandidos mortos pelo BOPE **nao** retornam depois
 - soldados mortos pelo BOPE precisam ser recontratados
 
+### 11.6.2 Entrega de Resultado de Evento
+
+Todo evento sistêmico relevante do jogo segue um padrão forte de retorno ao jogador:
+
+- se o jogador estiver online, o resultado abre em **pop-up/modal imediatamente**
+- se o jogador estiver offline, o resultado entra em **fila persistente** para aparecer no retorno
+- o retorno precisa mostrar:
+  - qual evento aconteceu
+  - onde aconteceu
+  - qual foi o resultado
+  - qual foi o impacto prático no jogador, faccao ou territorio
+- banner/toast pode existir como apoio, mas nao substitui o modal de resultado
+- eventos encerrados devem continuar consultaveis em historico recente
+
 ### 11.7 Propina para PM (Arrego)
 
 Toda favela conquistada exige pagamento de **propina (arrego)** à Polícia Militar. É o custo de "permissão" para operar.
@@ -1541,8 +1563,8 @@ Evento especial que a facção pode organizar **1x a cada 3 dias de jogo por fav
 
 | Satisfação | Resultado | Efeitos |
 |---|---|---|
-| > 70% | **Sucesso total** | Venda de drogas +300%, satisfação +20%, conceito da facção +500, estamina +30% para todos presentes |
-| 50-70% | **Sucesso** | Venda de drogas +200%, satisfação +15%, conceito +300, estamina +20% |
+| > 70% | **Sucesso total** | Venda de drogas +300%, satisfação +20%, conceito da facção +500, cansaço +30% para todos presentes |
+| 50-70% | **Sucesso** | Venda de drogas +200%, satisfação +15%, conceito +300, cansaço +20% |
 | 30-49% | **Resultado misto** | Venda normal, satisfação +5%, 1 incidente menor obrigatório |
 | < 30% | **Fracasso** | Prejuízo financeiro, satisfação -10%, 1 incidente grave obrigatório, conceito -200 |
 
@@ -1585,11 +1607,12 @@ Quando uma facção ataca território de outra. Disponível nível 9 (Líder da 
    - **Vitória do atacante**: conquista a favela, pega 30% do estoque, ganha conceito massivo
    - **Vitória do defensor**: mantém território, ganha conceito, 20% do armamento dos atacantes
    - **Empate**: ninguém conquista, ambos perdem recursos e membros
-   - o jogo também deve tratar esse desfecho como **resultado assíncrono legível**, inclusive se o jogador voltar depois que a guerra já terminou
-   - o retorno precisa separar:
+   - o jogo também trata esse desfecho como **resultado assíncrono legível**, inclusive se o jogador voltar depois que a guerra já terminou
+   - o retorno separa:
      - resultado territorial
      - vencedor e score final
      - impacto pessoal do jogador, quando houver
+   - qualquer **perda de dominio territorial**, por guerra ou por outra resolucao sistêmica do mapa, entra nessa mesma fila de notificacao/modal e historico de retorno
 5. **Cooldown**: 7 dias de jogo antes de poder atacar a mesma facção novamente
 6. **Satisfação**: moradores perdem -10 a -20% satisfação independente do resultado
 
@@ -1601,6 +1624,8 @@ Quando uma facção ataca território de outra. Disponível nível 9 (Líder da 
 
 Evento aleatório exclusivo de favelas dominadas. Um morador da favela denuncia outro morador ao "tribunal" da facção. O líder da facção (ou General) deve julgar o caso.
 
+No fluxo atual do produto, esse caso nasce por **disparo automático do sistema**. O jogador nao depende de apertar `Gerar caso` para o tribunal existir.
+
 Este é um sistema de **dilema moral com consequências mecânicas**: cada decisão afeta a **satisfação dos moradores** e/ou a **satisfação interna da facção**, e o jogador deve equilibrar ambas.
 
 **Definicao de sistema:** neste contexto, referências antigas a **moral da faccao** devem ser lidas como **Satisfacao Interna da Faccao** (ver seção 10.6).
@@ -1610,6 +1635,20 @@ Este é um sistema de **dilema moral com consequências mecânicas**: cada decis
 - Ocorre aleatoriamente: 1x a cada 2-5 dias de jogo por favela
 - Favelas maiores (mais moradores) geram mais tribunais
 - Satisfação baixa aumenta a frequência (moradores mais conflituosos)
+- Quando abrir, o lider responsavel recebe notificacao e o caso entra em estado pendente com prazo de decisao
+
+### 12.2.1 Abertura, Prazo e Fallback
+
+- O tribunal abre como **evento do territorio/favela**, com aviso claro ao responsavel
+- O jogador recebe um prazo curto para decidir o caso
+- Se o prazo expirar sem decisao, um **conselho NPC** atua no lugar dele
+- Esse fallback escolhe a pior decisao possivel para a populacao local
+- No retorno assincrono, o jogo precisa mostrar:
+  - qual foi o caso
+  - se a decisao foi do jogador ou do fallback NPC
+  - qual opcao foi executada
+  - qual foi o resultado mecanico
+- Se o jogador estiver offline, o caso pendente ou o resultado resolvido precisam aparecer no retorno ao app
 
 ### 12.3 Tipos de Casos
 
@@ -1757,7 +1796,7 @@ O jogador ganha ou perde Conceito pessoal baseado na percepção geral:
 ### 13.1 Porrada (1v1)
 
 - Jogador ataca outro jogador diretamente (precisa estar na mesma região do mapa)
-- Custo: 20% estamina
+- Custo: 20% cansaço
 - Nível mínimo: 3 (Fogueteiro)
 - Restrições:
   - não pode atacar jogador com proteção de novato
@@ -1789,7 +1828,7 @@ O jogador ganha ou perde Conceito pessoal baseado na percepção geral:
 - Grupo de 2-5 membros da facção ataca um jogador
 - Poder combinado vs. poder individual
 - Maior chance de matar, mas divide a recompensa
-- Custo: 15% estamina por membro (desconto por grupo)
+- Custo: 15% cansaço por membro (desconto por grupo)
 - Conceito do grupo é dividido igualmente
 - Regras:
   - todos os participantes precisam estar na mesma região do alvo
@@ -1953,7 +1992,6 @@ Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
 | **Desintoxicação** | Remove tolerância e vício de drogas | Conceito × $100 ou Metadona |
 | **Cirurgia Plástica** | Muda aparência/nickname | 5 créditos |
 | **Compra de Stats** | Consumíveis que aumentam atributos permanentes | Varia (caro) |
-| **Tratamento de DST** | Remove DSTs contraídas com GPs | $5.000 |
 | **Plano de Saúde** | Reduz hospitalização em 75% (mínimo 15min de jogo) | 10 créditos/rodada |
 
 > **Nota de implementação atual:** os custos monetários de serviços de NPC devem ser lidos como **custos-base**. Hospital, treino, universidade e ofertas sistêmicas do Mercado Negro já sofrem multiplicador de inflação ao longo da rodada.
@@ -2204,7 +2242,6 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 **Fontes de renda da faccao:**
 
 - comissao fixa sobre negocios lucrativos dos membros
-- comissao automatica do jogo do bicho
 - servicos monopolizados da favela
 - depositos manuais de membros
 - espolio de guerra
@@ -2270,6 +2307,8 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 
 ## 19. Sistema Social
 
+> Escopo congelado em `2026-03-16`: o social MVP aprovado para entrega real ficou limitado a `perfil público`, `contatos` e `mensagens privadas entre contatos`. Canais `global`, `local` e `comércio` continuam fora do recorte imediato e não devem ser tratados como superfície pronta do produto atual.
+
 ### 19.1 Chat
 
 | Tipo | Alcance | Desbloqueio |
@@ -2280,38 +2319,75 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 | **Privado** | 1 para 1 (entre contatos) | Nível 2 |
 | **Comércio** | Canal dedicado a negociações | Nível 2 |
 
+- Status real do pre-alpha atual:
+  - **Facção**: implementado e jogável
+  - **Privado**: implementado e jogável
+  - **Global / Local / Comércio**: podados do recorte atual e mantidos como backlog futuro
+- `Facção` é o canal social hoje efetivamente jogável no app
+- `Privado` já está entregue no produto atual, dentro da tela de contatos, com DM 1 para 1 entre vínculos ativos da sua rede
+- `Global`, `Local` e `Comércio` ficam como backlog futuro fora do recorte imediato
+
 ### 19.2 Lista de Contatos
 
-- **Parceiros** (aliados confirmados) — aparecem em dourado
-  - Podem ser convidados para crimes
-  - Podem avisá-lo de contratos de assassinato (se nível 7+)
-  - Limite: 20 parceiros
-- **Conhecidos** (contatos adquiridos) — aparecem em cinza
-  - Só mensagens privadas
-  - Limite: 100 conhecidos
-- Contatos são perdidos em overdose (conhecidos) ou troca de facção (parceiros de facção rival)
+`Contatos` já existem de ponta a ponta no produto atual. O backend segue autoritativo, e o mobile agora entrega uma tela dedicada para gerir a rede e abrir DMs.
+
+Hoje o produto cobre:
+- leitura da lista de contatos
+- adição manual de:
+  - **Parceiros** (mesma facção no momento do vínculo)
+  - **Conhecidos**
+- remoção manual do contato
+- limites da rodada:
+  - `20` parceiros
+  - `100` conhecidos
+- origem computada do vínculo:
+  - `same_faction` para parceiro
+  - `manual` para conhecido
+- perda por evento:
+  - overdose remove contatos `known`
+  - mudança de facção remove parceiros incompatíveis com a nova facção
+- mensageria privada 1 para 1 entre contatos ativos da rede
+- notificação local de nova DM ao longo da sessão e ao reabrir o jogo
+- histórico recente por thread privada, com limite operacional por conversa
+
+Continuam como backlog do social MVP:
+- usos sociais mais amplos na interface
 
 ### 19.3 Estatísticas Públicas do Jogador
 
-Cada jogador tem um perfil público com:
+`Perfil público` já tem backend mínimo entregue no produto atual, com consulta autoritativa por nickname. A superfície dedicada no app e o pacote social mais amplo ainda dependem das próximas etapas do social MVP.
+
+Hoje o perfil público mínimo expõe:
 - Nível e título
 - Vocação
 - Conceito total
 - Facção (se tiver)
-- Número de assassinatos (PvP)
-- Guerras vencidas
-- Favelas conquistadas (atual)
-- Maior golpe realizado
-- Tempo como líder de facção
-- Tempo jogado na rodada
+- Região / localização atual
+- Ranking atual na rodada
+- Visibilidade operacional básica:
+  - quantidade de itens no inventário
+  - quantidade de propriedades
+
+Continuam como backlog do social MVP:
+- tela dedicada de perfil público no mobile
+- integração mais ampla com a camada social
+- estatísticas sociais ampliadas, como:
+  - número de assassinatos (PvP)
+  - guerras vencidas
+  - favelas conquistadas
+  - maior golpe realizado
+  - tempo como líder de facção
+  - tempo jogado na rodada
 
 ---
 
 ## 20. Sabotagem
 
+> Escopo congelado em `2026-03-16`: `Sabotagem` já está entregue no produto atual com backend autoritativo, central dedicada no mobile, fila de replay offline, modal imediato de resultado e notificação local para atacante e alvo.
+
 Jogadores podem destruir propriedades rivais. Disponível a partir do nível 5 (Soldado).
 
-- Custo: 40% estamina + 20 nervos
+- Custo: 40% cansaço + 20 disposição
 - Pode destruir: bocas, fábricas, puteiros, raves, maquininhas
 - Não gera lucro direto, apenas prejudica o rival
 - Sucesso depende de: poder do atacante vs. poder dos soldados que guardam a propriedade
@@ -2438,14 +2514,14 @@ Jogadores free-to-play podem obter créditos limitados:
 
 Seção de referência sobre como jogadores experientes otimizam o jogo.
 
-### 23.1 Gerenciamento de Estamina
-- Nunca deixar estamina em 100% por muito tempo (é desperdício de regeneração)
-- Usar drogas estrategicamente para manter embalo alto sem overdose
-- Intercalar crimes com tráfico (baixo custo de estamina) para maximizar ganho
+### 23.1 Gerenciamento de Cansaço
+- Nunca deixar cansaço em 100% por muito tempo (é desperdício de regeneração)
+- Usar drogas estrategicamente para manter brisa alto sem overdose
+- Intercalar crimes com tráfico (baixo custo de cansaço) para maximizar ganho
 
 ### 23.2 Otimização de Drogas
 - Rotacionar entre tipos de droga para evitar tolerância alta em uma só
-- Crack dá mais estamina mas vicia rápido — usar com moderação
+- Crack dá mais cansaço mas vicia rápido — usar com moderação
 - Maconha é segura mas ineficiente — bom para iniciantes
 - Desintoxicar no momento certo (quando tolerância começa a reduzir eficiência significativamente)
 
@@ -2462,8 +2538,8 @@ Seção de referência sobre como jogadores experientes otimizam o jogo.
 - Comprar armas/coletes usados no Mercado Negro (mais barato)
 
 ### 23.5 PvP e Facção
-- Atacar jogadores vulneráveis (estamina baixa, sem colete, sem facção)
-- Nunca atacar sem estamina para fugir se necessário
+- Atacar jogadores vulneráveis (cansaço baixa, sem colete, sem facção)
+- Nunca atacar sem cansaço para fugir se necessário
 - Facção forte > jogador forte solo (proteção + renda territorial)
 - Político na facção é essencial para negociações de propina e tribunal
 

@@ -1,0 +1,227 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "market-clandestino mercado-negro",
+  "category": "market",
+  "styleGuide": {
+    "resolvedProfile": "default",
+    "family": "market-clandestino",
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.05
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium",
+      "attachmentVariation": "medium"
+    },
+    "compositionPolicy": {
+      "layout": "market-row",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "midground",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile",
+    "boca",
+    "market-clandestino",
+    "gym",
+    "hospital",
+    "prison",
+    "university",
+    "factory",
+    "dock-industrial",
+    "junkyard",
+    "residential-tower-simple",
+    "residential-tower-modern",
+    "commercial-block-simple",
+    "commercial-block-modern",
+    "house-simple",
+    "house-wealthy"
+  ],
+  "resolvedModules": [
+    {
+      "id": "awning-3",
+      "module": "awning",
+      "resolved": {
+        "id": "awning",
+        "family": "favela",
+        "footprint": {
+          "width": 24,
+          "depth": 12
+        },
+        "slots": [
+          "facade-front"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "placement": {
+        "x": 3,
+        "y": 5,
+        "scale": 1.023
+      },
+      "variants": {
+        "materialHint": "placa",
+        "slotHint": "facade-front",
+        "profile": "default",
+        "family": "market-clandestino",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve parecer economia paralela urbana, nao feira colorida genérica",
+          "os toldos ajudam a leitura mas nao podem dominar o asset"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "market-stall-row-2",
+      "module": "market-stall-row",
+      "resolved": {
+        "id": "market-stall-row",
+        "family": "market-clandestino",
+        "footprint": {
+          "width": 50,
+          "depth": 18
+        },
+        "slots": [
+          "detail"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 106,
+        "y": 122
+      },
+      "placement": {
+        "x": 12,
+        "y": -3,
+        "scale": 0.992
+      },
+      "variants": {
+        "materialHint": "placa",
+        "slotHint": "detail",
+        "profile": "default",
+        "family": "market-clandestino",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve parecer economia paralela urbana, nao feira colorida genérica",
+          "os toldos ajudam a leitura mas nao podem dominar o asset"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "market-core-1",
+      "module": "market-core",
+      "resolved": {
+        "id": "market-core",
+        "family": "market-clandestino",
+        "footprint": {
+          "width": 52,
+          "depth": 20
+        },
+        "slots": [
+          "core"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "placement": {
+        "x": 2,
+        "y": 6,
+        "scale": 1.013
+      },
+      "variants": {
+        "materialHint": "placa",
+        "slotHint": "core",
+        "profile": "default",
+        "family": "market-clandestino",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve parecer economia paralela urbana, nao feira colorida genérica",
+          "os toldos ajudam a leitura mas nao podem dominar o asset"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "corrugated-roof-4",
+      "module": "corrugated-roof",
+      "resolved": {
+        "id": "corrugated-roof",
+        "family": "favela",
+        "footprint": {
+          "width": 34,
+          "depth": 16
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 106,
+        "y": 114
+      },
+      "placement": {
+        "x": 13,
+        "y": 11,
+        "scale": 1.037
+      },
+      "variants": {
+        "materialHint": "estoque exposto",
+        "slotHint": "roof-detail",
+        "profile": "default",
+        "family": "market-clandestino",
+        "density": "medium-low",
+        "roofVariation": "medium",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "deve parecer economia paralela urbana, nao feira colorida genérica",
+          "os toldos ajudam a leitura mas nao podem dominar o asset"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/mercado-negro.composition.svg"
+}

@@ -31,6 +31,7 @@ import {
 
 import { env } from '../config/env.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
+import { NoopFactionContactSync, type FactionContactSyncContract } from './contact.js';
 import {
   buildNpcFactionAutoPromotionResult,
   buildNpcFactionProgressionStatus,
@@ -97,7 +98,7 @@ const FACTION_LEADERSHIP_CHALLENGE_DEFENDER_HP_LOSS_ON_SUCCESS = 26;
 const FACTION_LEADERSHIP_CHALLENGE_HP_LOSS_ON_FAIL = 22;
 const FACTION_LEADERSHIP_CHALLENGE_HP_LOSS_ON_SUCCESS = 12;
 const FACTION_LEADERSHIP_CHALLENGE_MIN_LEVEL = 9;
-const FACTION_LEADERSHIP_CHALLENGE_STAMINA_COST = 30;
+const FACTION_LEADERSHIP_CHALLENGE_CANSACO_COST = 30;
 const FACTION_LEADERSHIP_ELECTION_COOLDOWN_HOURS = 24;
 const FACTION_LEADERSHIP_ELECTION_DURATION_HOURS = 12;
 const FACTION_LEADERSHIP_MIN_CANDIDATE_LEVEL = 5;
@@ -125,6 +126,8 @@ export type {
 } from './faction/types.js';
 
 export class FactionService implements FactionServiceContract {
+  private readonly contactSync: FactionContactSyncContract;
+
   private readonly keyValueStore: KeyValueStore;
 
   private readonly now: () => Date;
@@ -134,6 +137,7 @@ export class FactionService implements FactionServiceContract {
   private readonly repository: FactionRepository;
 
   constructor(options: FactionServiceOptions = {}) {
+    this.contactSync = options.contactSync ?? new NoopFactionContactSync();
     this.keyValueStore = options.keyValueStore ?? new RedisKeyValueStore(env.redisUrl);
     this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
@@ -162,6 +166,7 @@ export class FactionService implements FactionServiceContract {
       throw new FactionError('unauthorized', 'Jogador nao encontrado.');
     }
 
+    await this.contactSync.syncContactsAfterFactionChange(playerId, createdFaction.id);
     await this.invalidatePlayerProfiles([playerId]);
 
     return {
@@ -205,6 +210,11 @@ export class FactionService implements FactionServiceContract {
     const faction = await this.getConfigurableFaction(playerId, factionId);
     const affectedPlayerIds = await this.repository.dissolveFaction(faction.id);
 
+    await Promise.all(
+      affectedPlayerIds.map(async (affectedPlayerId) => {
+        await this.contactSync.syncContactsAfterFactionChange(affectedPlayerId, null);
+      }),
+    );
     await this.invalidatePlayerProfiles(affectedPlayerIds);
 
     return {
@@ -236,6 +246,7 @@ export class FactionService implements FactionServiceContract {
       throw new FactionError('not_found', 'Membro da faccao nao encontrado.');
     }
 
+    await this.contactSync.syncContactsAfterFactionChange(memberPlayerId, null);
     await this.invalidatePlayerProfiles([memberPlayerId]);
 
     return this.getFactionMembers(actorPlayerId, factionId);
@@ -409,6 +420,7 @@ export class FactionService implements FactionServiceContract {
       throw new FactionError('conflict', 'Nao foi possivel entrar na faccao fixa.');
     }
 
+    await this.contactSync.syncContactsAfterFactionChange(playerId, factionId);
     await this.invalidatePlayerProfiles([playerId]);
 
     const joinedFaction = await this.repository.findFactionById(playerId, factionId);
@@ -440,6 +452,7 @@ export class FactionService implements FactionServiceContract {
       throw new FactionError('not_found', 'Membro da faccao nao encontrado.');
     }
 
+    await this.contactSync.syncContactsAfterFactionChange(playerId, null);
     await this.invalidatePlayerProfiles([playerId]);
 
     return {
@@ -537,6 +550,7 @@ export class FactionService implements FactionServiceContract {
       throw new FactionError('conflict', 'Nao foi possivel adicionar o jogador a faccao.');
     }
 
+    await this.contactSync.syncContactsAfterFactionChange(targetPlayer.id, factionId);
     await this.invalidatePlayerProfiles([actorPlayerId, targetPlayer.id]);
 
     return this.getFactionMembers(actorPlayerId, factionId);
@@ -666,7 +680,7 @@ export class FactionService implements FactionServiceContract {
       defenderWasNpc: leader.isNpc,
       factionId,
       resolvedAt: now,
-      staminaCost: FACTION_LEADERSHIP_CHALLENGE_STAMINA_COST,
+      cansacoCost: FACTION_LEADERSHIP_CHALLENGE_CANSACO_COST,
       successChancePercent: Math.round(successChance * 100),
     });
 
@@ -1117,12 +1131,12 @@ export class FactionService implements FactionServiceContract {
       };
     }
 
-    if (challenger.stamina < FACTION_LEADERSHIP_CHALLENGE_STAMINA_COST) {
+    if (challenger.cansaco < FACTION_LEADERSHIP_CHALLENGE_CANSACO_COST) {
       return {
         canChallenge: false,
         cooldownEndsAt,
         cooldownRemainingSeconds,
-        lockReason: `Stamina insuficiente para o desafio. Sao necessarios ${FACTION_LEADERSHIP_CHALLENGE_STAMINA_COST} pontos.`,
+        lockReason: `Cansaço insuficiente para o desafio. Sao necessarios ${FACTION_LEADERSHIP_CHALLENGE_CANSACO_COST} pontos.`,
       };
     }
 

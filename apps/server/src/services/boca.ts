@@ -40,6 +40,7 @@ import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './fac
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
+  buildPropertySabotageStatusSummary,
   resolvePropertyDailyUpkeep,
   roundCurrency,
 } from './property.js';
@@ -98,6 +99,9 @@ interface BocaSnapshotRecord {
   operationCostMultiplier: number;
   policePressure: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: BocaSoldierRosterRecord[];
   stock: BocaStockRecord[];
   suspended: boolean;
@@ -530,6 +534,9 @@ export class DatabaseBocaRepository implements BocaRepository {
         operationCostMultiplier: regions.operationCostMultiplier,
         policePressure: regions.policePressure,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         suspended: properties.suspended,
         wealthIndex: regions.wealthIndex,
       })
@@ -613,6 +620,9 @@ export class DatabaseBocaRepository implements BocaRepository {
       operationCostMultiplier: roundCurrency(Number.parseFloat(String(row.operationCostMultiplier))),
       policePressure: row.policePressure,
       regionId: row.regionId as RegionId,
+      sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: row.sabotageResolvedAt,
+      sabotageState: row.sabotageState,
       soldierRoster: soldiersByPropertyId.get(row.id)
         ? [soldiersByPropertyId.get(row.id) as BocaSoldierRosterRecord]
         : [],
@@ -989,6 +999,13 @@ export class BocaService implements BocaServiceContract {
       lastMaintenanceAt: maintenanceStatus.lastMaintenanceAt,
       suspended: maintenanceStatus.blocked,
     };
+    const sabotageStatus = buildPropertySabotageStatusSummary({
+      now: this.now(),
+      sabotageRecoveryReadyAt: propertyAfterMaintenance.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: propertyAfterMaintenance.sabotageResolvedAt,
+      sabotageState: propertyAfterMaintenance.sabotageState,
+      type: 'boca',
+    });
     const cycleMs = BOCA_OPERATION_CYCLE_MINUTES * 60 * 1000;
     const elapsedCycles = Math.floor(
       Math.max(0, this.now().getTime() - propertyAfterMaintenance.lastSaleAt.getTime()) / cycleMs,
@@ -1005,7 +1022,7 @@ export class BocaService implements BocaServiceContract {
     );
     const nextStock = propertyAfterMaintenance.stock.map((stock) => ({ ...stock }));
 
-    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended) {
+    if (elapsedCycles > 0 && !propertyAfterMaintenance.suspended && !sabotageStatus.blocked) {
       for (const stock of nextStock) {
         const quantityPerCycle = buildBocaDemandPerCycle(
           propertyAfterMaintenance,
@@ -1030,7 +1047,8 @@ export class BocaService implements BocaServiceContract {
           estimatedUnitPrice *
             quantitySold *
             passiveProfile.business.passiveRevenueMultiplier *
-            regionalDominationBonus.revenueMultiplier,
+            regionalDominationBonus.revenueMultiplier *
+            sabotageStatus.operationalMultiplier,
         );
         const commissionAmount = roundCurrency(grossRevenue * effectiveFactionCommissionRate);
         const netRevenue = roundCurrency(grossRevenue - commissionAmount);
@@ -1201,6 +1219,13 @@ function serializeBocaSummary(
 ): BocaSummary {
   const propertyDefinition = resolveEconomyPropertyDefinition(configCatalog, 'boca');
   const eventProfile = resolvePropertyEventProfile(configCatalog, 'boca');
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: boca.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: boca.sabotageResolvedAt,
+    sabotageState: boca.sabotageState,
+    type: 'boca',
+  });
   const locationMultiplier = buildBocaLocationMultiplier(boca);
   const stock = boca.stock.map((entry) => ({
     baseUnitPrice: entry.baseUnitPrice,
@@ -1224,7 +1249,8 @@ function serializeBocaSummary(
         entry.estimatedUnitPrice *
           Math.min(entry.quantity, entry.estimatedQuantityPerCycle) *
           passiveProfile.business.passiveRevenueMultiplier *
-          regionalDominationBonus.revenueMultiplier,
+          regionalDominationBonus.revenueMultiplier *
+          sabotageStatus.operationalMultiplier,
       0,
     ) * (60 / BOCA_OPERATION_CYCLE_MINUTES),
   );
@@ -1266,8 +1292,15 @@ function serializeBocaSummary(
       moneySpentOnSync: maintenanceStatus.moneySpentOnSync,
       overdueDays: maintenanceStatus.overdueDays,
     },
+    sabotageStatus,
     regionId: boca.regionId,
-    status: maintenanceStatus.blocked ? 'maintenance_blocked' : stockUnits > 0 ? 'active' : 'out_of_stock',
+    status: sabotageStatus.blocked
+      ? 'sabotage_blocked'
+      : maintenanceStatus.blocked
+        ? 'maintenance_blocked'
+        : stockUnits > 0
+          ? 'active'
+          : 'out_of_stock',
     stock,
     stockUnits,
   };

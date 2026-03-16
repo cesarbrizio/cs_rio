@@ -28,11 +28,13 @@ import type {
   PlayerResources,
   RegionId,
   TerritoryFavelaSummary,
+  TerritoryLossFeedResponse,
   TerritoryOverviewResponse,
   VocationType,
 } from '@cs-rio/shared';
 
 import type { LevelSystem } from '../../systems/LevelSystem.js';
+import { type KeyValueStore } from '../auth.js';
 import { type BanditReturnFlavor } from '../favela-force.js';
 import { type FactionUpgradeEffectReaderContract } from '../faction.js';
 import type { GameConfigService } from '../game-config.js';
@@ -160,7 +162,7 @@ export interface TerritoryFavelaBaileRecord {
   organizedByPlayerId: string;
   resultTier: FavelaBaileResultTier;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 }
 
 export interface TerritoryFactionWarPreparationRecord {
@@ -175,13 +177,13 @@ export interface TerritoryFactionWarPreparationRecord {
 
 export interface TerritoryFactionWarRoundRecord {
   attackerHpLoss: number;
-  attackerNerveLoss: number;
+  attackerDisposicaoLoss: number;
   attackerPower: number;
-  attackerStaminaLoss: number;
+  attackerCansacoLoss: number;
   defenderHpLoss: number;
-  defenderNerveLoss: number;
+  defenderDisposicaoLoss: number;
   defenderPower: number;
-  defenderStaminaLoss: number;
+  defenderCansacoLoss: number;
   message: string;
   outcome: FactionWarRoundOutcome;
   resolvedAt: Date;
@@ -261,7 +263,7 @@ export interface TerritoryParticipantRecord {
     id: string;
     level: number;
     nickname: string;
-    resources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+    resources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
     vocation: VocationType;
   };
   rank: FactionRank;
@@ -274,7 +276,7 @@ export interface TerritoryConquestParticipantPersistenceUpdate {
   hpDelta: number;
   logType: 'territory_conquest_failure' | 'territory_conquest_success';
   nextLevel: number;
-  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
   playerId: string;
 }
 
@@ -477,7 +479,7 @@ export interface TerritoryFavelaBailePersistenceInput {
   resultTier: FavelaBaileResultTier;
   satisfactionAfter: number;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 }
 
 export interface TerritoryFactionWarCreateInput {
@@ -507,7 +509,7 @@ export interface TerritoryFactionWarPreparePersistenceInput {
 export interface TerritoryFactionWarParticipantPersistenceUpdate {
   conceitoDelta: number;
   nextLevel: number;
-  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
+  nextResources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
   playerId: string;
 }
 
@@ -631,6 +633,7 @@ export interface TerritoryServiceContract {
     input: FavelaServiceInstallInput,
   ): Promise<FavelaServiceMutationResponse>;
   listFavelaServices(playerId: string, favelaId: string): Promise<FavelaServicesResponse>;
+  listTerritoryLosses(playerId: string): Promise<TerritoryLossFeedResponse>;
   listTerritory(playerId: string): Promise<TerritoryOverviewResponse>;
   transitionFavelaState(
     playerId: string,
@@ -647,6 +650,7 @@ export interface TerritoryServiceContract {
 export interface TerritoryServiceOptions {
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
   gameConfigService?: GameConfigService;
+  keyValueStore?: KeyValueStore;
   levelSystem?: LevelSystem;
   now?: () => Date;
   random?: () => number;

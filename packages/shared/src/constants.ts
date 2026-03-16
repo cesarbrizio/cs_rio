@@ -113,6 +113,34 @@ export const DEFAULT_FACTION_ROBBERY_POLICY: FactionRobberyPolicy = {
   regions: {},
 };
 
+export const PLAYER_CONTACT_LIMITS = {
+  known: 100,
+  partner: 20,
+} as const;
+
+export const PRIVATE_MESSAGE_MAX_LENGTH = 240;
+export const PRIVATE_MESSAGE_THREAD_HISTORY_LIMIT = 40;
+export const VOCATION_CHANGE_COOLDOWN_HOURS = 24;
+export const VOCATION_CHANGE_CREDITS_COST = 10;
+export const PROPERTY_SABOTAGE_LEVEL_REQUIRED = 5;
+export const PROPERTY_SABOTAGE_CANSACO_COST = 40;
+export const PROPERTY_SABOTAGE_DISPOSICAO_COST = 20;
+export const PROPERTY_SABOTAGE_PROPERTY_COOLDOWN_HOURS = 12;
+export const PROPERTY_SABOTAGE_DAMAGE_RECOVERY_HOURS = 6;
+export const PROPERTY_SABOTAGE_DAMAGE_RECOVERY_COST_RATE = 0.2;
+export const PROPERTY_SABOTAGE_DESTRUCTION_RECOVERY_HOURS = 12;
+export const PROPERTY_SABOTAGE_DESTRUCTION_RECOVERY_COST_RATE = 0.5;
+export const PROPERTY_SABOTAGE_HARD_FAILURE_HEAT_DELTA = 10;
+export const PROPERTY_SABOTAGE_SUCCESS_HEAT_DELTA = 5;
+export const PROPERTY_SABOTAGE_HARD_FAILURE_PRISON_MINUTES = 60;
+export const PROPERTY_SABOTAGE_TARGET_TYPES = [
+  'boca',
+  'factory',
+  'puteiro',
+  'rave',
+  'slot_machine',
+] as const;
+
 export const VOCATION_BASE_ATTRIBUTES: Record<VocationType, PlayerAttributes> = {
   [VocationType.Cria]: {
     forca: 30,
@@ -435,7 +463,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Casa',
     maxLevel: 3,
-    prestigeScore: 20,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 4,
@@ -444,7 +471,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: INVENTORY_HOUSE_BONUS_SLOTS,
       inventoryWeightBonus: INVENTORY_HOUSE_BONUS_WEIGHT,
-      staminaRecoveryPerHourBonus: 2,
+      cansacoRecoveryPerHourBonus: 2,
       travelMode: null,
     },
   },
@@ -456,7 +483,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.12,
     label: 'Boca de Fumo',
     maxLevel: 3,
-    prestigeScore: 28,
     profitable: true,
     purchaseMode: 'direct',
     soldierCapacity: 10,
@@ -465,7 +491,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -477,7 +503,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.1,
     label: 'Rave / Baile',
     maxLevel: 3,
-    prestigeScore: 42,
     profitable: true,
     purchaseMode: 'direct',
     soldierCapacity: 8,
@@ -486,7 +511,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -498,7 +523,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.1,
     label: 'Puteiro',
     maxLevel: 3,
-    prestigeScore: 55,
     profitable: true,
     purchaseMode: 'direct',
     soldierCapacity: 10,
@@ -507,7 +531,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -519,7 +543,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.06,
     label: 'Loja de Fachada',
     maxLevel: 3,
-    prestigeScore: 24,
     profitable: true,
     purchaseMode: 'direct',
     soldierCapacity: 6,
@@ -528,7 +551,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -540,7 +563,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.07,
     label: 'Maquininha de Caca-Niquel',
     maxLevel: 3,
-    prestigeScore: 18,
     profitable: true,
     purchaseMode: 'direct',
     soldierCapacity: 4,
@@ -549,7 +571,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -561,7 +583,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0.08,
     label: 'Fabrica',
     maxLevel: 3,
-    prestigeScore: 36,
     profitable: true,
     purchaseMode: 'specialized',
     soldierCapacity: 8,
@@ -570,7 +591,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -582,7 +603,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Casa de Praia',
     maxLevel: 3,
-    prestigeScore: 95,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 4,
@@ -591,7 +611,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 8,
       inventoryWeightBonus: 24,
-      staminaRecoveryPerHourBonus: 3,
+      cansacoRecoveryPerHourBonus: 3,
       travelMode: null,
     },
   },
@@ -603,7 +623,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Mansao',
     maxLevel: 3,
-    prestigeScore: 220,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 8,
@@ -612,7 +631,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 12,
       inventoryWeightBonus: 36,
-      staminaRecoveryPerHourBonus: 4,
+      cansacoRecoveryPerHourBonus: 4,
       travelMode: null,
     },
   },
@@ -624,7 +643,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Carro',
     maxLevel: 1,
-    prestigeScore: 18,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -633,7 +651,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'ground',
     },
   },
@@ -645,7 +663,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Barco',
     maxLevel: 1,
-    prestigeScore: 62,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -654,7 +671,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'sea',
     },
   },
@@ -666,7 +683,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Iate',
     maxLevel: 1,
-    prestigeScore: 260,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 2,
@@ -675,7 +691,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'sea',
     },
   },
@@ -687,7 +703,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Jet Ski',
     maxLevel: 1,
-    prestigeScore: 34,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -696,7 +711,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'sea',
     },
   },
@@ -708,7 +723,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Aviao',
     maxLevel: 1,
-    prestigeScore: 310,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -717,7 +731,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'air',
     },
   },
@@ -729,7 +743,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Helicoptero',
     maxLevel: 1,
-    prestigeScore: 270,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -738,7 +751,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: 'air',
     },
   },
@@ -750,7 +763,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Joias',
     maxLevel: 1,
-    prestigeScore: 88,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -759,7 +771,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -771,7 +783,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Arte',
     maxLevel: 1,
-    prestigeScore: 180,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -780,7 +791,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -792,7 +803,6 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     factionCommissionRate: 0,
     label: 'Luxo',
     maxLevel: 1,
-    prestigeScore: 128,
     profitable: false,
     purchaseMode: 'direct',
     soldierCapacity: 0,
@@ -801,7 +811,7 @@ export const PROPERTY_DEFINITIONS: PropertyDefinitionSummary[] = [
     utility: {
       inventorySlotsBonus: 0,
       inventoryWeightBonus: 0,
-      staminaRecoveryPerHourBonus: 0,
+      cansacoRecoveryPerHourBonus: 0,
       travelMode: null,
     },
   },
@@ -812,35 +822,35 @@ export const GP_TEMPLATES: GpTemplateSummary[] = [
     baseDailyRevenue: 2000,
     label: 'Novinha',
     purchasePrice: 10000,
-    staminaRestorePercent: 10,
+    cansacoRestorePercent: 10,
     type: 'novinha',
   },
   {
     baseDailyRevenue: 5000,
     label: 'Experiente',
     purchasePrice: 30000,
-    staminaRestorePercent: 12,
+    cansacoRestorePercent: 12,
     type: 'experiente',
   },
   {
     baseDailyRevenue: 12000,
     label: 'Premium',
     purchasePrice: 80000,
-    staminaRestorePercent: 15,
+    cansacoRestorePercent: 15,
     type: 'premium',
   },
   {
     baseDailyRevenue: 25000,
     label: 'VIP',
     purchasePrice: 200000,
-    staminaRestorePercent: 18,
+    cansacoRestorePercent: 18,
     type: 'vip',
   },
   {
     baseDailyRevenue: 50000,
     label: 'Diamante',
     purchasePrice: 500000,
-    staminaRestorePercent: 20,
+    cansacoRestorePercent: 20,
     type: 'diamante',
   },
 ] as const;
@@ -926,7 +936,7 @@ export const TRAINING_DEFINITIONS: TrainingDefinitionSummary[] = [
     minimumBasicSessionsCompleted: 0,
     moneyCost: 1000,
     rewardMultiplier: 1,
-    staminaCost: 15,
+    cansacoCost: 15,
     type: 'basic',
     unlockLevel: 3,
   },
@@ -936,7 +946,7 @@ export const TRAINING_DEFINITIONS: TrainingDefinitionSummary[] = [
     minimumBasicSessionsCompleted: 30,
     moneyCost: 10000,
     rewardMultiplier: 2,
-    staminaCost: 30,
+    cansacoCost: 30,
     type: 'advanced',
     unlockLevel: 3,
   },
@@ -946,7 +956,7 @@ export const TRAINING_DEFINITIONS: TrainingDefinitionSummary[] = [
     minimumBasicSessionsCompleted: 0,
     moneyCost: 50000,
     rewardMultiplier: 3,
-    staminaCost: 45,
+    cansacoCost: 45,
     type: 'intensive',
     unlockLevel: 7,
   },
@@ -1398,14 +1408,14 @@ export const MARKET_AUCTION_MIN_DURATION_MINUTES = 15;
 export const MARKET_ORDER_FEE_RATE = 0.05;
 export const MARKET_ORDER_DEFAULT_EXPIRY_HOURS = 24;
 export const DRUG_SALE_DOCKS_REGION_ID = RegionId.Centro;
-export const DRUG_SALE_STREET_STAMINA_COST = 5;
+export const DRUG_SALE_STREET_CANSACO_COST = 5;
 export const DRUG_SALE_CHANNELS: Array<{
   commissionRate: number;
   id: DrugSaleChannel;
   label: string;
   minLevel: number;
   propertyTypeRequired: 'boca' | 'rave' | null;
-  staminaCost: number;
+  cansacoCost: number;
 }> = [
   {
     commissionRate: 0.05,
@@ -1413,7 +1423,7 @@ export const DRUG_SALE_CHANNELS: Array<{
     label: 'Tráfico Direto',
     minLevel: 2,
     propertyTypeRequired: null,
-    staminaCost: DRUG_SALE_STREET_STAMINA_COST,
+    cansacoCost: DRUG_SALE_STREET_CANSACO_COST,
   },
   {
     commissionRate: 0,
@@ -1421,7 +1431,7 @@ export const DRUG_SALE_CHANNELS: Array<{
     label: 'Boca de Fumo',
     minLevel: 4,
     propertyTypeRequired: 'boca',
-    staminaCost: 0,
+    cansacoCost: 0,
   },
   {
     commissionRate: 0,
@@ -1429,7 +1439,7 @@ export const DRUG_SALE_CHANNELS: Array<{
     label: 'Rave/Baile',
     minLevel: 4,
     propertyTypeRequired: 'rave',
-    staminaCost: 0,
+    cansacoCost: 0,
   },
   {
     commissionRate: 0,
@@ -1437,7 +1447,7 @@ export const DRUG_SALE_CHANNELS: Array<{
     label: 'Docas',
     minLevel: 4,
     propertyTypeRequired: null,
-    staminaCost: 0,
+    cansacoCost: 0,
   },
 ] as const;
 
@@ -1448,10 +1458,10 @@ export const DRUGS: DrugDefinition[] = [
     type: DrugType.Maconha,
     levelRequired: 2,
     basePrice: 50,
-    staminaRecovery: 1,
-    moraleBoost: 1,
+    cansacoRecovery: 1,
+    brisaBoost: 1,
     addictionRate: 0.5,
-    nerveBoost: 0,
+    disposicaoBoost: 0,
   },
   {
     id: 'lanca',
@@ -1459,10 +1469,10 @@ export const DRUGS: DrugDefinition[] = [
     type: DrugType.Lanca,
     levelRequired: 3,
     basePrice: 150,
-    staminaRecovery: 2,
-    moraleBoost: 1,
+    cansacoRecovery: 2,
+    brisaBoost: 1,
     addictionRate: 1,
-    nerveBoost: 2,
+    disposicaoBoost: 2,
   },
   {
     id: 'bala',
@@ -1470,10 +1480,10 @@ export const DRUGS: DrugDefinition[] = [
     type: DrugType.Bala,
     levelRequired: 4,
     basePrice: 400,
-    staminaRecovery: 3,
-    moraleBoost: 2,
+    cansacoRecovery: 3,
+    brisaBoost: 2,
     addictionRate: 1.5,
-    nerveBoost: 5,
+    disposicaoBoost: 5,
   },
 ] as const;
 

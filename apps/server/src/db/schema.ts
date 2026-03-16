@@ -83,6 +83,21 @@ export const propertyTypeEnum = pgEnum('property_type', [
   'front_store',
   'slot_machine',
 ]);
+export const propertySabotageStateEnum = pgEnum('property_sabotage_state', [
+  'normal',
+  'damaged',
+  'destroyed',
+]);
+export const propertySabotageOutcomeEnum = pgEnum('property_sabotage_outcome', [
+  'damaged',
+  'destroyed',
+  'failure_clean',
+  'failure_hard',
+]);
+export const propertySabotageOwnerAlertModeEnum = pgEnum('property_sabotage_owner_alert_mode', [
+  'anonymous',
+  'identified',
+]);
 export const gpTypeEnum = pgEnum('gp_type', [
   'novinha',
   'experiente',
@@ -358,9 +373,9 @@ export const players = pgTable('players', {
   inteligencia: integer('inteligencia').notNull().default(10),
   resistencia: integer('resistencia').notNull().default(10),
   carisma: integer('carisma').notNull().default(10),
-  stamina: integer('stamina').notNull().default(100),
-  nerve: integer('nerve').notNull().default(100),
-  morale: integer('morale').notNull().default(100),
+  cansaco: integer('cansaco').notNull().default(100),
+  disposicao: integer('disposicao').notNull().default(100),
+  brisa: integer('brisa').notNull().default(100),
   hp: integer('hp').notNull().default(100),
   addiction: integer('addiction').notNull().default(0),
   money: numeric('money', { precision: 16, scale: 2 }).notNull().default('0'),
@@ -369,8 +384,6 @@ export const players = pgTable('players', {
     .notNull()
     .defaultNow(),
   credits: integer('credits').notNull().default(0),
-  hasDst: boolean('has_dst').notNull().default(false),
-  dstRecoversAt: timestamp('dst_recovers_at', { withTimezone: true }),
   healthPlanCycleKey: varchar('health_plan_cycle_key', { length: 32 }),
   regionId: regionEnum('region_id').notNull(),
   positionX: integer('position_x').notNull().default(0),
@@ -387,6 +400,9 @@ export const players = pgTable('players', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   characterCreatedAt: timestamp('character_created_at', { withTimezone: true }),
   lastLogin: timestamp('last_login', { withTimezone: true }),
+  vocationChangedAt: timestamp('vocation_changed_at', { withTimezone: true }),
+  vocationTarget: vocationEnum('vocation_target'),
+  vocationTransitionEndsAt: timestamp('vocation_transition_ends_at', { withTimezone: true }),
 });
 
 export const playerHospitalStatPurchases = pgTable(
@@ -532,8 +548,8 @@ export const crimes = pgTable('crimes', {
   name: varchar('name', { length: 160 }).notNull().unique(),
   crimeType: crimeTypeEnum('crime_type').notNull().default('solo'),
   levelRequired: integer('level_required').notNull(),
-  staminaCost: integer('stamina_cost').notNull(),
-  nerveCost: integer('nerve_cost').notNull().default(0),
+  cansacoCost: integer('cansaco_cost').notNull(),
+  disposicaoCost: integer('disposicao_cost').notNull().default(0),
   minPower: integer('min_power').notNull(),
   rewardMin: numeric('reward_min', { precision: 16, scale: 2 }).notNull(),
   rewardMax: numeric('reward_max', { precision: 16, scale: 2 }).notNull(),
@@ -547,11 +563,11 @@ export const drugs = pgTable('drugs', {
   code: varchar('code', { length: 80 }).notNull().unique(),
   name: varchar('name', { length: 120 }).notNull().unique(),
   type: drugTypeEnum('type').notNull().unique(),
-  staminaRecovery: integer('stamina_recovery').notNull(),
-  moralBoost: integer('moral_boost').notNull(),
+  cansacoRecovery: integer('cansaco_recovery').notNull(),
+  brisaBoost: integer('brisa_boost').notNull(),
   price: numeric('price', { precision: 16, scale: 2 }).notNull(),
   addictionRate: numeric('addiction_rate', { precision: 6, scale: 2 }).notNull(),
-  nerveBoost: integer('nerve_boost').notNull().default(0),
+  disposicaoBoost: integer('disposicao_boost').notNull().default(0),
   productionLevel: integer('production_level').notNull(),
   weight: integer('weight').notNull().default(1),
 });
@@ -593,6 +609,9 @@ export const properties = pgTable('properties', {
   soldiersCount: integer('soldiers_count').notNull().default(0),
   lastMaintenanceAt: timestamp('last_maintenance_at', { withTimezone: true }).notNull().defaultNow(),
   suspended: boolean('suspended').notNull().default(false),
+  sabotageState: propertySabotageStateEnum('sabotage_state').notNull().default('normal'),
+  sabotageResolvedAt: timestamp('sabotage_resolved_at', { withTimezone: true }),
+  sabotageRecoveryReadyAt: timestamp('sabotage_recovery_ready_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -601,7 +620,7 @@ export const trainingSessions = pgTable('training_sessions', {
   playerId: uuid('player_id').notNull(),
   type: trainingTypeEnum('type').notNull(),
   costMoney: numeric('cost_money', { precision: 16, scale: 2 }).notNull(),
-  costStamina: integer('cost_stamina').notNull(),
+  costCansaco: integer('cost_cansaco').notNull(),
   diminishingMultiplier: numeric('diminishing_multiplier', { precision: 6, scale: 4 }).notNull(),
   streakIndex: integer('streak_index').notNull().default(0),
   forcaGain: integer('forca_gain').notNull(),
@@ -821,6 +840,26 @@ export const soldiers = pgTable('soldiers', {
   power: integer('power').notNull(),
   dailyCost: numeric('daily_cost', { precision: 16, scale: 2 }).notNull(),
   hiredAt: timestamp('hired_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const propertySabotageLogs = pgTable('property_sabotage_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  propertyId: uuid('property_id').notNull(),
+  attackerPlayerId: uuid('attacker_player_id').notNull(),
+  attackerFactionId: uuid('attacker_faction_id'),
+  ownerPlayerId: uuid('owner_player_id').notNull(),
+  ownerFactionId: uuid('owner_faction_id'),
+  regionId: regionEnum('region_id').notNull(),
+  favelaId: uuid('favela_id'),
+  type: propertyTypeEnum('type').notNull(),
+  outcome: propertySabotageOutcomeEnum('outcome').notNull(),
+  ownerAlertMode: propertySabotageOwnerAlertModeEnum('owner_alert_mode').notNull(),
+  attackScore: numeric('attack_score', { precision: 10, scale: 2 }).notNull(),
+  defenseScore: numeric('defense_score', { precision: 10, scale: 2 }).notNull(),
+  attackRatio: numeric('attack_ratio', { precision: 10, scale: 4 }).notNull(),
+  heatDelta: integer('heat_delta').notNull().default(0),
+  prisonMinutes: integer('prison_minutes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const marketOrders = pgTable('market_orders', {
@@ -1306,7 +1345,7 @@ export const favelaBailes = pgTable('favela_bailes', {
   resultTier: varchar('result_tier', { length: 24 }).notNull(),
   satisfactionDelta: integer('satisfaction_delta').notNull(),
   factionPointsDelta: integer('faction_points_delta').notNull(),
-  staminaBoostPercent: integer('stamina_boost_percent').notNull(),
+  cansacoBoostPercent: integer('cansaco_boost_percent').notNull(),
   incidentCode: varchar('incident_code', { length: 40 }),
   organizedAt: timestamp('organized_at', { withTimezone: true }).notNull().defaultNow(),
   baileEndsAt: timestamp('baile_ends_at', { withTimezone: true }),

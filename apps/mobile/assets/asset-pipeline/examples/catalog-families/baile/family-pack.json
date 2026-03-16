@@ -1,0 +1,89 @@
+{
+  "family": "baile",
+  "title": "Baile de rua em miolo de favela",
+  "category": "nightlife",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "baile",
+    "rave"
+  ],
+  "assetTypes": [
+    "baile"
+  ],
+  "planCategories": [
+    "nightlife"
+  ],
+  "implementationModes": [
+    "existing-family",
+    "existing-family-with-variation"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/funk/baile_funk_1.jpg",
+    "assets/examples/funk/baile_funk_2.jpg",
+    "assets/examples/party/palco_1.webp",
+    "assets/examples/party/palco_4.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/funk/baile_funk_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/party/palco_4.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/funk/baile_funk_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/party/palco_1.webp"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "rua comprimida com palco ao fundo, massa de publico no centro e blocos de favela nas laterais",
+  "mustCapture": [
+    "palco simples de rua",
+    "massa de publico compacta",
+    "fios e postes",
+    "densidade urbana lateral"
+  ],
+  "avoid": [
+    "festival neon genérico",
+    "palco isolado em terreno vazio",
+    "leitura de balada indoor"
+  ],
+  "notes": [
+    "Esta familia cobre baile e rave, mudando so a abertura do layout na etapa 3."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/funk/baile_funk_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/funk/baile_funk_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile/references/01-funk-baile_funk_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/party/palco_4.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/party/palco_4.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile/references/02-party-palco_4.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/funk/baile_funk_2.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/funk/baile_funk_2.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile/references/03-funk-baile_funk_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/party/palco_1.webp",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/party/palco_1.webp",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile/references/04-party-palco_1.webp"
+    }
+  ]
+}

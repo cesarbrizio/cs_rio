@@ -789,7 +789,7 @@ export function FactionScreen(): JSX.Element {
         </SectionCard>
 
         <SectionCard
-          subtitle="Entrada rápida para o canal interno da facção, com status da sala, últimas mensagens e último chamado do bonde."
+          subtitle="Entrada rápida para o canal interno da facção, com status da sala, últimas mensagens e último chamado do bonde. As DMs ficam em Contatos; global, local e comércio seguem fora do recorte atual."
           title="Sala da facção"
         >
           <View style={styles.summaryGrid}>
@@ -1105,7 +1105,7 @@ export function FactionScreen(): JSX.Element {
       </SectionCard>
 
       <SectionCard
-        subtitle="Histórico financeiro autoritativo da facção. Comissões de boca, rave, puteiro, fachada, maquininha e jogo do bicho caem aqui automaticamente, junto com gastos de upgrade."
+        subtitle="Histórico financeiro autoritativo da facção. Comissões de boca, rave, puteiro, fachada e maquininha caem aqui automaticamente, junto com gastos de upgrade."
         title="Ledger"
       >
         {!bankBook ? (
@@ -1215,7 +1215,7 @@ export function FactionScreen(): JSX.Element {
   const renderWar = () => (
     <>
       <SectionCard
-        subtitle="Canal ao vivo da facção com status de conexão, presença online e feed curto para alinhamento rápido."
+        subtitle="Canal ao vivo da facção com status de conexão, presença online e feed curto para alinhamento rápido. No pre-alpha atual, este é o chat coletivo jogável."
         title="Sala da facção"
       >
         <View style={styles.summaryGrid}>
@@ -1235,7 +1235,7 @@ export function FactionScreen(): JSX.Element {
       </SectionCard>
 
       <SectionCard
-        subtitle="Chat interno da facção em tempo real para alinhamento rápido antes de crimes coletivos."
+        subtitle="Chat interno da facção em tempo real para alinhamento rápido antes de crimes coletivos. O social atual fecha em facção + DMs; global, local e comércio ficam fora do recorte."
         title="Chat da facção"
       >
         <TextInput
@@ -1351,7 +1351,7 @@ export function FactionScreen(): JSX.Element {
                     <View style={styles.flexCopy}>
                       <Text style={styles.cardTitle}>{crime.name}</Text>
                       <Text style={styles.cardCopy}>
-                        Crew {crime.minimumCrewSize}-{crime.maximumCrewSize} · stamina {crime.staminaCost}% · nervos {crime.nerveCost}
+                        Crew {crime.minimumCrewSize}-{crime.maximumCrewSize} · cansaço {crime.cansacoCost}% · disposição {crime.disposicaoCost}
                       </Text>
                     </View>
                     <Tag
@@ -1538,7 +1538,7 @@ export function FactionScreen(): JSX.Element {
 
   return (
     <InGameScreenLayout
-      subtitle="Centro unificado de facção: lista de membros, banco, upgrades, sala de guerra e disputa de liderança sem sair do celular."
+      subtitle="Centro unificado da facção: membros, banco, upgrades, guerra e chat interno sem sair do celular. DMs vivem em Contatos; global, local e comércio não fazem parte do pre-alpha atual."
       title="QG da Facção"
     >
       <View style={styles.topActionRow}>

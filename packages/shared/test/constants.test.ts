@@ -36,7 +36,7 @@ describe('shared constants', () => {
     expect(REALTIME_MESSAGE_PLAYER_MOVE).toBe('player:move');
   });
 
-  it('includes patrimonial properties with residential utility and prestige', () => {
+  it('includes patrimonial properties with residential utility and logistics bonuses', () => {
     const mansion = PROPERTY_DEFINITIONS.find((entry) => entry.type === 'mansion');
     const beachHouse = PROPERTY_DEFINITIONS.find((entry) => entry.type === 'beach_house');
     const yacht = PROPERTY_DEFINITIONS.find((entry) => entry.type === 'yacht');
@@ -44,7 +44,7 @@ describe('shared constants', () => {
     expect(mansion?.profitable).toBe(false);
     expect(mansion?.assetClass).toBe('real_estate');
     expect(mansion?.utility.inventorySlotsBonus).toBeGreaterThan(0);
-    expect(beachHouse?.utility.staminaRecoveryPerHourBonus).toBeGreaterThan(0);
+    expect(beachHouse?.utility.cansacoRecoveryPerHourBonus).toBeGreaterThan(0);
     expect(yacht?.utility.travelMode).toBe('sea');
     expect(PROPERTY_DEFINITIONS.some((entry) => entry.type === 'luxury')).toBe(true);
   });

@@ -31,7 +31,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 });
 
 export function buildHospitalServiceCopy(
-  serviceId: 'detox' | 'dstTreatment' | 'healthPlan' | 'surgery' | 'treatment',
+  serviceId: 'detox' | 'healthPlan' | 'surgery' | 'treatment',
   availability: HospitalServiceAvailability,
 ): string {
   if (availability.reason) {
@@ -80,8 +80,8 @@ export function formatHospitalizationReason(
     return 'Internação por combate.';
   }
 
-  if (hospitalization.trigger === 'stamina_overflow') {
-    return 'Overdose por excesso de estamina.';
+  if (hospitalization.trigger === 'cansaco_overflow') {
+    return 'Overdose por excesso de cansaço.';
   }
 
   if (hospitalization.trigger === 'max_addiction') {

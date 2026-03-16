@@ -21,6 +21,7 @@ import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import { WarResultModal } from '../components/WarResultModal';
 import {
   buildFavelaAlertLines,
+  buildFavelaForceSummaryLines,
   buildTerritoryHeadlineStats,
   formatTerritoryCountdown,
   formatTerritoryCurrency,
@@ -38,6 +39,7 @@ import {
   resolveWarStatusLabel,
   resolveX9StatusLabel,
 } from '../features/territory';
+import { buildTerritoryLossCue } from '../features/territory-loss';
 import { rememberSeenWarResult } from '../features/war-result-storage';
 import { buildWarResultCue, type WarResultCue } from '../features/war-results';
 import { formatApiError, territoryApi } from '../services/api';
@@ -53,6 +55,7 @@ export function TerritoryScreen(): JSX.Element {
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
   const [overview, setOverview] = useState<TerritoryOverviewResponse | null>(null);
+  const [lossFeed, setLossFeed] = useState<Awaited<ReturnType<typeof territoryApi.getLosses>> | null>(null);
   const [servicesBook, setServicesBook] = useState<Awaited<ReturnType<typeof territoryApi.getServices>> | null>(null);
   const [baileBook, setBaileBook] = useState<Awaited<ReturnType<typeof territoryApi.getBaile>> | null>(null);
   const [warBook, setWarBook] = useState<Awaited<ReturnType<typeof territoryApi.getWar>> | null>(null);
@@ -79,6 +82,10 @@ export function TerritoryScreen(): JSX.Element {
   const headlineStats = useMemo(
     () => buildTerritoryHeadlineStats(overview),
     [overview],
+  );
+  const recentLosses = useMemo(
+    () => (lossFeed?.cues ?? []).map(buildTerritoryLossCue).slice(0, 4),
+    [lossFeed],
   );
   const regionGroups = useMemo(
     () => (overview ? groupFavelasByRegion(overview) : []),
@@ -180,7 +187,10 @@ export function TerritoryScreen(): JSX.Element {
       setFeedbackMessage(null);
 
       try {
-        const nextOverview = await territoryApi.list();
+        const [nextOverview, nextLossFeed] = await Promise.all([
+          territoryApi.list(),
+          territoryApi.getLosses(),
+        ]);
         const nextRegionId = resolvePreferredRegionId(
           nextOverview,
           preferredRegionId,
@@ -195,6 +205,7 @@ export function TerritoryScreen(): JSX.Element {
         );
 
         setOverview(nextOverview);
+        setLossFeed(nextLossFeed);
         setSelectedRegionId(nextRegionId);
         setSelectedFavelaId(nextFavelaId);
 
@@ -536,6 +547,59 @@ export function TerritoryScreen(): JSX.Element {
       {overview ? (
         <>
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Perdas recentes</Text>
+            <Text style={styles.sectionSubtitle}>
+              Toda perda territorial recente fica registrada aqui, inclusive quando o jogo foi aberto depois do fato.
+            </Text>
+
+            {recentLosses.length > 0 ? (
+              <View style={styles.lossList}>
+                {recentLosses.map((loss) => (
+                  <Pressable
+                    accessibilityLabel={`Focar perda territorial em ${loss.favelaName}`}
+                    accessibilityRole="button"
+                    key={loss.key}
+                    onPress={() => {
+                      setSelectedRegionId(loss.regionId);
+                      setSelectedFavelaId(loss.favelaId);
+                      void loadFavelaDetail(loss.favelaId);
+                    }}
+                    style={({ pressed }) => [
+                      styles.lossCard,
+                      pressed ? styles.cardPressed : null,
+                    ]}
+                  >
+                    <View style={styles.sectionHeaderRow}>
+                      <View style={styles.sectionHeaderCopy}>
+                        <Text style={styles.lossTitle}>{loss.title}</Text>
+                        <Text style={styles.lossMeta}>
+                          {loss.causeLabel} · {loss.occurredAtLabel}
+                        </Text>
+                      </View>
+                      <StatusTag
+                        label={loss.controllerLabel}
+                        tone={loss.outcomeTone === 'danger' ? 'danger' : 'warning'}
+                      />
+                    </View>
+
+                    <Text style={styles.lossBody}>{loss.body}</Text>
+                    <Text style={styles.lossImpact}>{loss.territorialImpact}</Text>
+                    <Text style={styles.lossImpact}>{loss.economicImpact}</Text>
+                    <Text style={styles.lossImpact}>{loss.politicalImpact}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.detailCard}>
+                <Text style={styles.detailTitle}>Sem perdas recentes</Text>
+                <Text style={styles.detailCopy}>
+                  Quando sua facção perder território, o registro aparece aqui e também vira modal/notificação no retorno ao jogo.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Mapa regional</Text>
             <Text style={styles.sectionSubtitle}>
               Toque numa região para focar as favelas dela. Domínio total fortalece receita, proteção e segurança.
@@ -604,6 +668,11 @@ export function TerritoryScreen(): JSX.Element {
                   <Text style={styles.favelaMeta}>
                     {resolveSatisfactionTierLabel(favela.satisfactionProfile.tier)} · Pop. {favela.population.toLocaleString('pt-BR')}
                   </Text>
+                  {buildFavelaForceSummaryLines(favela).map((line) => (
+                    <Text key={`${favela.id}-${line}`} style={styles.favelaMeta}>
+                      {line}
+                    </Text>
+                  ))}
 
                   {favela.id === selectedFavela?.id ? (
                     <>
@@ -755,6 +824,8 @@ export function TerritoryScreen(): JSX.Element {
                   <SummaryCard label="Satisfação" tone={resolveSatisfactionColor(selectedFavela.satisfactionProfile.tier)} value={`${selectedFavela.satisfaction}`} />
                   <SummaryCard label="Moradores" tone={colors.info} value={selectedFavela.population.toLocaleString('pt-BR')} />
                   <SummaryCard label="Propina" tone={selectedFavela.propina ? colors.warning : colors.muted} value={selectedFavela.propina ? resolvePropinaStatusLabel(selectedFavela.propina.status) : '--'} />
+                  <SummaryCard label="Soldados" tone={colors.accent} value={`${selectedFavela.soldiers.active}/${selectedFavela.soldiers.max}`} />
+                  <SummaryCard label="Bandidos" tone={colors.danger} value={`${selectedFavela.bandits.active}/${selectedFavela.bandits.targetActive}`} />
                 </View>
 
                 <View style={styles.detailCard}>
@@ -762,6 +833,11 @@ export function TerritoryScreen(): JSX.Element {
                   <Text style={styles.detailCopy}>
                     Controlador: {selectedFavela.controllingFaction?.name ?? '--'} · Contestação: {selectedFavela.contestingFaction?.name ?? '--'} · Dificuldade {selectedFavela.difficulty}
                   </Text>
+                  {buildFavelaForceSummaryLines(selectedFavela).map((line) => (
+                    <Text key={`selected-${selectedFavela.id}-${line}`} style={styles.detailCopy}>
+                      {line}
+                    </Text>
+                  ))}
                   <Text style={styles.detailCopy}>
                     Receita x{selectedFavela.satisfactionProfile.revenueMultiplier.toFixed(2)} · Pressão populacional {selectedFavela.satisfactionProfile.populationPressurePercentPerDay.toFixed(1)}%/dia · X9 {selectedFavela.satisfactionProfile.dailyX9RiskPercent.toFixed(1)}%/dia
                   </Text>
@@ -883,7 +959,7 @@ export function TerritoryScreen(): JSX.Element {
                     Cooldown {formatTerritoryCountdown(baileBook?.baile.cooldownEndsAt ?? null, nowMs) ?? '--'} · ativo até {formatTerritoryTimestamp(baileBook?.baile.activeEndsAt ?? null)} · ressaca até {formatTerritoryTimestamp(baileBook?.baile.hangoverEndsAt ?? null)}
                   </Text>
                   <Text style={styles.detailCopy}>
-                    Último resultado {baileBook?.baile.resultTier ?? '--'} · boost de stamina {baileBook?.baile.staminaBoostPercent ?? 0}% · delta de satisfação {baileBook?.baile.satisfactionDelta ?? 0}
+                    Último resultado {baileBook?.baile.resultTier ?? '--'} · boost de cansaço {baileBook?.baile.cansacoBoostPercent ?? 0}% · delta de satisfação {baileBook?.baile.satisfactionDelta ?? 0}
                   </Text>
                 </View>
 
@@ -1002,7 +1078,7 @@ export function TerritoryScreen(): JSX.Element {
                         {selectedWarResultCue.personalImpact.directParticipation ? (
                           <Text style={styles.detailCopy}>
                             Conceito {selectedWarResultCue.personalImpact.conceitoDelta >= 0 ? '+' : ''}
-                            {selectedWarResultCue.personalImpact.conceitoDelta} · HP -{selectedWarResultCue.personalImpact.hpLoss} · NRV -{selectedWarResultCue.personalImpact.nerveLoss} · STA -{selectedWarResultCue.personalImpact.staminaLoss}
+                            {selectedWarResultCue.personalImpact.conceitoDelta} · HP -{selectedWarResultCue.personalImpact.hpLoss} · DIS -{selectedWarResultCue.personalImpact.disposicaoLoss} · CAN -{selectedWarResultCue.personalImpact.cansacoLoss}
                           </Text>
                         ) : null}
                       </>
@@ -1628,6 +1704,38 @@ const styles = StyleSheet.create({
   loadingTitle: {
     color: colors.text,
     fontSize: 18,
+    fontWeight: '800',
+  },
+  lossBody: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  lossCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  lossImpact: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  lossList: {
+    gap: 10,
+  },
+  lossMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  lossTitle: {
+    color: colors.text,
+    fontSize: 15,
     fontWeight: '800',
   },
   modalBackdrop: {

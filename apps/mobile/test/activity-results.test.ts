@@ -14,7 +14,7 @@ describe('activity result helpers', () => {
         activeSession: {
           claimedAt: null,
           costMoney: 1200,
-          costStamina: 14,
+          costCansaco: 14,
           diminishingMultiplier: 1.2,
           endsAt: '2026-03-14T12:00:00.000Z',
           id: 'training-1',
@@ -76,6 +76,7 @@ describe('activity result helpers', () => {
         npcInflation: buildNpcInflationStub(),
         passiveProfile: {} as never,
         player: {} as never,
+        progression: {} as never,
       },
       nowMs: new Date('2026-03-14T12:20:00.000Z').getTime(),
       seenKeys: new Set(),
@@ -94,7 +95,7 @@ describe('activity result helpers', () => {
         activeSession: {
           claimedAt: null,
           costMoney: 1000,
-          costStamina: 10,
+          costCansaco: 10,
           diminishingMultiplier: 1.1,
           endsAt: '2026-03-14T12:05:00.000Z',
           id: 'training-2',
@@ -144,6 +145,7 @@ describe('activity result helpers', () => {
         npcInflation: buildNpcInflationStub(),
         passiveProfile: {} as never,
         player: {} as never,
+        progression: {} as never,
       },
     });
 

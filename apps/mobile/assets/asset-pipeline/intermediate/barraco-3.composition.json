@@ -1,0 +1,318 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "barraco barraco-3",
+  "category": "favela",
+  "styleGuide": {
+    "resolvedProfile": "dense-favela",
+    "family": "barraco",
+    "variationPolicy": {
+      "jitter": {
+        "x": 5,
+        "y": 4
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.06
+      },
+      "roofVariation": "high",
+      "materialVariation": "medium-high",
+      "attachmentVariation": "medium"
+    },
+    "compositionPolicy": {
+      "layout": "single-shelter-plus-annex",
+      "baseAnchor": {
+        "x": 94,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 20,
+      "yStep": 6,
+      "rowLift": 10,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "midground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile",
+    "boca",
+    "market-clandestino",
+    "gym",
+    "hospital",
+    "prison",
+    "university",
+    "factory",
+    "dock-industrial",
+    "junkyard",
+    "residential-tower-simple",
+    "residential-tower-modern",
+    "commercial-block-simple",
+    "commercial-block-modern",
+    "house-simple",
+    "house-wealthy"
+  ],
+  "resolvedModules": [
+    {
+      "id": "corrugated-roof-5",
+      "module": "corrugated-roof",
+      "resolved": {
+        "id": "corrugated-roof",
+        "family": "favela",
+        "footprint": {
+          "width": 34,
+          "depth": 16
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 94,
+        "y": 106
+      },
+      "placement": {
+        "x": 4,
+        "y": 2,
+        "scale": 1.055
+      },
+      "variants": {
+        "materialHint": "telha metalica",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "barraco-roof-patch-4",
+      "module": "barraco-roof-patch",
+      "resolved": {
+        "id": "barraco-roof-patch",
+        "family": "barraco",
+        "footprint": {
+          "width": 34,
+          "depth": 14
+        },
+        "slots": [
+          "roof-detail"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 114,
+        "y": 110
+      },
+      "placement": {
+        "x": 16,
+        "y": -3,
+        "scale": 1.028
+      },
+      "variants": {
+        "materialHint": "concreto cru",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "barraco-corner-3",
+      "module": "barraco-corner",
+      "resolved": {
+        "id": "barraco-corner",
+        "family": "barraco",
+        "footprint": {
+          "width": 40,
+          "depth": 22
+        },
+        "slots": [
+          "utility-top",
+          "utility-side"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 94,
+        "y": 116
+      },
+      "placement": {
+        "x": 6,
+        "y": -2,
+        "scale": 0.994
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "utility-top",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "barraco-stacked-2",
+      "module": "barraco-stacked",
+      "resolved": {
+        "id": "barraco-stacked",
+        "family": "barraco",
+        "footprint": {
+          "width": 44,
+          "depth": 18
+        },
+        "slots": [
+          "circulation",
+          "roof-detail"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 114,
+        "y": 120
+      },
+      "placement": {
+        "x": 20,
+        "y": 1,
+        "scale": 1.007
+      },
+      "variants": {
+        "materialHint": "reboco gasto",
+        "slotHint": "roof-detail",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "barraco-unit-1",
+      "module": "barraco-unit",
+      "resolved": {
+        "id": "barraco-unit",
+        "family": "barraco",
+        "footprint": {
+          "width": 48,
+          "depth": 18
+        },
+        "slots": [
+          "roof-detail",
+          "facade-front"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 94,
+        "y": 126
+      },
+      "placement": {
+        "x": 3,
+        "y": 7,
+        "scale": 1.044
+      },
+      "variants": {
+        "materialHint": "metal remendado",
+        "slotHint": "facade-front",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "side-wall-6",
+      "module": "side-wall",
+      "resolved": {
+        "id": "side-wall",
+        "family": "favela",
+        "footprint": {
+          "width": 26,
+          "depth": 10
+        },
+        "slots": [
+          "facade-side"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 114,
+        "y": 100
+      },
+      "placement": {
+        "x": 26,
+        "y": -17,
+        "scale": 1.005
+      },
+      "variants": {
+        "materialHint": "concreto cru",
+        "slotHint": "facade-side",
+        "profile": "dense-favela",
+        "family": "barraco",
+        "density": "medium-high",
+        "roofVariation": "high",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium",
+        "visualRules": [
+          "preservar leitura improvisada do volume",
+          "não virar cubo genérico limpo",
+          "cobertura e anexos precisam dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/barraco-3.composition.svg"
+}

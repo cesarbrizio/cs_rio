@@ -1,0 +1,720 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "baile",
+  "category": "nightlife",
+  "styleGuide": {
+    "resolvedProfile": "simcity-urban",
+    "family": "baile",
+    "variationPolicy": {
+      "jitter": {
+        "x": 3,
+        "y": 2
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.03
+      },
+      "roofVariation": "low",
+      "materialVariation": "medium",
+      "attachmentVariation": "medium-high"
+    },
+    "compositionPolicy": {
+      "layout": "street-canyon-event",
+      "baseAnchor": {
+        "x": 96,
+        "y": 124
+      },
+      "columns": 4,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "background",
+        "background",
+        "midground",
+        "midground",
+        "midground",
+        "midground",
+        "overlay",
+        "foreground",
+        "foreground",
+        "foreground",
+        "foreground",
+        "foreground",
+        "foreground",
+        "overlay",
+        "overlay",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile"
+  ],
+  "resolvedModules": [
+    {
+      "id": "favela-right-back-2",
+      "module": "favela-side-block-right",
+      "resolved": {
+        "id": "favela-side-block-right",
+        "family": "baile",
+        "footprint": {
+          "width": 46,
+          "depth": 18
+        },
+        "slots": [
+          "edge-right"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 124,
+        "y": 112
+      },
+      "placement": {
+        "x": 15,
+        "y": -11,
+        "scale": 1
+      },
+      "variants": {
+        "materialHint": "metal pintado",
+        "slotHint": "edge-right",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "favela-left-back-1",
+      "module": "favela-side-block-left",
+      "resolved": {
+        "id": "favela-side-block-left",
+        "family": "baile",
+        "footprint": {
+          "width": 52,
+          "depth": 20
+        },
+        "slots": [
+          "edge-left"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 70,
+        "y": 114
+      },
+      "placement": {
+        "x": -19,
+        "y": -6,
+        "scale": 0.999
+      },
+      "variants": {
+        "materialHint": "metal pintado",
+        "slotHint": "edge-left",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "stage-main-6",
+      "module": "stage",
+      "resolved": {
+        "id": "stage",
+        "family": "baile",
+        "footprint": {
+          "width": 40,
+          "depth": 22
+        },
+        "slots": [
+          "stage"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 96,
+        "y": 92
+      },
+      "placement": {
+        "x": 2,
+        "y": -30,
+        "scale": 1.029
+      },
+      "variants": {
+        "materialHint": "metal pintado",
+        "slotHint": "stage",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "favela-right-mid-4",
+      "module": "favela-side-block-right",
+      "resolved": {
+        "id": "favela-side-block-right",
+        "family": "baile",
+        "footprint": {
+          "width": 46,
+          "depth": 18
+        },
+        "slots": [
+          "edge-right"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 144,
+        "y": 122
+      },
+      "placement": {
+        "x": 32,
+        "y": -1,
+        "scale": 0.979
+      },
+      "variants": {
+        "materialHint": "luz colorida",
+        "slotHint": "edge-right",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "favela-left-mid-3",
+      "module": "favela-side-block-left",
+      "resolved": {
+        "id": "favela-side-block-left",
+        "family": "baile",
+        "footprint": {
+          "width": 52,
+          "depth": 20
+        },
+        "slots": [
+          "edge-left"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 48,
+        "y": 124
+      },
+      "placement": {
+        "x": -41,
+        "y": 2,
+        "scale": 0.983
+      },
+      "variants": {
+        "materialHint": "luz colorida",
+        "slotHint": "edge-left",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "street-main-5",
+      "module": "street-segment",
+      "resolved": {
+        "id": "street-segment",
+        "family": "baile",
+        "footprint": {
+          "width": 78,
+          "depth": 30
+        },
+        "slots": [
+          "ground"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 96,
+        "y": 126
+      },
+      "placement": {
+        "x": 0,
+        "y": 5,
+        "scale": 1.002
+      },
+      "variants": {
+        "materialHint": "caixa de som",
+        "slotHint": "ground",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "speaker-main-11",
+      "module": "speaker-stack",
+      "resolved": {
+        "id": "speaker-stack",
+        "family": "baile",
+        "footprint": {
+          "width": 16,
+          "depth": 10
+        },
+        "slots": [
+          "audio"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 96,
+        "y": 100
+      },
+      "placement": {
+        "x": 11,
+        "y": -21,
+        "scale": 1.026
+      },
+      "variants": {
+        "materialHint": "cabos",
+        "slotHint": "audio",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "crowd-mid-10",
+      "module": "crowd-mass",
+      "resolved": {
+        "id": "crowd-mass",
+        "family": "baile",
+        "footprint": {
+          "width": 42,
+          "depth": 18
+        },
+        "slots": [
+          "crowd"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 96,
+        "y": 112
+      },
+      "placement": {
+        "x": 3,
+        "y": -9,
+        "scale": 0.983
+      },
+      "variants": {
+        "materialHint": "luz colorida",
+        "slotHint": "crowd",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "tent-right-13",
+      "module": "tent",
+      "resolved": {
+        "id": "tent",
+        "family": "baile",
+        "footprint": {
+          "width": 24,
+          "depth": 16
+        },
+        "slots": [
+          "support"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 136,
+        "y": 114
+      },
+      "placement": {
+        "x": 14,
+        "y": -8,
+        "scale": 1.021
+      },
+      "variants": {
+        "materialHint": "caixas de som",
+        "slotHint": "support",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "tent-left-12",
+      "module": "tent",
+      "resolved": {
+        "id": "tent",
+        "family": "baile",
+        "footprint": {
+          "width": 24,
+          "depth": 16
+        },
+        "slots": [
+          "support"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 58,
+        "y": 116
+      },
+      "placement": {
+        "x": -67,
+        "y": -7,
+        "scale": 0.998
+      },
+      "variants": {
+        "materialHint": "luz artificial",
+        "slotHint": "support",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "crowd-front-right-9",
+      "module": "crowd-mass",
+      "resolved": {
+        "id": "crowd-mass",
+        "family": "baile",
+        "footprint": {
+          "width": 42,
+          "depth": 18
+        },
+        "slots": [
+          "crowd"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 110,
+        "y": 124
+      },
+      "placement": {
+        "x": 16,
+        "y": 0,
+        "scale": 0.99
+      },
+      "variants": {
+        "materialHint": "caixas de som",
+        "slotHint": "crowd",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "crowd-front-left-8",
+      "module": "crowd-mass",
+      "resolved": {
+        "id": "crowd-mass",
+        "family": "baile",
+        "footprint": {
+          "width": 42,
+          "depth": 18
+        },
+        "slots": [
+          "crowd"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 82,
+        "y": 126
+      },
+      "placement": {
+        "x": -14,
+        "y": 2,
+        "scale": 1.017
+      },
+      "variants": {
+        "materialHint": "cabos",
+        "slotHint": "crowd",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "wires-grid-16",
+      "module": "wires",
+      "resolved": {
+        "id": "wires",
+        "family": "baile",
+        "footprint": {
+          "width": 58,
+          "depth": 10
+        },
+        "slots": [
+          "utility-top"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 84
+      },
+      "placement": {
+        "x": -2,
+        "y": 5,
+        "scale": 0.999
+      },
+      "variants": {
+        "materialHint": "caixa de som",
+        "slotHint": "utility-top",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "truss-main-7",
+      "module": "truss",
+      "resolved": {
+        "id": "truss",
+        "family": "baile",
+        "footprint": {
+          "width": 42,
+          "depth": 14
+        },
+        "slots": [
+          "stage-top"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 88
+      },
+      "placement": {
+        "x": -1,
+        "y": -32,
+        "scale": 1.02
+      },
+      "variants": {
+        "materialHint": "lona",
+        "slotHint": "stage-top",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "canopy-vendors-14",
+      "module": "canopy-strip",
+      "resolved": {
+        "id": "canopy-strip",
+        "family": "baile",
+        "footprint": {
+          "width": 48,
+          "depth": 16
+        },
+        "slots": [
+          "cover"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 108
+      },
+      "placement": {
+        "x": 1,
+        "y": -4,
+        "scale": 0.984
+      },
+      "variants": {
+        "materialHint": "lona",
+        "slotHint": "cover",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "pole-grid-15",
+      "module": "pole",
+      "resolved": {
+        "id": "pole",
+        "family": "baile",
+        "footprint": {
+          "width": 8,
+          "depth": 8
+        },
+        "slots": [
+          "utility"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 96,
+        "y": 118
+      },
+      "placement": {
+        "x": 6,
+        "y": -6,
+        "scale": 1.021
+      },
+      "variants": {
+        "materialHint": "luz colorida",
+        "slotHint": "utility",
+        "profile": "simcity-urban",
+        "family": "baile",
+        "density": "medium",
+        "roofVariation": "low",
+        "materialVariation": "medium",
+        "attachmentVariation": "medium-high",
+        "visualRules": [
+          "a rua precisa ler como corredor comprimido e cheio",
+          "o palco deve ficar ao fundo organizando a perspectiva",
+          "os blocos laterais precisam enquadrar o evento com massa urbana recognoscível"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.composition.svg"
+}

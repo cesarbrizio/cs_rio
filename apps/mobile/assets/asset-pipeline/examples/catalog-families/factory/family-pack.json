@@ -1,0 +1,65 @@
+{
+  "family": "factory",
+  "title": "Fabrica e infraestrutura fabril",
+  "category": "factory",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "factory"
+  ],
+  "assetTypes": [
+    "factory"
+  ],
+  "planCategories": [
+    "factory"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/factory/fabrica_1.jpg",
+    "assets/examples/factory/fabrica_7.png"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_7.png"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "massa fabril reconhecivel com telhados largos, volumes auxiliares e leitura de producao",
+  "mustCapture": [
+    "galpao principal",
+    "volumes auxiliares",
+    "cobertura serrilhada ou ampla",
+    "material industrial"
+  ],
+  "avoid": [
+    "icone de chaminé infantil",
+    "predio comercial limpo",
+    "leitura residencial"
+  ],
+  "notes": [
+    "Familia industrial principal do mapa."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/factory",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/factory/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/factory/fabrica_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/factory/references/01-factory-fabrica_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_7.png",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/factory/fabrica_7.png",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/factory/references/02-factory-fabrica_7.png"
+    }
+  ]
+}

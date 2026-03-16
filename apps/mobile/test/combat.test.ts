@@ -119,9 +119,9 @@ describe('combat helpers', () => {
         moneyBefore: 2400,
         moneyDelta: 400,
         nickname: 'Atacante',
-        staminaAfter: 52,
-        staminaBefore: 70,
-        staminaDelta: -18,
+        cansacoAfter: 52,
+        cansacoBefore: 70,
+        cansacoDelta: -18,
       },
       attributeSteal: {
         amount: 2,

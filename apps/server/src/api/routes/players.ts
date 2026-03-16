@@ -1,11 +1,17 @@
-import { type PlayerCreationInput, type PlayerTravelInput } from '@cs-rio/shared';
+import {
+  type PlayerCreationInput,
+  type PlayerTravelInput,
+  type PlayerVocationChangeInput,
+} from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
 import { throwRouteHttpError } from '../http-errors.js';
 import {
   buildStandardResponseSchema,
   playerCreationBodySchema,
+  playerPublicProfileParamsSchema,
   playerTravelBodySchema,
+  playerVocationChangeBodySchema,
 } from '../schemas.js';
 import { type PlayerService } from '../../services/player.js';
 
@@ -17,6 +23,47 @@ export function createPlayerRoutes({
   playerService,
 }: PlayerRouteDependencies): FastifyPluginAsync {
   return async (fastify) => {
+    fastify.get<{ Params: { nickname: string } }>(
+      '/players/public/:nickname',
+      {
+        schema: {
+          params: playerPublicProfileParamsSchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
+        try {
+          const profile = await playerService.getPublicProfileByNickname(request.params.nickname);
+          return reply.send(profile);
+        } catch (error) {
+          return sendPlayerError(reply, error);
+        }
+      },
+    );
+
+    fastify.get(
+      '/players/vocation',
+      {
+        schema: {
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const center = await playerService.getVocationCenter(request.playerId);
+          return reply.send(center);
+        } catch (error) {
+          return sendPlayerError(reply, error);
+        }
+      },
+    );
+
     fastify.get(
       '/players/me',
       {
@@ -85,6 +132,30 @@ export function createPlayerRoutes({
       } catch (error) {
         return sendPlayerError(reply, error);
       }
+      },
+    );
+
+    fastify.post<{ Body: PlayerVocationChangeInput }>(
+      '/players/vocation/change',
+      {
+        schema: {
+          body: playerVocationChangeBodySchema,
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const response = await playerService.changeVocation(request.playerId, request.body);
+          return reply.send(response);
+        } catch (error) {
+          return sendPlayerError(reply, error);
+        }
       },
     );
   };

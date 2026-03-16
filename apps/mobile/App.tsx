@@ -9,7 +9,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AudioProvider, useAudio } from './src/audio/AudioProvider';
 import { ActivityResultModal } from './src/components/ActivityResultModal';
+import { EventResultModal } from './src/components/EventResultModal';
 import { FactionPromotionModal } from './src/components/FactionPromotionModal';
+import { SabotageResultModal } from './src/components/SabotageResultModal';
+import { TerritoryLossModal } from './src/components/TerritoryLossModal';
+import { TribunalResultModal } from './src/components/TribunalResultModal';
 import { WarResultModal } from './src/components/WarResultModal';
 import { EventToastOverlay } from './src/components/EventToastOverlay';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
@@ -22,18 +26,60 @@ import {
   type FactionPromotionCue,
 } from './src/features/faction-promotion';
 import {
+  buildPendingPrivateMessageCues,
+} from './src/features/private-messages';
+import {
+  buildPendingSabotageCues,
+  type SabotageCue,
+} from './src/features/sabotage';
+import {
   loadSeenActivityResultKeys,
   rememberSeenActivityResult,
 } from './src/features/activity-result-storage';
+import {
+  loadSeenEventResultKeys,
+  rememberSeenEventResult,
+} from './src/features/event-result-storage';
+import {
+  buildPendingEventResultCues,
+  type EventResultCue,
+} from './src/features/event-results';
 import { buildEventFeed } from './src/features/events';
+import {
+  loadSeenTribunalCueKeys,
+  rememberSeenTribunalCue,
+} from './src/features/tribunal-result-storage';
+import {
+  buildPendingTerritoryLossCues,
+  type TerritoryLossCue,
+} from './src/features/territory-loss';
+import {
+  loadSeenTerritoryLossKeys,
+  rememberSeenTerritoryLoss,
+} from './src/features/territory-loss-storage';
+import {
+  loadSeenPrivateMessageIds,
+  rememberSeenPrivateMessage,
+} from './src/features/private-message-storage';
+import {
+  loadSeenSabotageCueKeys,
+  rememberSeenSabotageCue,
+} from './src/features/sabotage-storage';
+import {
+  buildPendingTribunalCues,
+  type TribunalCue,
+} from './src/features/tribunal-results';
+import { canPlayerLeadTribunal } from './src/features/tribunal';
 import { loadSeenWarResultKeys, rememberSeenWarResult } from './src/features/war-result-storage';
 import { buildPendingWarResultCues, type WarResultCue } from './src/features/war-results';
 import { CharacterCreationScreen } from './src/screens/CharacterCreationScreen';
 import { BichoScreen } from './src/screens/BichoScreen';
 import { CombatScreen } from './src/screens/CombatScreen';
+import { ContactsScreen } from './src/screens/ContactsScreen';
 import { ContractsScreen } from './src/screens/ContractsScreen';
 import { CrimesScreen } from './src/screens/CrimesScreen';
 import { DrugUseScreen } from './src/screens/DrugUseScreen';
+import { EventsScreen } from './src/screens/EventsScreen';
 import { FactionScreen } from './src/screens/FactionScreen';
 import { FactoriesScreen } from './src/screens/FactoriesScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -47,12 +93,24 @@ import { PrisonScreen } from './src/screens/PrisonScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { SabotageScreen } from './src/screens/SabotageScreen';
 import { TerritoryScreen } from './src/screens/TerritoryScreen';
 import { TrainingScreen } from './src/screens/TrainingScreen';
 import { TribunalScreen } from './src/screens/TribunalScreen';
 import { UniversityScreen } from './src/screens/UniversityScreen';
+import { VocationScreen } from './src/screens/VocationScreen';
 import { NotificationProvider, useNotifications } from './src/notifications/NotificationProvider';
-import { eventApi, factionApi, pvpApi, territoryApi, trainingApi, universityApi } from './src/services/api';
+import {
+  eventApi,
+  factionApi,
+  privateMessageApi,
+  propertyApi,
+  pvpApi,
+  territoryApi,
+  trainingApi,
+  tribunalApi,
+  universityApi,
+} from './src/services/api';
 import { useAppStore } from './src/stores/appStore';
 import { useAuthStore } from './src/stores/authStore';
 import { colors } from './src/theme/colors';
@@ -61,9 +119,16 @@ export type RootStackParamList = {
   Bicho: undefined;
   CharacterCreation: undefined;
   Combat: undefined;
+  Contacts: undefined;
   Contracts: undefined;
   Crimes: undefined;
+  Events: undefined;
   Factories: undefined;
+  Sabotage:
+    | {
+        focusPropertyId?: string;
+      }
+    | undefined;
   DrugUse:
     | {
         initialInventoryItemId?: string;
@@ -110,6 +175,7 @@ export type RootStackParamList = {
       }
     | undefined;
   University: undefined;
+  Vocation: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -150,14 +216,22 @@ function AppContent(): JSX.Element {
   const activeEventToast = useAppStore((state) => state.activeEventToast);
   const dismissEventToast = useAppStore((state) => state.dismissEventToast);
   const resetEventFeed = useAppStore((state) => state.resetEventFeed);
+  const resetPrivateMessageFeed = useAppStore((state) => state.resetPrivateMessageFeed);
   const setEventFeed = useAppStore((state) => state.setEventFeed);
+  const setEventResultFeed = useAppStore((state) => state.setEventResultFeed);
+  const setPrivateMessageFeed = useAppStore((state) => state.setPrivateMessageFeed);
   const showEventToast = useAppStore((state) => state.showEventToast);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
   const { playSfx, syncRegionMusic } = useAudio();
   const {
     notifyAttack,
     notifyEvent,
+    notifyEventResult,
     notifyFactionPromotion,
+    notifyPrivateMessage,
+    notifySabotageCue,
+    notifyTerritoryLoss,
+    notifyTribunalCue,
     notifyWarResult,
     syncTimerNotifications,
     syncTrainingNotifications,
@@ -167,12 +241,26 @@ function AppContent(): JSX.Element {
   const contractFeedPrimedRef = useRef(false);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
   const eventFeedPrimedRef = useRef(false);
+  const privateMessageFeedPrimedRef = useRef(false);
   const seenActivityResultKeysRef = useRef<Set<string>>(new Set());
   const seenActivityResultPlayerIdRef = useRef<string | null>(null);
+  const seenEventResultKeysRef = useRef<Set<string>>(new Set());
+  const seenEventResultPlayerIdRef = useRef<string | null>(null);
+  const seenPrivateMessageIdsRef = useRef<Set<string>>(new Set());
+  const seenPrivateMessagePlayerIdRef = useRef<string | null>(null);
+  const seenSabotageCueKeysRef = useRef<Set<string>>(new Set());
+  const seenTerritoryLossKeysRef = useRef<Set<string>>(new Set());
+  const seenTerritoryLossPlayerIdRef = useRef<string | null>(null);
+  const seenTribunalCueKeysRef = useRef<Set<string>>(new Set());
+  const seenTribunalCuePlayerIdRef = useRef<string | null>(null);
   const seenWarResultKeysRef = useRef<Set<string>>(new Set());
   const seenWarResultPlayerIdRef = useRef<string | null>(null);
   const [activeActivityCue, setActiveActivityCue] = useState<AsyncActivityCue | null>(null);
+  const [activeEventResultCue, setActiveEventResultCue] = useState<EventResultCue | null>(null);
   const [activeFactionPromotionCue, setActiveFactionPromotionCue] = useState<FactionPromotionCue | null>(null);
+  const [activeSabotageCue, setActiveSabotageCue] = useState<SabotageCue | null>(null);
+  const [activeTerritoryLossCue, setActiveTerritoryLossCue] = useState<TerritoryLossCue | null>(null);
+  const [activeTribunalCue, setActiveTribunalCue] = useState<TribunalCue | null>(null);
   const [activeWarResultCue, setActiveWarResultCue] = useState<WarResultCue | null>(null);
 
   useEffect(() => {
@@ -227,6 +315,280 @@ function AppContent(): JSX.Element {
     player?.hasCharacter,
     setEventFeed,
     showEventToast,
+  ]);
+
+  const ensureSeenEventResultsLoaded = useCallback(async () => {
+    if (!player?.id) {
+      seenEventResultKeysRef.current = new Set();
+      seenEventResultPlayerIdRef.current = null;
+      return;
+    }
+
+    if (seenEventResultPlayerIdRef.current === player.id) {
+      return;
+    }
+
+    seenEventResultKeysRef.current = await loadSeenEventResultKeys(player.id);
+    seenEventResultPlayerIdRef.current = player.id;
+  }, [player?.id]);
+
+  const ensureSeenTerritoryLossesLoaded = useCallback(async () => {
+    if (!player?.id) {
+      seenTerritoryLossKeysRef.current = new Set();
+      seenTerritoryLossPlayerIdRef.current = null;
+      return;
+    }
+
+    if (seenTerritoryLossPlayerIdRef.current === player.id) {
+      return;
+    }
+
+    seenTerritoryLossKeysRef.current = await loadSeenTerritoryLossKeys(player.id);
+    seenTerritoryLossPlayerIdRef.current = player.id;
+  }, [player?.id]);
+
+  const ensureSeenPrivateMessagesLoaded = useCallback(async () => {
+    if (!player?.id) {
+      seenPrivateMessageIdsRef.current = new Set();
+      seenPrivateMessagePlayerIdRef.current = null;
+      return;
+    }
+
+    if (seenPrivateMessagePlayerIdRef.current === player.id) {
+      return;
+    }
+
+    seenPrivateMessageIdsRef.current = await loadSeenPrivateMessageIds(player.id);
+    seenPrivateMessagePlayerIdRef.current = player.id;
+    privateMessageFeedPrimedRef.current = false;
+  }, [player?.id]);
+
+  const refreshSeenSabotageCues = useCallback(async () => {
+    if (!player?.id) {
+      seenSabotageCueKeysRef.current = new Set();
+      return;
+    }
+
+    seenSabotageCueKeysRef.current = await loadSeenSabotageCueKeys(player.id);
+  }, [player?.id]);
+
+  const ensureSeenTribunalCuesLoaded = useCallback(async () => {
+    if (!player?.id) {
+      seenTribunalCueKeysRef.current = new Set();
+      seenTribunalCuePlayerIdRef.current = null;
+      return;
+    }
+
+    if (seenTribunalCuePlayerIdRef.current === player.id) {
+      return;
+    }
+
+    seenTribunalCueKeysRef.current = await loadSeenTribunalCueKeys(player.id);
+    seenTribunalCuePlayerIdRef.current = player.id;
+  }, [player?.id]);
+
+  const pollEventResults = useCallback(async () => {
+    if (!isAuthenticated || !player?.hasCharacter || !player.id) {
+      return;
+    }
+
+    await ensureSeenEventResultsLoaded();
+
+    const results = await eventApi.getResults();
+    setEventResultFeed(results);
+
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
+      return;
+    }
+
+    const cues = buildPendingEventResultCues({
+      results,
+      seenKeys: seenEventResultKeysRef.current,
+    });
+    const nextCue = cues[0];
+
+    if (!nextCue) {
+      return;
+    }
+
+    seenEventResultKeysRef.current = await rememberSeenEventResult(player.id, nextCue.key);
+    setActiveEventResultCue(nextCue);
+    setBootstrapStatus(nextCue.body);
+    void notifyEventResult(nextCue);
+  }, [
+    activeActivityCue,
+    activeEventResultCue,
+    activeFactionPromotionCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
+    activeWarResultCue,
+    ensureSeenEventResultsLoaded,
+    isAuthenticated,
+    notifyEventResult,
+    player,
+    setBootstrapStatus,
+    setEventResultFeed,
+  ]);
+
+  const pollPrivateMessages = useCallback(async () => {
+    if (!isAuthenticated || !player?.hasCharacter || !player.id) {
+      return;
+    }
+
+    await ensureSeenPrivateMessagesLoaded();
+
+    const feed = await privateMessageApi.listThreads();
+    setPrivateMessageFeed(feed);
+
+    const pendingCues = buildPendingPrivateMessageCues({
+      feed,
+      seenMessageIds: seenPrivateMessageIdsRef.current,
+    });
+
+    if (!privateMessageFeedPrimedRef.current) {
+      for (const cue of pendingCues) {
+        seenPrivateMessageIdsRef.current = await rememberSeenPrivateMessage(player.id, cue.messageId);
+      }
+      privateMessageFeedPrimedRef.current = true;
+      return;
+    }
+
+    const nextCue = pendingCues[0];
+
+    if (!nextCue) {
+      return;
+    }
+
+    seenPrivateMessageIdsRef.current = await rememberSeenPrivateMessage(player.id, nextCue.messageId);
+    setBootstrapStatus(`${nextCue.contactNickname} te mandou uma mensagem privada.`);
+    void notifyPrivateMessage(nextCue);
+  }, [
+    ensureSeenPrivateMessagesLoaded,
+    isAuthenticated,
+    notifyPrivateMessage,
+    player?.hasCharacter,
+    player?.id,
+    setBootstrapStatus,
+    setPrivateMessageFeed,
+  ]);
+
+  const pollSabotageCues = useCallback(async () => {
+    if (!isAuthenticated || !player?.hasCharacter || !player.id) {
+      return;
+    }
+
+    await refreshSeenSabotageCues();
+
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
+      return;
+    }
+
+    const center = await propertyApi.getSabotageCenter();
+    const nextCue = buildPendingSabotageCues({
+      center,
+      playerId: player.id,
+      seenKeys: seenSabotageCueKeysRef.current,
+    })[0];
+
+    if (!nextCue) {
+      return;
+    }
+
+    seenSabotageCueKeysRef.current = await rememberSeenSabotageCue(player.id, nextCue.key);
+    setActiveSabotageCue(nextCue);
+    setBootstrapStatus(nextCue.body);
+    void notifySabotageCue(nextCue);
+    void refreshPlayerProfile();
+  }, [
+    activeActivityCue,
+    activeEventResultCue,
+    activeFactionPromotionCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
+    activeWarResultCue,
+    isAuthenticated,
+    notifySabotageCue,
+    player?.hasCharacter,
+    player?.id,
+    refreshPlayerProfile,
+    refreshSeenSabotageCues,
+    setBootstrapStatus,
+  ]);
+
+  const pollTribunalCues = useCallback(async () => {
+    if (
+      !isAuthenticated ||
+      !player?.hasCharacter ||
+      !player.id ||
+      !canPlayerLeadTribunal(player.faction?.rank ?? null)
+    ) {
+      return;
+    }
+
+    await ensureSeenTribunalCuesLoaded();
+
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
+      return;
+    }
+
+    const feed = await tribunalApi.getCues();
+    const nextCue = buildPendingTribunalCues({
+      feed,
+      seenKeys: seenTribunalCueKeysRef.current,
+    })[0];
+
+    if (!nextCue) {
+      return;
+    }
+
+    seenTribunalCueKeysRef.current = await rememberSeenTribunalCue(player.id, nextCue.key);
+    setActiveTribunalCue(nextCue);
+    setBootstrapStatus(nextCue.body);
+    void notifyTribunalCue(nextCue);
+
+    if (nextCue.kind === 'resolved') {
+      void refreshPlayerProfile();
+    }
+  }, [
+    activeActivityCue,
+    activeEventResultCue,
+    activeFactionPromotionCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
+    activeWarResultCue,
+    ensureSeenTribunalCuesLoaded,
+    isAuthenticated,
+    notifyTribunalCue,
+    player,
+    refreshPlayerProfile,
+    setBootstrapStatus,
   ]);
 
   const pollAttackNotifications = useCallback(async () => {
@@ -296,7 +658,15 @@ function AppContent(): JSX.Element {
 
     await ensureSeenWarResultsLoaded();
 
-    if (activeWarResultCue || activeActivityCue) {
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
       return;
     }
 
@@ -318,10 +688,76 @@ function AppContent(): JSX.Element {
     void notifyWarResult(nextCue);
   }, [
     activeActivityCue,
+    activeEventResultCue,
+    activeFactionPromotionCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
     activeWarResultCue,
     ensureSeenWarResultsLoaded,
     isAuthenticated,
     notifyWarResult,
+    player,
+    setBootstrapStatus,
+  ]);
+
+  const pollTerritoryLosses = useCallback(async () => {
+    if (!isAuthenticated || !player?.hasCharacter || !player?.faction?.id || !player.id) {
+      return;
+    }
+
+    await Promise.all([ensureSeenTerritoryLossesLoaded(), ensureSeenWarResultsLoaded()]);
+
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
+      return;
+    }
+
+    const [feed, overview] = await Promise.all([territoryApi.getLosses(), territoryApi.list()]);
+    const warCues = buildPendingWarResultCues({
+      overview,
+      player,
+      seenKeys: seenWarResultKeysRef.current,
+    });
+    const nextResult = buildPendingTerritoryLossCues({
+      feed,
+      seenKeys: seenTerritoryLossKeysRef.current,
+      warCues,
+    })[0];
+
+    if (!nextResult) {
+      return;
+    }
+
+    seenTerritoryLossKeysRef.current = await rememberSeenTerritoryLoss(
+      player.id,
+      nextResult.cue.key,
+    );
+
+    if (nextResult.dedupedByWar) {
+      return;
+    }
+
+    setActiveTerritoryLossCue(nextResult.cue);
+    setBootstrapStatus(nextResult.cue.body);
+    void notifyTerritoryLoss(nextResult.cue);
+  }, [
+    activeActivityCue,
+    activeEventResultCue,
+    activeFactionPromotionCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
+    activeWarResultCue,
+    ensureSeenTerritoryLossesLoaded,
+    ensureSeenWarResultsLoaded,
+    isAuthenticated,
+    notifyTerritoryLoss,
     player,
     setBootstrapStatus,
   ]);
@@ -343,7 +779,14 @@ function AppContent(): JSX.Element {
       syncUniversityNotifications(universityCenter.activeCourse),
     ]);
 
-    if (activeWarResultCue || activeActivityCue) {
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
       return;
     }
 
@@ -363,6 +806,10 @@ function AppContent(): JSX.Element {
     setBootstrapStatus(nextCue.body);
   }, [
     activeActivityCue,
+    activeEventResultCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
     activeWarResultCue,
     ensureSeenActivityResultsLoaded,
     isAuthenticated,
@@ -377,7 +824,15 @@ function AppContent(): JSX.Element {
       return;
     }
 
-    if (activeWarResultCue || activeActivityCue || activeFactionPromotionCue) {
+    if (
+      activeEventResultCue ||
+      activeWarResultCue ||
+      activeActivityCue ||
+      activeFactionPromotionCue ||
+      activeSabotageCue ||
+      activeTerritoryLossCue ||
+      activeTribunalCue
+    ) {
       return;
     }
 
@@ -396,7 +851,11 @@ function AppContent(): JSX.Element {
     void refreshPlayerProfile();
   }, [
     activeActivityCue,
+    activeEventResultCue,
     activeFactionPromotionCue,
+    activeSabotageCue,
+    activeTerritoryLossCue,
+    activeTribunalCue,
     activeWarResultCue,
     isAuthenticated,
     notifyFactionPromotion,
@@ -419,16 +878,31 @@ function AppContent(): JSX.Element {
     if (!isAuthenticated || !player?.hasCharacter) {
       contractFeedPrimedRef.current = false;
       eventFeedPrimedRef.current = false;
+      privateMessageFeedPrimedRef.current = false;
       seenActivityResultKeysRef.current.clear();
       seenActivityResultPlayerIdRef.current = null;
       seenContractNotificationIdsRef.current.clear();
       seenEventIdsRef.current.clear();
+      seenEventResultKeysRef.current.clear();
+      seenEventResultPlayerIdRef.current = null;
+      seenPrivateMessageIdsRef.current.clear();
+      seenPrivateMessagePlayerIdRef.current = null;
+      seenSabotageCueKeysRef.current.clear();
+      seenTerritoryLossKeysRef.current.clear();
+      seenTerritoryLossPlayerIdRef.current = null;
+      seenTribunalCueKeysRef.current.clear();
+      seenTribunalCuePlayerIdRef.current = null;
       seenWarResultKeysRef.current.clear();
       seenWarResultPlayerIdRef.current = null;
       setActiveActivityCue(null);
+      setActiveEventResultCue(null);
       setActiveFactionPromotionCue(null);
+      setActiveSabotageCue(null);
+      setActiveTerritoryLossCue(null);
+      setActiveTribunalCue(null);
       setActiveWarResultCue(null);
       resetEventFeed();
+      resetPrivateMessageFeed();
       void syncTimerNotifications(null);
       void syncTrainingNotifications(null);
       void syncUniversityNotifications(null);
@@ -443,7 +917,12 @@ function AppContent(): JSX.Element {
           pollAttackNotifications(),
           pollAsyncActivityResults(),
           pollEventFeed(),
+          pollEventResults(),
           pollFactionPromotionResults(),
+          pollPrivateMessages(),
+          pollSabotageCues(),
+          pollTerritoryLosses(),
+          pollTribunalCues(),
           pollWarResults(),
         ]);
       } catch {
@@ -468,9 +947,15 @@ function AppContent(): JSX.Element {
     pollAttackNotifications,
     pollAsyncActivityResults,
     pollEventFeed,
+    pollEventResults,
     pollFactionPromotionResults,
+    pollPrivateMessages,
+    pollSabotageCues,
+    pollTerritoryLosses,
+    pollTribunalCues,
     pollWarResults,
     resetEventFeed,
+    resetPrivateMessageFeed,
     syncTimerNotifications,
     syncTrainingNotifications,
     syncUniversityNotifications,
@@ -561,26 +1046,36 @@ function AppContent(): JSX.Element {
                     animation: 'fade',
                   }}
                 />
-                  <Stack.Screen
-                    component={BichoScreen}
-                    name="Bicho"
+                <Stack.Screen
+                  component={BichoScreen}
+                  name="Bicho"
+                  options={inGameSheetOptions}
+                />
+                <Stack.Screen
+                  component={EventsScreen}
+                  name="Events"
+                  options={inGameSheetOptions}
+                />
+                <Stack.Screen
+                  component={HospitalScreen}
+                  name="Hospital"
                     options={inGameSheetOptions}
                   />
-                  <Stack.Screen
-                    component={HospitalScreen}
-                    name="Hospital"
-                    options={inGameSheetOptions}
-                  />
-                  <Stack.Screen
-                    component={CombatScreen}
-                    name="Combat"
-                    options={inGameSheetOptions}
-                  />
-                  <Stack.Screen
-                    component={ContractsScreen}
-                    name="Contracts"
-                    options={inGameSheetOptions}
-                  />
+                <Stack.Screen
+                  component={CombatScreen}
+                  name="Combat"
+                  options={inGameSheetOptions}
+                />
+                <Stack.Screen
+                  component={ContactsScreen}
+                  name="Contacts"
+                  options={inGameSheetOptions}
+                />
+                <Stack.Screen
+                  component={ContractsScreen}
+                  name="Contracts"
+                  options={inGameSheetOptions}
+                />
                   <Stack.Screen
                     component={CrimesScreen}
                     name="Crimes"
@@ -631,11 +1126,16 @@ function AppContent(): JSX.Element {
                     name="Prison"
                     options={inGameSheetOptions}
                   />
-                  <Stack.Screen
-                    component={SettingsScreen}
-                    name="Settings"
-                    options={inGameSheetOptions}
-                  />
+                <Stack.Screen
+                  component={SabotageScreen}
+                  name="Sabotage"
+                  options={inGameSheetOptions}
+                />
+                <Stack.Screen
+                  component={SettingsScreen}
+                  name="Settings"
+                  options={inGameSheetOptions}
+                />
                   <Stack.Screen
                     component={TrainingScreen}
                     name="Training"
@@ -656,12 +1156,46 @@ function AppContent(): JSX.Element {
                     name="University"
                     options={inGameSheetOptions}
                   />
+                  <Stack.Screen
+                    component={VocationScreen}
+                    name="Vocation"
+                    options={inGameSheetOptions}
+                  />
               </>
             )}
           </Stack.Navigator>
         )}
       </NavigationContainer>
       <EventToastOverlay notification={activeEventToast} onDismiss={dismissEventToast} />
+      <EventResultModal
+        cue={activeEventResultCue}
+        onClose={() => {
+          setActiveEventResultCue(null);
+        }}
+        onOpenTarget={(cue) => {
+          setActiveEventResultCue(null);
+
+          if (!navigationRef.isReady()) {
+            return;
+          }
+
+          switch (cue.destination) {
+            case 'territory':
+              navigationRef.navigate('Territory');
+              return;
+            case 'market':
+              navigationRef.navigate('Market');
+              return;
+            case 'prison':
+              navigationRef.navigate('Prison');
+              return;
+            case 'map':
+              navigationRef.navigate('Map');
+              return;
+          }
+        }}
+        visible={Boolean(activeEventResultCue)}
+      />
       <ActivityResultModal
         cue={activeActivityCue}
         onClose={() => {
@@ -684,6 +1218,60 @@ function AppContent(): JSX.Element {
           setActiveFactionPromotionCue(null);
         }}
         visible={Boolean(activeFactionPromotionCue)}
+      />
+      <SabotageResultModal
+        cue={activeSabotageCue}
+        onClose={() => {
+          setActiveSabotageCue(null);
+        }}
+        onOpenTarget={(cue) => {
+          setActiveSabotageCue(null);
+
+          if (!navigationRef.isReady()) {
+            return;
+          }
+
+          navigationRef.navigate('Sabotage', {
+            focusPropertyId: cue.propertyId,
+          });
+        }}
+        visible={Boolean(activeSabotageCue)}
+      />
+      <TribunalResultModal
+        cue={activeTribunalCue}
+        onClose={() => {
+          setActiveTribunalCue(null);
+        }}
+        onOpenTarget={(cue) => {
+          setActiveTribunalCue(null);
+
+          if (!navigationRef.isReady()) {
+            return;
+          }
+
+          navigationRef.navigate('Tribunal', {
+            focusFavelaId: cue.case.favelaId,
+          });
+        }}
+        visible={Boolean(activeTribunalCue)}
+      />
+      <TerritoryLossModal
+        cue={activeTerritoryLossCue}
+        onClose={() => {
+          setActiveTerritoryLossCue(null);
+        }}
+        onOpenTarget={(cue) => {
+          setActiveTerritoryLossCue(null);
+
+          if (!navigationRef.isReady()) {
+            return;
+          }
+
+          navigationRef.navigate('Territory', {
+            focusFavelaId: cue.favelaId,
+          });
+        }}
+        visible={Boolean(activeTerritoryLossCue)}
       />
       <WarResultModal
         cue={activeWarResultCue}

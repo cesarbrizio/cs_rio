@@ -1,0 +1,21 @@
+{
+  "stage": "render-svg",
+  "assetType": "commercial-block-simple predio-comercial-simples-1",
+  "category": "residential",
+  "status": "rendered",
+  "targetViewBox": "0 0 160 160",
+  "sourceViewBox": "0 0 192 160",
+  "fit": {
+    "scale": 0.7292,
+    "translateX": 10,
+    "translateY": 21.67,
+    "padding": 10
+  },
+  "note": "Etapa 5 concluida: o renderer final agora materializa um SVG final a partir da composicao modular.",
+  "compositionSummary": {
+    "nodeCount": 3,
+    "resolvedModules": 3,
+    "skippedModules": 0
+  },
+  "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-simples-1.svg"
+}

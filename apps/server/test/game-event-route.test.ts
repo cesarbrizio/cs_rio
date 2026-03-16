@@ -1,4 +1,5 @@
 import {
+  type EventResultListResponse,
   RegionId,
   type DocksEventStatusResponse,
   type PoliceEventStatusResponse,
@@ -22,6 +23,7 @@ import {
 import { type AuthService } from '../src/services/auth.js';
 
 interface InMemoryDocksEventRecord {
+  dataJson?: Record<string, unknown>;
   endsAt: Date;
   id: string;
   regionId: RegionId;
@@ -217,8 +219,14 @@ class InMemoryGameEventRepository implements GameEventRepository {
     }
   }
 
-  async createDocksEvent(input: { endsAt: Date; regionId: RegionId; startedAt: Date }) {
+  async createDocksEvent(input: {
+    dataJson: Record<string, unknown>;
+    endsAt: Date;
+    regionId: RegionId;
+    startedAt: Date;
+  }) {
     this.docksRecords.push({
+      dataJson: input.dataJson,
       endsAt: input.endsAt,
       id: `dock-${this.nextId++}`,
       regionId: input.regionId,
@@ -383,6 +391,74 @@ class InMemoryGameEventRepository implements GameEventRepository {
       });
   }
 
+  async listRecentResolvedEvents(now: Date, limit: number) {
+    const resolvedRecords = [
+      ...this.docksRecords.map((record) => {
+        const region = this.regions.find((entry) => entry.id === record.regionId);
+
+        return {
+          dataJson: record.dataJson ?? {},
+          endsAt: record.endsAt,
+          eventType: 'navio_docas' as const,
+          favelaId: null,
+          favelaName: null,
+          id: record.id,
+          regionId: record.regionId,
+          regionName: region?.name ?? record.regionId,
+          startedAt: record.startedAt,
+        };
+      }),
+      ...this.globalEvents.map((record) => ({
+        dataJson: record.dataJson,
+        endsAt: record.endsAt,
+        eventType: record.eventType,
+        favelaId: null,
+        favelaName: null,
+        id: record.id,
+        regionId: null,
+        regionName: null,
+        startedAt: record.startedAt,
+      })),
+      ...this.policeRecords.map((record) => {
+        const region = this.regions.find((entry) => entry.id === record.regionId);
+        const favela = this.controlledFavelas.find((entry) => entry.id === record.favelaId);
+
+        return {
+          dataJson: record.dataJson,
+          endsAt: record.endsAt,
+          eventType: record.eventType,
+          favelaId: record.favelaId,
+          favelaName: favela?.name ?? null,
+          id: record.id,
+          regionId: record.regionId,
+          regionName: region?.name ?? record.regionId,
+          startedAt: record.startedAt,
+        };
+      }),
+      ...this.seasonalEvents.map((record) => {
+        const region = this.regions.find((entry) => entry.id === record.regionId);
+
+        return {
+          dataJson: record.dataJson,
+          endsAt: record.endsAt,
+          eventType: record.eventType,
+          favelaId: null,
+          favelaName: null,
+          id: record.id,
+          regionId: record.regionId,
+          regionName: region?.name ?? record.regionId,
+          startedAt: record.startedAt,
+        };
+      }),
+    ];
+
+    return resolvedRecords
+      .filter((record) => record.startedAt.getTime() <= now.getTime())
+      .filter((record) => record.endsAt.getTime() <= now.getTime())
+      .sort((left, right) => right.endsAt.getTime() - left.endsAt.getTime())
+      .slice(0, limit);
+  }
+
   async listControlledFavelas() {
     return this.controlledFavelas.map((record) => ({ ...record }));
   }
@@ -395,7 +471,10 @@ class InMemoryGameEventRepository implements GameEventRepository {
     return this.docksRecords
       .filter((record) => record.endsAt.getTime() >= now.getTime())
       .sort((left, right) => left.startedAt.getTime() - right.startedAt.getTime())
-      .map((record) => ({ ...record }))
+      .map((record) => ({
+        ...record,
+        dataJson: record.dataJson ?? {},
+      }))
       .slice(0, 2);
   }
 
@@ -1052,6 +1131,141 @@ describe('GameEventService', () => {
       regionName: 'Zona Norte',
     });
   });
+
+  it('builds recent resolved event results as a separate authoritative feed', async () => {
+    const now = new Date('2026-03-11T18:00:00.000Z');
+    const repository = new InMemoryGameEventRepository(
+      [
+        {
+          dataJson: {
+            headline: 'Navio nas Docas: a janela premium de escoamento abriu no Centro.',
+            phase: '14.2',
+            premiumMultiplier: 1.5,
+            source: 'scheduled_docks_ship',
+            unlimitedDemand: true,
+          },
+          endsAt: new Date('2026-03-11T17:00:00.000Z'),
+          id: 'dock-1',
+          regionId: RegionId.Centro,
+          startedAt: new Date('2026-03-11T11:00:00.000Z'),
+        },
+      ],
+      [
+        {
+          dataJson: {
+            banditsArrested: 3,
+            headline: 'Operação Policial: a pressão subiu e a rua ficou mais quente.',
+            policePressureAfter: 82,
+            policePressureBefore: 70,
+            satisfactionAfter: 24,
+            satisfactionBefore: 32,
+          },
+          endsAt: new Date('2026-03-11T16:00:00.000Z'),
+          eventType: 'operacao_policial',
+          favelaId: 'favela-1',
+          id: 'police-1',
+          regionId: RegionId.ZonaNorte,
+          startedAt: new Date('2026-03-11T14:00:00.000Z'),
+        },
+      ],
+      [
+        {
+          id: RegionId.Centro,
+          name: 'Centro',
+          policePressure: 40,
+        },
+        {
+          id: RegionId.ZonaNorte,
+          name: 'Zona Norte',
+          policePressure: 82,
+        },
+      ],
+      [
+        {
+          banditsActive: 18,
+          banditsArrested: 3,
+          controllingFactionId: 'faction-1',
+          difficulty: 4,
+          factionInternalSatisfaction: 60,
+          id: 'favela-1',
+          name: 'Complexo do Teste',
+          population: 8000,
+          regionId: RegionId.ZonaNorte,
+          satisfaction: 24,
+        },
+      ],
+      {},
+      [],
+      [
+        {
+          dataJson: {
+            headline:
+              'Saidinha de Natal! Os presos elegíveis ganharam a rua de novo e os bandidos voltaram para as favelas.',
+            releasedBanditsEstimate: 2,
+            releasedPlayers: 2,
+          },
+          endsAt: new Date('2026-03-11T15:00:00.000Z'),
+          eventType: 'saidinha_natal',
+          id: 'global-1',
+          startedAt: new Date('2026-03-11T12:30:00.000Z'),
+        },
+      ],
+      [
+        {
+          dataJson: {
+            bonusSummary: ['Turistas lotaram o Centro e esquentaram o caixa da rua.'],
+            headline:
+              'Carnaval no Rio: turistas na pista, caixa quente na Zona Sul e a polícia distraída atrás do trio.',
+          },
+          endsAt: new Date('2026-03-11T14:30:00.000Z'),
+          eventType: 'carnaval',
+          id: 'seasonal-1',
+          regionId: RegionId.Centro,
+          startedAt: new Date('2026-03-11T10:00:00.000Z'),
+        },
+      ],
+    );
+    const service = new GameEventService({ repository });
+
+    const results = await service.getRecentResults(now);
+
+    expect(results.generatedAt).toBe(now.toISOString());
+    expect(results.results.map((entry) => entry.id)).toEqual([
+      'dock-1',
+      'police-1',
+      'global-1',
+      'seasonal-1',
+    ]);
+    expect(results.results[0]).toMatchObject({
+      destination: 'market',
+      eventType: 'navio_docas',
+      severity: 'info',
+      title: 'Navio nas Docas · Centro',
+    });
+    expect(results.results[1]).toMatchObject({
+      destination: 'territory',
+      eventType: 'operacao_policial',
+      metrics: [
+        { label: 'Pressão', value: '70 -> 82' },
+        { label: 'Satisfação', value: '32 -> 24' },
+        { label: 'Bandidos presos', value: '3' },
+      ],
+      severity: 'warning',
+      title: 'Operação policial · Complexo do Teste · Zona Norte',
+    });
+    expect(results.results[2]).toMatchObject({
+      destination: 'prison',
+      eventType: 'saidinha_natal',
+      severity: 'warning',
+      title: 'Saidinha de Natal',
+    });
+    expect(results.results[3]).toMatchObject({
+      destination: 'map',
+      eventType: 'carnaval',
+      severity: 'info',
+      title: 'Carnaval · Centro',
+    });
+  });
 });
 
 describe('event routes', () => {
@@ -1059,10 +1273,12 @@ describe('event routes', () => {
 
   const getDocksStatus = vi.fn<() => Promise<DocksEventStatusResponse>>();
   const getPoliceStatus = vi.fn<() => Promise<PoliceEventStatusResponse>>();
+  const getRecentResults = vi.fn<() => Promise<EventResultListResponse>>();
   const getSeasonalStatus = vi.fn<() => Promise<SeasonalEventStatusResponse>>();
   const eventService: GameEventServiceContract = {
     getDocksStatus,
     getPoliceStatus,
+    getRecentResults,
     getSeasonalStatus,
     syncScheduledEvents: vi.fn(),
   };
@@ -1204,6 +1420,57 @@ describe('event routes', () => {
         },
       ],
       generatedAt: '2026-03-11T12:30:00.000Z',
+    });
+  });
+
+  it('returns recent resolved event results for authenticated players', async () => {
+    getRecentResults.mockResolvedValueOnce({
+      generatedAt: '2026-03-11T16:30:00.000Z',
+      results: [
+        {
+          body: '3 bandidos foram presos na operação. Pressão policial 70 -> 82.',
+          destination: 'territory',
+          eventType: 'operacao_policial',
+          favelaId: 'favela-1',
+          favelaName: 'Complexo do Teste',
+          headline: 'Operação Policial: a pressão subiu e a rua ficou mais quente.',
+          id: 'event-1',
+          impactSummary:
+            'A favela terminou o ciclo com mais pressão policial e desgaste direto na rotina do território.',
+          metrics: [
+            { label: 'Pressão', value: '70 -> 82' },
+            { label: 'Bandidos presos', value: '3' },
+          ],
+          regionId: RegionId.ZonaNorte,
+          regionName: 'Zona Norte',
+          resolvedAt: '2026-03-11T16:00:00.000Z',
+          severity: 'warning',
+          startedAt: '2026-03-11T14:00:00.000Z',
+          title: 'Operação policial · Complexo do Teste · Zona Norte',
+        },
+      ],
+    });
+
+    const response = await app.inject({
+      headers: {
+        authorization: 'Bearer access-token',
+      },
+      method: 'GET',
+      url: '/api/events/results',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      generatedAt: '2026-03-11T16:30:00.000Z',
+      results: [
+        {
+          destination: 'territory',
+          eventType: 'operacao_policial',
+          id: 'event-1',
+          regionId: RegionId.ZonaNorte,
+          severity: 'warning',
+        },
+      ],
     });
   });
 });

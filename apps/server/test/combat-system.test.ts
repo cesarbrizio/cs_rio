@@ -107,7 +107,7 @@ function createCombatContext(
         heat: 0,
         hp: 100,
         money: 1000,
-        stamina: 100,
+        cansaco: 100,
       },
       vocation: VocationType.Cria,
       ...(overrides.player ?? {}),

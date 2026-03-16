@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/baile/baile.example.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 0,
+      "deltaY": 14.5,
+      "allowedDeltaX": 35.2,
+      "allowedDeltaY": 35.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 7,
+      "max": 28,
+      "palette": [
+        "rgba(18, 12, 20, 0.14)",
+        "#2e2932",
+        "#251e29",
+        "#433c48",
+        "#71435c",
+        "#65d8ff",
+        "#e66af2"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 1,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 14,
+    "pathCount": 1,
+    "colorCount": 7,
+    "bounds": {
+      "minX": 43,
+      "minY": 54,
+      "maxX": 117,
+      "maxY": 135,
+      "width": 74,
+      "height": 81,
+      "centerX": 80,
+      "centerY": 94.5
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais."
+}

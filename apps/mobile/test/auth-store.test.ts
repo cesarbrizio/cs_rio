@@ -6,9 +6,28 @@ type AuthStoreModule = {
     getState: () => {
       isAuthenticated: boolean;
       isHydrated: boolean;
+      equipInventoryItem: (inventoryItemId: string) => Promise<unknown>;
       loadStoredAuth: () => Promise<void>;
-      player: { hasCharacter: boolean; nickname: string } | null;
+      logout: () => Promise<void>;
+      player: {
+        hasCharacter: boolean;
+        inventory: Array<{
+          durability: number | null;
+          equipSlot: 'weapon' | 'vest' | null;
+          equipment?: {
+            defense: number | null;
+            power: number | null;
+            slot: 'weapon' | 'vest';
+          } | null;
+          isEquipped: boolean;
+        }>;
+        nickname: string;
+        resources: {
+          money: number;
+        };
+      } | null;
       refreshToken: string | null;
+      repairInventoryItem: (inventoryItemId: string) => Promise<unknown>;
       register: (input: {
         confirmPassword: string;
         email: string;
@@ -16,7 +35,23 @@ type AuthStoreModule = {
         password: string;
       }) => Promise<void>;
       token: string | null;
+      unequipInventoryItem: (inventoryItemId: string) => Promise<unknown>;
     };
+  };
+};
+
+type AppStoreModule = {
+  useAppStore: {
+    getState: () => {
+      bootstrapStatus: string;
+      notificationSettings: {
+        enabled: boolean;
+        permissionStatus: 'denied' | 'granted' | 'undetermined';
+      };
+      privateMessageThreads: Array<unknown>;
+      resetForLogout: () => void;
+    };
+    setState: (input: Record<string, unknown>) => void;
   };
 };
 
@@ -57,8 +92,12 @@ vi.mock('../src/services/api', () => ({
   inventoryApi: {
     consume: (inventoryItemId: string) =>
       apiState.post(`/inventory/${inventoryItemId}/consume`).then((response: { data: unknown }) => response.data),
+    equip: (inventoryItemId: string) =>
+      apiState.post(`/inventory/${inventoryItemId}/equip`).then((response: { data: unknown }) => response.data),
     repair: (inventoryItemId: string) =>
       apiState.post(`/inventory/${inventoryItemId}/repair`).then((response: { data: unknown }) => response.data),
+    unequip: (inventoryItemId: string) =>
+      apiState.post(`/inventory/${inventoryItemId}/unequip`).then((response: { data: unknown }) => response.data),
   },
   playerApi: {
     createCharacter: (input: unknown) =>
@@ -89,6 +128,9 @@ describe('auth store', () => {
     installAuthInterceptors.mockClear();
 
     vi.resetModules();
+
+    const { useAppStore } = await vi.importActual<AppStoreModule>('../src/stores/appStore');
+    useAppStore.getState().resetForLogout();
   });
 
   it('registers, stores tokens and hydrates the player profile', async () => {
@@ -135,10 +177,10 @@ describe('auth store', () => {
           bankMoney: 0,
           conceito: 0,
           hp: 100,
-          morale: 100,
+          brisa: 100,
           money: 0,
-          nerve: 100,
-          stamina: 100,
+          disposicao: 100,
+          cansaco: 100,
         },
         title: 'pivete',
         vocation: 'cria',
@@ -212,10 +254,10 @@ describe('auth store', () => {
           bankMoney: 0,
           conceito: 0,
           hp: 100,
-          morale: 100,
+          brisa: 100,
           money: 0,
-          nerve: 100,
-          stamina: 100,
+          disposicao: 100,
+          cansaco: 100,
         },
         title: 'pivete',
         vocation: 'soldado',
@@ -230,5 +272,329 @@ describe('auth store', () => {
     expect(useAuthStore.getState().token).toBe('access-2');
     expect(useAuthStore.getState().refreshToken).toBe('refresh-2b');
     expect(useAuthStore.getState().player?.hasCharacter).toBe(true);
+  });
+
+  it('syncs equip, unequip and repair mutations back into the local profile', async () => {
+    apiState.post.mockResolvedValueOnce({
+      data: {
+        accessToken: 'access-3',
+        expiresIn: 900,
+        player: {
+          id: 'player-3',
+          nickname: 'Player_03',
+        },
+        refreshExpiresIn: 2592000,
+        refreshToken: 'refresh-3',
+      },
+    });
+    apiState.get.mockResolvedValueOnce({
+      data: {
+        appearance: {
+          hair: 'corte_curto',
+          outfit: 'camisa_branca',
+          skin: 'pele_media',
+        },
+        attributes: {
+          carisma: 10,
+          forca: 30,
+          inteligencia: 10,
+          resistencia: 20,
+        },
+        faction: null,
+        hasCharacter: true,
+        id: 'player-3',
+        inventory: [
+          {
+            durability: 50,
+            equipSlot: null,
+            equipment: {
+              defense: null,
+              power: 14,
+              slot: 'weapon',
+            },
+            id: 'inventory-weapon',
+            isEquipped: false,
+            itemId: 'weapon-1',
+            itemName: 'Pistola de treino',
+            itemType: 'weapon',
+            levelRequired: 2,
+            maxDurability: 100,
+            proficiency: 8,
+            quantity: 1,
+            stackable: false,
+            totalWeight: 3,
+            unitWeight: 3,
+          },
+        ],
+        level: 4,
+        location: {
+          positionX: 0,
+          positionY: 0,
+          regionId: 'centro',
+        },
+        nickname: 'Player_03',
+        properties: [],
+        regionId: 'centro',
+        resources: {
+          addiction: 0,
+          bankMoney: 0,
+          conceito: 0,
+          hp: 100,
+          brisa: 100,
+          money: 3000,
+          disposicao: 100,
+          cansaco: 100,
+        },
+        title: 'pivete',
+        vocation: 'soldado',
+      },
+    });
+
+    const { useAuthStore } = await vi.importActual<AuthStoreModule>('../src/stores/authStore');
+
+    await useAuthStore.getState().register({
+      confirmPassword: 'segredo123',
+      email: 'player03@csrio.test',
+      nickname: 'Player_03',
+      password: 'segredo123',
+    });
+
+    apiState.post.mockResolvedValueOnce({
+      data: {
+        capacity: {
+          availableSlots: 19,
+          availableWeight: 97,
+          currentWeight: 3,
+          maxSlots: 20,
+          maxWeight: 100,
+          usedSlots: 1,
+        },
+        items: [
+          {
+            durability: 50,
+            equipSlot: 'weapon',
+            equipment: {
+              defense: null,
+              power: 14,
+              slot: 'weapon',
+            },
+            id: 'inventory-weapon',
+            isEquipped: true,
+            itemId: 'weapon-1',
+            itemName: 'Pistola de treino',
+            itemType: 'weapon',
+            levelRequired: 2,
+            maxDurability: 100,
+            proficiency: 8,
+            quantity: 1,
+            stackable: false,
+            totalWeight: 3,
+            unitWeight: 3,
+          },
+        ],
+      },
+    });
+
+    await useAuthStore.getState().equipInventoryItem('inventory-weapon');
+
+    expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
+      equipSlot: 'weapon',
+      isEquipped: true,
+    });
+
+    apiState.post.mockResolvedValueOnce({
+      data: {
+        capacity: {
+          availableSlots: 19,
+          availableWeight: 97,
+          currentWeight: 3,
+          maxSlots: 20,
+          maxWeight: 100,
+          usedSlots: 1,
+        },
+        items: [
+          {
+            durability: 100,
+            equipSlot: 'weapon',
+            equipment: {
+              defense: null,
+              power: 14,
+              slot: 'weapon',
+            },
+            id: 'inventory-weapon',
+            isEquipped: true,
+            itemId: 'weapon-1',
+            itemName: 'Pistola de treino',
+            itemType: 'weapon',
+            levelRequired: 2,
+            maxDurability: 100,
+            proficiency: 8,
+            quantity: 1,
+            stackable: false,
+            totalWeight: 3,
+            unitWeight: 3,
+          },
+        ],
+        repairCost: 450,
+        repairedItem: {
+          durability: 100,
+          equipSlot: 'weapon',
+          equipment: {
+            defense: null,
+            power: 14,
+            slot: 'weapon',
+          },
+          id: 'inventory-weapon',
+          isEquipped: true,
+          itemId: 'weapon-1',
+          itemName: 'Pistola de treino',
+          itemType: 'weapon',
+          levelRequired: 2,
+          maxDurability: 100,
+          proficiency: 8,
+          quantity: 1,
+          stackable: false,
+          totalWeight: 3,
+          unitWeight: 3,
+        },
+      },
+    });
+
+    await useAuthStore.getState().repairInventoryItem('inventory-weapon');
+
+    expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
+      durability: 100,
+    });
+    expect(useAuthStore.getState().player?.resources.money).toBe(2550);
+
+    apiState.post.mockResolvedValueOnce({
+      data: {
+        capacity: {
+          availableSlots: 19,
+          availableWeight: 97,
+          currentWeight: 3,
+          maxSlots: 20,
+          maxWeight: 100,
+          usedSlots: 1,
+        },
+        items: [
+          {
+            durability: 100,
+            equipSlot: null,
+            equipment: {
+              defense: null,
+              power: 14,
+              slot: 'weapon',
+            },
+            id: 'inventory-weapon',
+            isEquipped: false,
+            itemId: 'weapon-1',
+            itemName: 'Pistola de treino',
+            itemType: 'weapon',
+            levelRequired: 2,
+            maxDurability: 100,
+            proficiency: 8,
+            quantity: 1,
+            stackable: false,
+            totalWeight: 3,
+            unitWeight: 3,
+          },
+        ],
+      },
+    });
+
+    await useAuthStore.getState().unequipInventoryItem('inventory-weapon');
+
+    expect(useAuthStore.getState().player?.inventory[0]).toMatchObject({
+      equipSlot: null,
+      isEquipped: false,
+    });
+  });
+
+  it('clears auth tokens and player-scoped app state on logout', async () => {
+    apiState.post.mockResolvedValueOnce({
+      data: {
+        accessToken: 'access-logout',
+        expiresIn: 900,
+        player: {
+          id: 'player-logout',
+          nickname: 'Player_Logout',
+        },
+        refreshExpiresIn: 2592000,
+        refreshToken: 'refresh-logout',
+      },
+    });
+    apiState.get.mockResolvedValueOnce({
+      data: {
+        appearance: {
+          hair: 'corte_curto',
+          outfit: 'camisa_branca',
+          skin: 'pele_media',
+        },
+        attributes: {
+          carisma: 10,
+          forca: 30,
+          inteligencia: 10,
+          resistencia: 20,
+        },
+        faction: null,
+        hasCharacter: true,
+        id: 'player-logout',
+        inventory: [],
+        level: 4,
+        location: {
+          positionX: 0,
+          positionY: 0,
+          regionId: 'centro',
+        },
+        nickname: 'Player_Logout',
+        properties: [],
+        regionId: 'centro',
+        resources: {
+          addiction: 0,
+          bankMoney: 0,
+          conceito: 0,
+          hp: 100,
+          brisa: 100,
+          money: 3000,
+          disposicao: 100,
+          cansaco: 100,
+        },
+        title: 'pivete',
+        vocation: 'soldado',
+      },
+    });
+
+    const { useAuthStore } = await vi.importActual<AuthStoreModule>('../src/stores/authStore');
+    const { useAppStore } = await vi.importActual<AppStoreModule>('../src/stores/appStore');
+
+    await useAuthStore.getState().register({
+      confirmPassword: 'segredo123',
+      email: 'logout@csrio.test',
+      nickname: 'Player_Logout',
+      password: 'segredo123',
+    });
+
+    useAppStore.setState({
+      bootstrapStatus: 'Estado contaminado',
+      notificationSettings: {
+        enabled: false,
+        permissionStatus: 'granted',
+      },
+      privateMessageThreads: [{ threadId: 'owner:known-1' }],
+    });
+
+    await useAuthStore.getState().logout();
+
+    expect(secureStoreState.get('cs_rio_access_token')).toBeUndefined();
+    expect(secureStoreState.get('cs_rio_refresh_token')).toBeUndefined();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().player).toBeNull();
+    expect(useAppStore.getState().bootstrapStatus).toContain('Ações rápidas');
+    expect(useAppStore.getState().privateMessageThreads).toEqual([]);
+    expect(useAppStore.getState().notificationSettings).toEqual({
+      enabled: true,
+      permissionStatus: 'granted',
+    });
   });
 });

@@ -2,7 +2,8 @@
 
 > Documento vivo de acompanhamento do desenvolvimento do jogo CS Rio.
 > Cada tarefa possui status, dependências e especificação técnica.
-> Última atualização: 2026-03-14
+> Última atualização: 2026-03-16
+> Contrato funcional vigente: consulte [PRODUCT_STATUS.md](./PRODUCT_STATUS.md) antes de abrir backlog de produto, promover escopo para "entregue" ou rebaixar divergências do `JOGO.md`.
 
 ## Estado Operacional Atual
 
@@ -19,6 +20,30 @@
 > - performance percebida
 > - UX em device
 > - correção de bugs reais de playtest
+
+## Escopo Congelado Pós-Consultorias
+
+> Decisões fechadas em `2026-03-16` para impedir que `JOGO.md`, roadmap e app continuem vendendo escopo acima do produto real.
+
+- `Vocação`
+  - decisão: `MVP agora`
+  - recorte válido: o backend autoritativo da vocação já entrega troca paga em créditos, cooldown global e serialização dedicada
+  - progresso já entregue no recorte: a `Universidade do Crime` agora expõe a trilha exclusiva por vocação, com perks reais e efeito mecânico em crimes, tribunal e economia
+  - progresso já entregue no app: a `Central de Vocação` agora concentra leitura da build, troca com custo/cooldown e ponte direta com a progressão exclusiva da universidade
+- `Sistema Social`
+  - decisão: `MVP agora`
+  - recorte aprovado: `perfil público`, `contatos` e `mensagens privadas entre contatos`
+  - fora do recorte imediato: canais `global`, `local` e `comércio`
+- `Sabotagem`
+  - decisão: `MVP agora`
+  - recorte aprovado: loop completo com elegibilidade, resolução, impacto em propriedade rival, feedback assíncrono e testes
+  - status atual: entregue de ponta a ponta, com backend autoritativo, central mobile dedicada, replay offline e notificação para atacante/alvo
+
+## Implicações Operacionais Imediatas
+
+- Nenhum placeholder de UI pode sugerir disponibilidade diferente da superfície real de `troca de vocação`.
+- `JOGO.md` deve manter linguagem explícita quando um bloco estiver `aprovado para MVP`, mas ainda não estiver implementado.
+- `PRODUCT_STATUS.md` segue como árbitro de verdade entre visão futura e escopo efetivamente jogável.
 
 ## Backlog Imediato de Produto — Playtest
 
@@ -179,7 +204,7 @@
 
 - [x] **B.2.4** Exibir impacto pessoal do jogador na guerra
   - conceito ganho/perdido
-  - HP / nervos / stamina consumidos ou perdidos
+  - HP / disposição / cansaco consumidos ou perdidos
   - qualquer recompensa individual relevante
   - se o jogador não participou diretamente, isso também precisa ficar claro
 
@@ -594,6 +619,342 @@
 - [x] **B.7.5** Critério final
   - qualquer pessoa do time consegue usar o `ROLL_OUT.md` como checklist real de subida e validação
 
+### B.8 — Pacote de ajustes de UX, clareza sistemica e retorno assincrono
+
+> **Status atual**
+>
+> - pendente
+> - este bloco consolida os principais atritos encontrados em playtest real:
+>   - descoberta quebrada
+>   - fluxo incompleto no mobile
+>   - notificacao assincrona insuficiente
+>   - nomenclatura confusa
+>   - sistemas existentes no backend mas nao expostos corretamente na UX
+> - o objetivo aqui nao e "polir copy"; e fechar os loops principais para o jogador entender o jogo sem depender de conhecimento interno
+
+> **Decisoes operacionais**
+>
+> - quando um sistema ja existir no backend e estiver mal exposto no mobile, a prioridade e fechar o fluxo de ponta a ponta antes de inventar mecanica nova
+> - quando um evento ou decisao tiver impacto sistemico, o retorno deve virar:
+>   - modal/popup imediato quando o jogador estiver online
+>   - fila persistente de resultados quando ele voltar offline
+>   - estado consultavel depois, sem depender de memoria do jogador
+> - o `Jogo do Bicho` deixa de fazer parte da economia faccional e passa a ser tratado somente como mini-game/aposta do jogo
+> - DST deixa de ser estado do jogador; passa a existir apenas na economia do `Puteiro`
+
+> **Arquivos-alvo esperados**
+>
+> - `apps/mobile/App.tsx`
+> - `apps/mobile/src/services/api.ts`
+> - `apps/mobile/src/stores/appStore.ts`
+> - `apps/mobile/src/features/events.ts`
+> - `apps/mobile/src/features/notifications.ts`
+> - `apps/mobile/src/features/war-results.ts`
+> - `apps/mobile/src/screens/OperationsScreen.tsx`
+> - `apps/mobile/src/screens/BichoScreen.tsx`
+> - `apps/mobile/src/screens/InventoryScreen.tsx`
+> - `apps/mobile/src/screens/HospitalScreen.tsx`
+> - `apps/mobile/src/screens/TerritoryScreen.tsx`
+> - `apps/mobile/src/screens/TribunalScreen.tsx`
+> - `apps/mobile/src/components/` com modais/resultados persistentes quando necessario
+> - `apps/server/src/services/bicho.ts`
+> - `apps/server/src/services/game-event.ts`
+> - `apps/server/src/services/tribunal.ts`
+> - `apps/server/src/services/territory.ts`
+> - `apps/server/src/services/puteiro.ts`
+> - `apps/server/src/services/hospital.ts`
+> - `apps/server/src/services/player.ts`
+> - `apps/server/src/services/property.ts`
+> - `apps/server/src/api/routes/events.ts`
+> - `apps/server/src/api/routes/tribunal.ts`
+> - `apps/server/src/api/routes/properties.ts`
+> - `apps/server/src/api/routes/inventory.ts`
+> - `packages/shared/src/types.ts`
+> - `packages/shared/src/constants.ts`
+
+- [x] **B.8.1** Maquininha: compra + instalacao completas no mobile
+  - Estrutura tecnica
+    - expor no mobile a compra de propriedade `slot_machine` a partir de `propertyBook.availableProperties`
+    - adicionar mutation explicita em `propertyApi` para compra de propriedade
+    - transformar a tela de `Operacoes` em fluxo unico de:
+      - descobrir
+      - comprar
+      - instalar maquinas
+      - configurar parametros
+      - coletar caixa
+    - garantir refresh autoritativo de perfil, patrimonio e operacao depois de cada mutacao
+  - Etapas
+    1. adicionar client API para compra da propriedade
+    2. criar CTA de compra quando o jogador tiver unlock e nao possuir a maquininha
+    3. depois da compra, migrar automaticamente o foco para o card da nova propriedade
+    4. manter instalacao/configuracao/coleta no mesmo fluxo sem exigir "caça" em abas obscuras
+    5. exibir custo de compra, custo de instalacao, capacidade, rendimento estimado e risco
+  - Progressao
+    - fase 1: descoberta e compra
+    - fase 2: instalacao guiada
+    - fase 3: configuracao e coleta no mesmo card
+    - criterio final:
+      - o jogador compra e instala a maquininha sem perguntar onde ela fica
+
+- [x] **B.8.2** Jogo do Bicho: remover repasse para faccao e reposicionar como mini-game puro
+  - Estrutura tecnica
+    - remover a comissao fixa faccional de `apps/server/src/services/bicho.ts`
+    - retirar qualquer ledger, points delta ou copy ligada a faccao nesse fluxo
+    - revisar payload compartilhado para nao devolver mais metadados de repasse faccional
+    - atualizar `BichoScreen` para comunicar:
+      - aposta
+      - historico
+      - resultado
+      - premio
+      - sem qualquer vinculo de posse/protecao faccional
+  - Etapas
+    1. eliminar calculo de `factionCommissionAmount` e escrita no banco da faccao
+    2. remover a dependencia do bicho na economia coletiva da faccao
+    3. ajustar textos, resumo e historico do mini-game no mobile
+    4. revisar testes do backend e do mobile para refletir o novo contrato
+    5. revisar documentacao para deixar claro:
+      - `Jogo do Bicho` = aposta
+      - nao e ativo operacional
+      - nao pertence a faccao
+  - Progressao
+    - fase 1: backend sem repasse
+    - fase 2: payload limpo e UI corrigida
+    - fase 3: documentacao e testes alinhados
+    - criterio final:
+      - o bicho funciona como mini-game independente, sem percentual fixo para ninguem
+
+- [x] **B.8.3** Eventos: substituir banner/toast por resultado modal imediato + historico persistente
+  - Estrutura tecnica
+    - separar "evento ativo" de "resultado de evento"
+    - criar fila persistente de resultados nao vistos no app store/local storage
+    - introduzir modal de resultado prioritario no `App.tsx`, acima de banner/toast
+    - enriquecer payload de eventos para informar:
+      - o que aconteceu
+      - onde aconteceu
+      - quando aconteceu
+      - qual foi o impacto efetivo
+      - qual foi o resultado final
+    - manter historico consultavel para eventos perdidos offline
+  - Etapas
+    1. desenhar modelo compartilhado de `event result cue` em `packages/shared/src/types.ts`
+    2. gerar resultado de evento no backend quando o evento encerrar/aplicar impacto
+    3. persistir chaves de resultados vistos e nao vistos no mobile
+    4. abrir popup imediato quando chegar novo resultado com o app online
+    5. ao reabrir o app, reproduzir em fila todos os resultados nao vistos
+    6. criar tela ou secao de historico para auditoria posterior do jogador
+  - Progressao
+    - fase 1: modelo de resultado + backend autoritativo
+    - fase 2: modal imediato online
+    - fase 3: fila offline + historico persistente
+    - criterio final:
+      - evento importante nunca termina silenciosamente
+
+- [x] **B.8.4** Tribunal do Trafico: disparo automatico, prazo de decisao, fallback NPC e resultado assincrono
+  - Estrutura tecnica
+    - transformar tribunal em fluxo assincrono/event-driven, nao apenas acao manual de "gerar caso"
+    - criar agenda/trigger automatico por favela controlada com elegibilidade e cooldown
+    - registrar no caso:
+      - prazo limite de decisao
+      - estado (`open`, `resolved_by_player`, `resolved_by_npc`, `expired`)
+      - decisao tomada
+      - quem decidiu
+      - resultado politico/social
+    - quando o jogador nao decidir a tempo, o NPC aplica a pior decisao para a populacao
+    - o resultado precisa entrar na mesma esteira de modais/resultados persistentes
+  - Etapas
+    1. modelar campos de expiracao e resolucao automatica no backend
+    2. adicionar trigger automatico por favela controlada com taxa/cooldown configuraveis
+    3. notificar o jogador no nascimento do caso
+    4. exibir countdown claro para decisao dentro da `TribunalScreen`
+    5. resolver automaticamente via NPC quando expirar
+    6. notificar o resultado final com:
+      - houve tribunal
+      - qual foi o caso
+      - qual decisao predominou
+      - qual foi o impacto
+  - Progressao
+    - fase 1: criacao automatica do caso
+    - fase 2: deadline e expiracao com fallback NPC
+    - fase 3: notificacao de abertura e de resultado
+    - criterio final:
+      - tribunal pode nascer sem acao manual e nunca some sem desfecho visivel
+
+- [x] **B.8.5** Armas e colete: corrigir equipar e explicar beneficio do item
+  - Estrutura tecnica
+    - expor no mobile as mutations reais de `equip` e `unequip` do inventario
+    - refletir imediatamente no perfil local qual item esta equipado
+    - enriquecer a UI de detalhes com beneficios objetivos por item:
+      - dano/poder ofensivo
+      - defesa/absorcao
+      - impacto em crimes
+      - impacto em combate
+      - impacto em guerra/conquista
+    - diferenciar visualmente:
+      - equipado
+      - quebrado
+      - reparavel
+      - nao elegivel para equipar
+  - Etapas
+    1. adicionar endpoints de `equip` e `unequip` no `inventoryApi` do mobile
+    2. ligar o botao `Equipar` da `InventoryScreen` ao backend real
+    3. revisar re-fetch e sincronizacao do perfil apos a acao
+    4. montar bloco de detalhes tecnicos por item a partir do payload ja existente
+    5. ajustar copy para o jogador entender o ganho pratico do equipamento
+  - Progressao
+    - fase 1: equipar/desequipar funcionando
+    - fase 2: status visual correto
+    - fase 3: detalhes de beneficio claros
+    - criterio final:
+      - o jogador equipa o item e entende por que aquilo melhora sua performance
+
+- [x] **B.8.6** Prostitutas / Puteiro: fechar compra e operacao no UI/UX
+  - Estrutura tecnica
+    - expor compra da propriedade `puteiro` no fluxo de patrimonio/operacoes
+    - adicionar no mobile as actions de contratar GPs e coletar caixa
+    - criar dashboard do puteiro com:
+      - capacidade
+      - GPs ativas
+      - risco
+      - caixa disponivel
+      - incidencias sanitarias
+      - manutencao/protecao
+    - manter o puteiro claramente separado de patrimonio passivo e de mini-games
+  - Etapas
+    1. adicionar mutation de compra da propriedade
+    2. expor client API de contratacao de GPs
+    3. criar card operacional proprio dentro de `Operacoes`
+    4. explicar custo de entrada, rendimento, manutencao e riscos
+    5. validar retorno visual de contratacao, lotacao e coleta
+  - Progressao
+    - fase 1: compra
+    - fase 2: contratacao e coleta
+    - fase 3: dashboard de gestao
+    - criterio final:
+      - o jogador consegue abrir, operar e entender um puteiro sem depender do backend invisivel
+
+- [x] **B.8.7** DST: remover estado do jogador e manter DST apenas nas prostitutas
+  - Estrutura tecnica
+    - retirar `hasDst` / `dstRecoversAt` do estado do jogador e das telas de hospital ligadas ao personagem
+    - remover tratamento de DST do jogador do hospital e das rotas correspondentes
+    - manter DST exclusivamente nas GPs do `Puteiro`, com impacto em:
+      - rendimento
+      - afastamento/recuperacao
+      - custo operacional
+      - pressao sanitaria do negocio
+    - revisar tipos compartilhados, payloads e copy para nao sugerir mais contaminação do jogador
+  - Etapas
+    1. remover dependencia do jogador em `HospitalService`, `HospitalScreen` e `PlayerProfile`
+    2. descontinuar endpoint/acao de tratamento de DST do jogador
+    3. preservar a logica sanitaria das GPs em `PuteiroService`
+    4. exibir no card do puteiro os incidentes e o efeito economico das DSTs nas trabalhadoras
+    5. revisar documentacao, testes e textos residuais
+  - Progressao
+    - fase 1: limpeza do estado do jogador
+    - fase 2: preservacao do sistema no puteiro
+    - fase 3: UX explicando o efeito apenas no negocio
+    - criterio final:
+      - so prostitutas podem contrair DST; o jogador nao entra mais nesse loop
+
+- [x] **B.8.8** Territorio: notificar perda de dominio com o mesmo peso da guerra resolvida
+  - Estrutura tecnica
+    - criar cue assincrono proprio para perda de controle territorial
+    - disparar popup imediato quando a favela mudar de dono e isso afetar o jogador/faccao dele
+    - persistir resultado nao visto para retorno offline
+    - enriquecer o resumo com:
+      - qual favela foi perdida
+      - para quem foi perdida
+      - por qual causa
+      - qual impacto territorial/economico/politico ocorreu
+  - Etapas
+    1. modelar assinatura de `territory loss cue` em tipos compartilhados
+    2. detectar no backend ou no comparador client-side a transicao de dominio relevante
+    3. criar notificacao/modal especifico para perda de territorio
+    4. integrar com a esteira de resultados persistentes do app
+    5. manter historico recente no `Painel Territorial`
+  - Progressao
+    - fase 1: deteccao confiavel da perda
+    - fase 2: popup/notificacao imediatos
+    - fase 3: replay offline + historico
+    - criterio final:
+      - perder territorio nunca e um efeito silencioso
+
+- [x] **B.8.9** Descontinuar completamente `Prestigio` como score de patrimonio
+  - Estrutura tecnica
+    - remover `prestigeScore` e `effectivePrestigeScore` como conceitos ativos de produto, payload e UI
+    - revisar definicoes de propriedade para que patrimonio seja explicado apenas por efeitos mecanicos reais:
+      - utilidade
+      - mobilidade
+      - protecao
+      - manutencao
+      - capacidade
+      - risco
+      - rendimento, quando for negocio
+    - parar de usar `Prestigio` como label de `conceito` nas telas onde a UI hoje mistura os termos
+    - garantir que `conceito` siga como unica metrica principal de status/progressao/ranking exposta ao jogador
+    - revisar documentacao para remover a ideia de "score de patrimonio" como camada paralela de status
+  - Etapas
+    1. mapear todos os usos de `prestigeScore` e `effectivePrestigeScore` no shared, backend, mobile e docs
+    2. remover esses campos dos tipos e serializadores de propriedade, desde que nao sustentam mecanica relevante
+    3. atualizar `OperationsScreen` e helpers para deixar de somar/exibir `Prestigio`
+    4. corrigir telas que hoje mostram `conceito` com o rotulo errado de `Prestigio`
+    5. revisar copy de patrimonio para explicar impacto real de cada ativo sem score abstrato
+    6. ajustar testes e fixtures para o novo contrato sem `prestigio`
+  - Progressao
+    - fase 1: auditoria completa de usos
+    - fase 2: remocao do dominio e dos payloads
+    - fase 3: limpeza de UI, docs e testes
+    - criterio final:
+      - `Prestigio` deixa de existir como sistema autonomo e `conceito` permanece como unica metrica central de status
+
+- [x] **B.8.10** Recursos centrais: renomear `estamina` para `cansaço`, `nervos` para `disposição` e `embalo` para `brisa`
+  - Estrutura tecnica
+    - tratar a mudança como renomeacao de dominio completa, nao apenas copy de UI
+    - padronizar:
+      - exibicao para o jogador:
+        - `Cansaço`
+        - `Disposição`
+        - `Brisa`
+      - nome tecnico em codigo, payload e banco:
+        - `cansaco`
+        - `disposicao`
+        - `brisa`
+    - renomear contratos compartilhados ligados aos tres recursos:
+      - `PlayerResources.stamina` -> `cansaco`
+      - `PlayerResources.nerve` / `nervos` -> `disposicao`
+      - recursos legados de `morale` / `moral` / `embalo` -> `brisa`
+      - custos, ganhos, boosts, recovery e triggers derivados desses nomes
+    - alinhar backend, schema, migrations, scripts operacionais, mobile, testes e docs ao novo mapeamento
+    - impedir coexistencia parcial de nomes antigos e novos entre camadas
+  - Etapas
+    1. mapear todos os usos de `stamina` / `estamina`, `nerve` / `nervos` e `embalo` / `moral` / `morale` no shared, backend, mobile, ops e docs
+    2. renomear o contrato canonico no shared para:
+       - `stamina` -> `cansaco`
+       - `nerve` -> `disposicao`
+       - `morale` -> `brisa`
+       e atualizar campos derivados
+    3. criar/ajustar migrations para colunas e schema do banco sairem dos nomes antigos para `cansaco`, `disposicao` e `brisa`
+    4. atualizar services, systems, scripts e comandos operacionais como:
+       - `--set-stamina` -> `--set-cansaco`
+       - `--set-nerve` -> `--set-disposicao`
+       - qualquer ajuste de `morale` / `embalo` -> `brisa`
+    5. revisar HUD, telas, modais, labels e copy para o jogador nunca mais ver `Estamina`, `Stamina`, `Nervos` ou `Embalo`
+    6. ajustar testes, fixtures, `CHEATS.md`, `JOGO.md`, `CONTEXT.md` e demais docs residuais
+  - Progressao
+    - fase 1: contrato compartilhado e mapa autoritativo de nomes
+    - fase 2: backend, banco e operacoes internas
+    - fase 3: mobile, testes e documentacao final
+    - criterio final:
+      - o jogo inteiro passa a usar `Cansaço`, `Disposição` e `Brisa` de ponta a ponta, sem residuos dos nomes antigos
+
+- [x] **B.8.11** Criterio final do pacote
+  - o jogador consegue comprar e operar `Maquininha` e `Puteiro` no app
+  - o `Jogo do Bicho` fica limpo como mini-game, sem economia faccional embutida
+  - eventos, tribunal e perda de territorio geram resultado imediato e historico offline
+  - armas e coletes passam a ser equipaveis de verdade e com beneficio compreensivel
+  - DST deixa de existir como problema do jogador e fica restrita ao sistema de GPs
+  - `Prestigio` deixa de existir como score de patrimonio e de ser confundido com `conceito`
+  - `Cansaço`, `Disposição` e `Brisa` substituem completamente `Estamina` / `Stamina`, `Nervos` e `Embalo` nos pontos equivalentes de UI, contratos, backend, ops e documentacao
+
 ## Backlog Técnico Pós-Hardening / Pós-Playtest
 
 > Ajustes identificados depois do fechamento do hardening estrutural e do backlog imediato de produto.
@@ -931,7 +1292,7 @@
   - Arquivo: `apps/server/drizzle.config.ts`
 
 - [x] **0.4.2** Schema inicial — tabelas core
-  - `players`: id, email, password_hash, nickname, vocation, level, conceito, forca, inteligencia, resistencia, carisma, stamina, nerve, hp, addiction, money, bank_money, region_id, position_x, position_y, faction_id, created_at, last_login
+  - `players`: id, email, password_hash, nickname, vocation, level, conceito, forca, inteligencia, resistencia, carisma, cansaco, disposicao, hp, addiction, money, bank_money, region_id, position_x, position_y, faction_id, created_at, last_login
   - `factions`: id, name, abbreviation, is_fixed, leader_id, bank_money, bank_drugs, points, created_at
   - `faction_members`: player_id, faction_id, rank, joined_at
   - `favelas`: id, name, region_id, population, difficulty, controlling_faction_id, satisfaction, propina_value, propina_due_date, state_controlled_until
@@ -939,8 +1300,8 @@
   - `weapons`: id, name, power, durability_max, level_required, price, weight
   - `vests`: id, name, defense, durability_max, level_required, price, weight
   - `player_inventory`: id, player_id, item_type, item_id, quantity, durability, proficiency, equipped_slot
-  - `crimes`: id, name, level_required, stamina_cost, nerve_cost, min_power, reward_min, reward_max, conceito_reward, arrest_chance, cooldown_seconds
-  - `drugs`: id, name, stamina_recovery, moral_boost, price, addiction_rate, nerve_boost, production_level, weight
+  - `crimes`: id, name, level_required, cansaco_cost, disposicao_cost, min_power, reward_min, reward_max, conceito_reward, arrest_chance, cooldown_seconds
+  - `drugs`: id, name, cansaco_recovery, moral_boost, price, addiction_rate, disposicao_boost, production_level, weight
   - `properties`: id, player_id, type (boca/factory/puteiro/rave/house/front_store/slot_machine), region_id, favela_id, level, soldiers_count, created_at
   - `soldiers`: id, property_id, type, power, daily_cost, hired_at
   - `market_orders`: id, player_id, item_type, item_id, quantity, remaining_quantity, price_per_unit, side, status, durability_snapshot, proficiency_snapshot, created_at, expires_at
@@ -1136,7 +1497,7 @@
 
 - [x] **2.2.1** Endpoint `POST /players/create`
   - Input: vocation (Cria/Gerente/Soldado/Político/Empreendedor), appearance (skin, hair, outfit)
-  - Lógica: atribuir stats iniciais conforme tabela de vocação, nível 1 (Pivete), conceito 0, stamina 100%, HP 100
+  - Lógica: atribuir stats iniciais conforme tabela de vocação, nível 1 (Pivete), conceito 0, cansaco 100%, HP 100
   - Definir posição inicial (spawn point da região escolhida ou aleatório)
   - Arquivo: `apps/server/src/api/routes/players.ts`
 
@@ -1215,7 +1576,7 @@
 ## 3.1 — HUD Principal (sobreposto ao mapa)
 
 - [x] **3.1.1** Barra de status do jogador
-  - Exibe: nome, nível/título, HP (barra vermelha), estamina (barra verde), nervos (barra azul), vício (barra roxa), dinheiro no bolso
+  - Exibe: nome, nível/título, HP (barra vermelha), cansaço (barra verde), disposição (barra azul), vício (barra roxa), dinheiro no bolso
   - Posição: topo da tela, compacto
   - Toca para expandir detalhes (stats completos)
   - Arquivo: `apps/mobile/src/components/hud/StatusBar.tsx`
@@ -1279,14 +1640,14 @@
 - [x] **4.1.1** Crime engine — lógica central
   - Função `attemptCrime(playerId, crimeId)`:
     1. Verificar nível mínimo
-    2. Verificar stamina e nervos suficientes
+    2. Verificar cansaco e disposição suficientes
     3. Verificar cooldown
     4. Calcular poder do jogador (atributos + equip + vocação)
     5. Calcular probabilidade de sucesso
     6. Roll aleatório (Math.random vs. probabilidade)
     7. Se sucesso: calcular recompensa (dinheiro, conceito, chance de drop)
     8. Se falha: calcular penalidade (chance de prisão, perda de HP, perda de conceito)
-    9. Deduzir stamina e nervos
+    9. Deduzir cansaco e disposição
     10. Atualizar cooldown
     11. Registrar no log de ações
   - Status atual: implementado com persistência em `players`, `transactions`, `prison_records` e drop inicial de drogas via `player_inventory`
@@ -1306,20 +1667,20 @@
 
 ## 4.2 — Sistema de Recursos (Server)
 
-- [x] **4.2.1** Regeneração de estamina
-  - Timer server-side: calcula estamina baseado no tempo decorrido e estado de moral
+- [x] **4.2.1** Regeneração de cansaço
+  - Timer server-side: calcula cansaço baseado no tempo decorrido e estado de brisa
   - Não é tick-based — é calculado sob demanda (quando jogador faz ação)
-  - Fórmula: `staminaAtual = min(100, staminaSalva + (tempoDecorrido × taxaRecuperação))`
-  - Taxa depende do moral, casa, bônus de facção
+  - Fórmula: `cansacoAtual = min(100, cansacoSalva + (tempoDecorrido × taxaRecuperação))`
+  - Taxa depende da brisa, casa, bônus de facção
   - Status atual: implementado com checkpoint temporal e sincronização no `PlayerService` ao abrir `/players/me`
-  - Arquivo: `apps/server/src/systems/StaminaSystem.ts`
+  - Arquivo: `apps/server/src/systems/CansacoSystem.ts`
 
-- [x] **4.2.2** Regeneração de nervos
-  - Similar à estamina: sob demanda, não tick-based
+- [x] **4.2.2** Regeneração de disposição
+  - Similar à cansaço: sob demanda, não tick-based
   - Taxa fixa: 1 ponto a cada 5 min reais
   - Máximo: 100
   - Status atual: implementado com checkpoint temporal e sincronização no `PlayerService` ao abrir `/players/me`
-  - Arquivo: `apps/server/src/systems/NerveSystem.ts`
+  - Arquivo: `apps/server/src/systems/DisposicaoSystem.ts`
 
 - [x] **4.2.3** Decaimento de vício
   - Reduz 1% por hora de jogo sem usar drogas
@@ -1338,7 +1699,7 @@
 
 - [x] **4.3.1** Tela de lista de crimes
   - Lista agrupada por nível (abas ou seções)
-  - Cada crime mostra: nome, custo (estamina/nervos), probabilidade de sucesso (%), recompensa estimada, cooldown restante
+  - Cada crime mostra: nome, custo (cansaço/disposição), probabilidade de sucesso (%), recompensa estimada, cooldown restante
   - Crimes bloqueados (nível insuficiente) aparecem em cinza
   - Crimes em cooldown aparecem com timer
   - Toque para executar → confirmação → animação de resultado
@@ -1379,16 +1740,16 @@
 > **Dependência:** Fase 4
 > **Entregável:** Jogador consome drogas, sistema de tolerância/vício/overdose funcional.
 
-- [x] **6.1** Drug consumption engine (Server): consumir droga → recuperar estamina + moral + nervos, aumentar tolerância + vício
-  - Status atual: implementado no server com novo recurso `morale` em `players`, endpoint protegido `/api/inventory/:inventoryItemId/consume`, consumo autoritativo de droga stackavel, ganho de estamina/moral/nervos, aumento de vicio, persistencia de tolerancia por droga em key-value e retorno do perfil atualizado
+- [x] **6.1** Drug consumption engine (Server): consumir droga → recuperar cansaço + brisa + disposição, aumentar tolerância + vício
+  - Status atual: implementado no server com novo recurso `brisa` em `players`, endpoint protegido `/api/inventory/:inventoryItemId/consume`, consumo autoritativo de droga stackavel, ganho de cansaço/brisa/disposição, aumento de vicio, persistencia de tolerancia por droga em key-value e retorno do perfil atualizado
 - [x] **6.2** Sistema de tolerância por droga: decay com tempo, eficiência decrescente
   - Status atual: implementado com `DrugToleranceSystem.sync`, decaimento de 1 ponto por hora sem uso, aplicacao de tolerancia individual antes do consumo e multiplicador progressivo de eficiencia ate `1/45` do efeito base em tolerancia maxima
 - [x] **6.3** Sistema de overdose: trigger, hospitalização, penalidades
-  - Status atual: implementado com `OverdoseSystem` em key-value, trigger por `stamina_overflow`, `max_addiction` ou mistura de `3` tipos de droga em `1h`, hospitalizacao por `30` minutos reais, bloqueio de novo consumo durante a internacao, perda de `5%` do conceito, reset de vicio para `50`, moral para `0` e remocao de contatos `known`
+  - Status atual: implementado com `OverdoseSystem` em key-value, trigger por `cansaco_overflow`, `max_addiction` ou mistura de `3` tipos de droga em `1h`, hospitalizacao por `30` minutos reais, bloqueio de novo consumo durante a internacao, perda de `5%` do conceito, reset de vicio para `50`, brisa para `0` e remocao de contatos `known`
 - [x] **6.4** Fábricas de drogas (Server): produção automática por ciclo, componentes, manutenção
   - Status atual: implementado com catalogo de `components`, `drug_factory_recipes`, `drug_factories` e estoque interno por fabrica, `FactoryService` autoritativo com ciclos por tempo real, consumo de componentes, cobranca de manutencao diaria, suspensao por inadimplencia, coleta da producao para o inventario e rotas protegidas em `/api/factories`
 - [x] **6.5** Venda de drogas: tráfico direto, boca, rave, docas com lógica de preço
-  - Status atual: implementado no server com `DrugSaleService`, rotas protegidas `/api/drug-sales/quote` e `/api/drug-sales/sell`, venda autoritativa via `street`, `boca`, `rave` e `docks`, calculo dinamico de preco por canal/regiao/atributo/propriedade/evento, custo de estamina no trafico direto, exigencia de propriedade para `boca`/`rave`, exigencia de `navio_docas` ativo no `Centro` para `docks` e persistencia financeira por `transactions`
+  - Status atual: implementado no server com `DrugSaleService`, rotas protegidas `/api/drug-sales/quote` e `/api/drug-sales/sell`, venda autoritativa via `street`, `boca`, `rave` e `docks`, calculo dinamico de preco por canal/regiao/atributo/propriedade/evento, custo de cansaço no trafico direto, exigencia de propriedade para `boca`/`rave`, exigencia de `navio_docas` ativo no `Centro` para `docks` e persistencia financeira por `transactions`
 - [x] **6.6** Interface de consumo de drogas (Mobile): tela de rave/baile, seletor de droga, aviso de overdose
   - Status atual: implementado no mobile com `DrugUseScreen`, contexto alternavel `Rave/Baile`, cardapio de drogas filtrado do inventario, preview local de efeitos, risco e avisos de overdose, consumo real via `/api/inventory/:inventoryItemId/consume`, atualizacao imediata do `authStore` com o perfil retornado pelo server, feedback pos-consumo com tolerancia/eficiencia e destaque de overdose, alem de entrada pela tela de inventario e pelo mapa/context menu
 - [x] **6.7** Interface de fábricas (Mobile): criar, gerenciar, estocar componentes, coletar produção
@@ -1500,12 +1861,12 @@
   - Status atual: `PrisonSystem` autoritativo com leitura de `prison_records` + `PoliceHeatSystem`, estado exposto em `/players/me`, e middleware global de bloqueio `423` para ações protegidas enquanto o jogador estiver preso
 - [x] **13.2** Saída da prisão: esperar, suborno, fiança (créditos), fuga (minigame), resgate de facção
   - Status atual: Centro prisional backend em `/api/prison` com saída por espera, suborno, fiança com créditos, fuga resolvida por chance autoritativa no server e resgate de facção com autorização de `Patrão/General`; no pré-alpha a camada mobile da `13.4` fechou a leitura e a tentativa direta, enquanto o minigame visual da fuga segue adiado
-- [x] **13.3** Hospital (Server): cura, desintox, cirurgia, consumíveis de stat, DST, plano de saúde
-  - Status atual: Centro hospitalar backend em `/api/hospital` com cura, desintoxicação limpando vício/tolerância, cirurgia de nickname/aparência, tratamento de DST, consumíveis permanentes com limite por ciclo e plano de saúde aplicado às próximas hospitalizações; no pré-alpha o ciclo do hospital usa chave mensal até a rodada completa existir
+- [x] **13.3** Hospital (Server): cura, desintox, cirurgia, consumíveis de stat e plano de saúde
+  - Status atual: Centro hospitalar backend em `/api/hospital` com cura, desintoxicação limpando vício/tolerância, cirurgia de nickname/aparência, consumíveis permanentes com limite por ciclo e plano de saúde aplicado às próximas hospitalizações; DST foi removida do jogador e permanece apenas no sistema de GPs do `Puteiro`; no pré-alpha o ciclo do hospital usa chave mensal até a rodada completa existir
 - [x] **13.4** Tela de prisão (Mobile): status da pena, opções de saída, timer
   - Status atual: Centro prisional mobile em `/apps/mobile/src/screens/PrisonScreen.tsx` com timer ao vivo, leitura da faixa de calor, saídas reais (fiança, suborno e fuga) via backend, banner/atalho na Home enquanto o jogador estiver preso e redirecionamento das ações principais bloqueadas; no pré-alpha a fuga segue como ação direta com confirmação, sem minigame visual dedicado
 - [x] **13.5** Tela de hospital (Mobile): menu de serviços, compra, timer de tratamento
-  - Status atual: Centro hospitalar mobile em `/apps/mobile/src/screens/HospitalScreen.tsx` com timer ao vivo de internação, menu real de tratamento/desintoxicação/DST/plano de saúde, compra de consumíveis permanentes, cirurgia de nickname/aparência e integração na Home com atalho e banner quando o jogador estiver hospitalizado
+  - Status atual: Centro hospitalar mobile em `/apps/mobile/src/screens/HospitalScreen.tsx` com timer ao vivo de internação, menu real de tratamento/desintoxicação/plano de saúde, compra de consumíveis permanentes, cirurgia de nickname/aparência e integração na Home com atalho e banner quando o jogador estiver hospitalizado; DST não aparece mais como serviço do personagem e fica restrita ao `Puteiro`
 
 ---
 
@@ -1546,7 +1907,7 @@
   > Simplificações de pré-alpha: o pool de bandidos é agregado por favela, não individual por NPC; os nomes de payload policial `banditsKilledEstimate` e `releasedBanditsEstimate` foram mantidos por compatibilidade mesmo com contagem real; e os retornos normais dos bandidos sincronizam nas leituras/interações territoriais em vez de job dedicado separado.
 - [x] **15.3** Sistema de roubos (Server): roubo a pedestres, veículos, caminhões e celulares; execução por jogador ou bandidos da favela; risco, recompensa, calor da polícia e repasse percentual para a facção
   > Entregue com catálogo protegido em `/api/robberies` e tentativa autoritativa em `/api/robberies/:robberyType/attempt`, cobrindo `pedestrian`, `cellphones`, `vehicle` e `truck`.
-  > O backend agora resolve roubos iniciados pelo jogador ou coordenados por bandidos da favela, aplicando cooldown, stamina/nervos, calor policial individual, pressão policial regional, repasse automático para o banco da facção e ledger `robbery_commission`.
+  > O backend agora resolve roubos iniciados pelo jogador ou coordenados por bandidos da favela, aplicando cooldown, cansaco/disposição, calor policial individual, pressão policial regional, repasse automático para o banco da facção e ledger `robbery_commission`.
   > Também entrou integração direta com o pool de bandidos da `15.2`: falha dos bandidos gera prisão real, reduz efetivo ativo da favela e cria lote persistido de retorno.
   > Simplificações de pré-alpha: o calor territorial dos roubos continua representado por `regions.policePressure`; o lucro líquido do roubo feito por bandidos ainda entra em `money` do jogador como proxy de caixa operacional; e o roubo de veículos permanece genérico nesta etapa, deixando `resgate`, `desmanche` e `Paraguai` para a `15.4`.
 - [x] **15.4** Roubo de veículos: subfluxos de devolução com resgate, desmanche/mercado negro e clonagem/venda no Paraguai, com risco e recompensa próprios por rota
@@ -1777,15 +2138,20 @@
 # FASE 20 — Social (Chat e Contatos)
 
 > **Dependência:** Fase 2
-> **Entregável:** Chat global/local/facção/privado, contatos, perfis públicos.
+> **Entregável:** Social MVP recortado com `chat de facção`, `DM entre contatos` e `perfil público` mínimo. Expansão para `global`, `local` e `comércio` fica fora do recorte imediato.
 
-- [ ] **20.1** Chat server (Colyseus ou Redis pub/sub): canais global, local, facção, privado, comércio
+- [x] **20.1** Chat server: recorte atual entrega `facção` em tempo real e `privado` entre contatos; `global`, `local` e `comércio` ficam adiados
+  > Entregue no recorte aprovado: `Facção` segue por sala realtime (`Colyseus`), o canal `Privado` já existe no produto pela tela de `Contatos e DMs`, com persistência e notificação local, e `Global`, `Local` e `Comércio` foram explicitamente podados do pre-alpha atual.
 - [ ] **20.2** Rate limiting de chat: max 1 msg/segundo, anti-flood
 - [ ] **20.3** Filtro de palavras proibidas: lista + regex, punição automática
-- [ ] **20.4** Sistema de contatos: adicionar parceiro/conhecido, limites, perda por eventos
-- [ ] **20.5** Perfil público: stats, conquistas, facção — endpoint + tela
-- [ ] **20.6** Tela de chat (Mobile): tabs por canal, input, mensagens, timestamp
-- [ ] **20.7** Tela de contatos (Mobile): lista, adicionar, remover, enviar mensagem
+- [x] **20.4** Sistema de contatos: adicionar parceiro/conhecido, limites, perda por eventos
+  > Entregue no backend com rotas protegidas, leitura, adição, remoção, limite por tipo, origem computada e sincronização automática em overdose/mudança de facção.
+- [~] **20.5** Perfil público: stats, conquistas, facção — endpoint + tela
+  > Andamento atual: endpoint público mínimo por nickname já entregue no backend, com ranking e visibilidade básica; falta a tela dedicada no mobile e o pacote ampliado de estatísticas sociais.
+- [x] **20.6** Tela de chat (Mobile): recorte atual entrega `sala da facção` e `DM entre contatos`; tabs `global/local/comércio` ficam adiadas
+  > Entregue com o recorte alinhado no app: o produto expõe `chat da facção` em tempo real dentro do `QG da Facção`, `mensagens privadas` dentro de `Contatos e DMs` e a copy do mobile deixa explícito que não existem tabs de `global`, `local` ou `comércio` no pre-alpha atual.
+- [x] **20.7** Tela de contatos (Mobile): lista, adicionar, remover, enviar mensagem
+  > Entregue com hub dedicado de `Contatos e DMs`, gestão de parceiros/conhecidos, remoção, thread privada 1:1, feed persistido no app e notificação local para novas mensagens.
 
 ---
 

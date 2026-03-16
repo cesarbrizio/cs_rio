@@ -29,6 +29,7 @@ import {
 } from '../db/schema.js';
 import { RedisKeyValueStore, type KeyValueStore } from './auth.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
+import { buildPropertySabotageStatusSummary } from './property.js';
 import {
   buildFactionRegionalDominationByRegion,
   buildInactiveRegionalDominationBonus,
@@ -79,6 +80,9 @@ interface FactorySnapshotRecord extends FactoryRecipeRecord {
   lastCycleAt: Date;
   lastMaintenanceAt: Date;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   storedOutput: number;
   suspended: boolean;
 }
@@ -103,7 +107,7 @@ interface FactoryStockTransferRecord {
 }
 
 interface FactorySyncResult {
-  blockedReason: 'components' | 'maintenance' | null;
+  blockedReason: 'components' | 'maintenance' | 'sabotage' | null;
   changed: boolean;
   maintenanceStatus: {
     blocked: boolean;
@@ -444,6 +448,9 @@ export class DatabaseFactoryRepository implements FactoryRepository {
         lastCycleAt: drugFactories.lastCycleAt,
         lastMaintenanceAt: drugFactories.lastMaintenanceAt,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         storedOutput: drugFactories.storedOutput,
         suspended: drugFactories.suspended,
       })
@@ -502,6 +509,9 @@ export class DatabaseFactoryRepository implements FactoryRepository {
             ...requirement,
             availableQuantity: availableStocks.get(requirement.componentId) ?? 0,
           })),
+          sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+          sabotageResolvedAt: row.sabotageResolvedAt,
+          sabotageState: row.sabotageState,
           storedOutput: row.storedOutput,
           suspended: row.suspended,
         },
@@ -988,6 +998,14 @@ function serializeFactorySummary(
   sync: Pick<FactorySyncResult, 'blockedReason' | 'maintenanceStatus'>,
   regionalDominationBonus: RegionalDominationBonus,
 ): DrugFactorySummary {
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: factory.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: factory.sabotageResolvedAt,
+    sabotageState: factory.sabotageState,
+    type: 'factory',
+  });
+
   return {
     baseProduction: factory.baseProduction,
     blockedReason: sync.blockedReason,
@@ -1000,6 +1018,7 @@ function serializeFactorySummary(
     drugName: factory.drugName,
     id: factory.id,
     maintenanceStatus: sync.maintenanceStatus,
+    sabotageStatus,
     multipliers: {
       impulse: factory.impulseMultiplier,
       intelligence: Number.parseFloat((1 + player.inteligencia / 1000).toFixed(3)),
@@ -1037,6 +1056,13 @@ function simulateFactorySync(
   now: Date,
   regionalDominationBonus: RegionalDominationBonus,
 ): FactorySyncResult {
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now,
+    sabotageRecoveryReadyAt: factory.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: factory.sabotageResolvedAt,
+    sabotageState: factory.sabotageState,
+    type: 'factory',
+  });
   const maintenance = resolveFactoryMaintenance(
     factory,
     player.money,
@@ -1048,7 +1074,9 @@ function simulateFactorySync(
   const cycleWindowMs = Math.max(0, maintenance.productionCutoff.getTime() - factory.lastCycleAt.getTime());
   const elapsedCycles = Math.floor(cycleWindowMs / cycleMs);
   const maxCyclesByComponents = resolveFactoryCyclesByComponents(factory.requirements);
-  const producedCycles = Math.min(elapsedCycles, maxCyclesByComponents);
+  const producedCycles = sabotageStatus.blocked
+    ? 0
+    : Math.min(elapsedCycles, maxCyclesByComponents);
   const nextRequirements = factory.requirements.map((requirement) => ({
     ...requirement,
     availableQuantity: requirement.availableQuantity - requirement.quantityPerCycle * producedCycles,
@@ -1059,7 +1087,9 @@ function simulateFactorySync(
     resolveFactoryOutputPerCycle(factory, player, passiveProfile, regionalDominationBonus) *
       producedCycles;
   const blockedReason =
-    maintenance.overdueDays > 0
+    sabotageStatus.blocked
+      ? 'sabotage'
+      : maintenance.overdueDays > 0
       ? 'maintenance'
       : elapsedCycles > 0 && producedCycles < elapsedCycles
         ? 'components'
@@ -1149,11 +1179,21 @@ function resolveFactoryMaintenance(
 }
 
 function resolveFactoryOutputPerCycle(
-  factory: Pick<FactorySnapshotRecord, 'baseProduction' | 'impulseMultiplier'>,
+  factory: Pick<
+    FactorySnapshotRecord,
+    'baseProduction' | 'impulseMultiplier' | 'sabotageRecoveryReadyAt' | 'sabotageResolvedAt' | 'sabotageState'
+  >,
   player: Pick<FactoryPlayerRecord, 'inteligencia' | 'vocation'>,
   passiveProfile: Awaited<ReturnType<UniversityEffectReaderContract['getPassiveProfile']>>,
   regionalDominationBonus: RegionalDominationBonus,
 ): number {
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: factory.sabotageRecoveryReadyAt ?? null,
+    sabotageResolvedAt: factory.sabotageResolvedAt ?? null,
+    sabotageState: factory.sabotageState ?? 'normal',
+    type: 'factory',
+  });
   const intelligenceMultiplier = 1 + player.inteligencia / 1000;
   const vocationMultiplier =
     player.vocation === VocationType.Gerente ? DRUG_FACTORY_MANAGER_VOCATION_MULTIPLIER : 1;
@@ -1166,7 +1206,8 @@ function resolveFactoryOutputPerCycle(
         factory.impulseMultiplier *
         vocationMultiplier *
         passiveProfile.factory.productionMultiplier *
-        regionalDominationBonus.factoryProductionMultiplier,
+        regionalDominationBonus.factoryProductionMultiplier *
+        sabotageStatus.operationalMultiplier,
     ),
   );
 }

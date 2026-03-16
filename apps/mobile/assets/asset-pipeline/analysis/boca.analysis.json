@@ -1,0 +1,406 @@
+{
+  "version": 2,
+  "stage": "analysis",
+  "generatedAt": "2026-03-16T04:16:33.224Z",
+  "assetType": "boca boca",
+  "styleGuide": "dense-favela",
+  "category": "poor",
+  "resolvedStyleGuide": {
+    "name": "cs-rio-semirealista",
+    "version": 1,
+    "selectedStyleGuide": "dense-favela",
+    "resolvedProfile": "dense-favela",
+    "projection": "isometric-2:1",
+    "principles": [
+      "legibilidade urbana acima de detalhismo decorativo",
+      "silhueta forte antes de microdetalhe",
+      "semi-realista e nao fotorealista",
+      "volumetria coerente com SimCity-like isometrico",
+      "evitar icone generico sem arquitetura"
+    ],
+    "outlinePolicy": {
+      "mode": "selective",
+      "maxStrokeWidth": 2.5
+    },
+    "visual": {
+      "shadowAlpha": 0.2,
+      "baseStrokeWidth": 2,
+      "maxAccentColors": 3,
+      "contrastBias": "gritty-dense",
+      "silhouettePriority": "very-high",
+      "materialNoise": "medium-high",
+      "roofVariation": "medium-high"
+    },
+    "family": "boca",
+    "familyGuide": {
+      "description": "Frente clandestina compacta incrustada em tecido de favela.",
+      "preferredProfile": "dense-favela",
+      "modulePolicy": {
+        "targetNodeCount": 4,
+        "primaryModules": [
+          "boca-core"
+        ],
+        "secondaryModules": [
+          "boca-guarded-entry",
+          "awning",
+          "external-pipe"
+        ],
+        "detailModules": [
+          "water-tank"
+        ],
+        "forbiddenModules": [
+          "stage",
+          "truss",
+          "speaker-stack",
+          "tower-modern-core"
+        ]
+      },
+      "compositionPolicy": {
+        "layout": "compressed-entry",
+        "baseAnchor": {
+          "x": 92,
+          "y": 126
+        },
+        "columns": 2,
+        "xStep": 14,
+        "yStep": 4,
+        "rowLift": 8,
+        "layerPattern": [
+          "foreground",
+          "midground",
+          "background",
+          "overlay"
+        ]
+      },
+      "variationPolicy": {
+        "jitter": {
+          "x": 4,
+          "y": 3
+        },
+        "scale": {
+          "min": 0.97,
+          "max": 1.06
+        },
+        "roofVariation": "medium",
+        "materialVariation": "medium-high",
+        "attachmentVariation": "medium"
+      },
+      "visualRules": [
+        "deve ler como ponto clandestino protegido, nao como comercio formal",
+        "a entrada precisa ser escura e comprimida",
+        "o entorno ainda precisa sugerir favela"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 4,
+      "primaryModules": [
+        "boca-core"
+      ],
+      "secondaryModules": [
+        "boca-guarded-entry",
+        "awning",
+        "external-pipe"
+      ],
+      "detailModules": [
+        "water-tank"
+      ],
+      "forbiddenModules": [
+        "stage",
+        "truss",
+        "speaker-stack",
+        "tower-modern-core"
+      ]
+    },
+    "compositionPolicy": {
+      "layout": "compressed-entry",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.06
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium-high",
+      "attachmentVariation": "medium"
+    },
+    "visualRules": [
+      "deve ler como ponto clandestino protegido, nao como comercio formal",
+      "a entrada precisa ser escura e comprimida",
+      "o entorno ainda precisa sugerir favela"
+    ],
+    "category": "poor",
+    "categoryOverride": {
+      "preferredProfile": "default",
+      "visual": {
+        "materialNoise": "medium-high",
+        "roofVariation": "medium-high"
+      }
+    },
+    "description": "Densidade, sobreposicao e heterogeneidade mais fortes para clusters de favela e barracos."
+  },
+  "referenceFiles": [
+    {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/drug_dealing/boca_1.webp",
+      "fileName": "boca_1.webp",
+      "relativeDirectory": "assets/examples/drug_dealing",
+      "format": "webp",
+      "width": 984,
+      "height": 1312,
+      "bytes": 146244,
+      "aspectRatio": 0.75,
+      "tokens": [
+        "home",
+        "cesar",
+        "projects",
+        "cs",
+        "rio",
+        "apps",
+        "mobile",
+        "assets",
+        "examples",
+        "drug",
+        "dealing",
+        "boca",
+        "1",
+        "webp"
+      ]
+    },
+    {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/drug_dealing/boca_5.jpg",
+      "fileName": "boca_5.jpg",
+      "relativeDirectory": "assets/examples/drug_dealing",
+      "format": "jpeg",
+      "width": 1920,
+      "height": 1440,
+      "bytes": 853258,
+      "aspectRatio": 1.3333,
+      "tokens": [
+        "home",
+        "cesar",
+        "projects",
+        "cs",
+        "rio",
+        "apps",
+        "mobile",
+        "assets",
+        "examples",
+        "drug",
+        "dealing",
+        "boca",
+        "5",
+        "jpg"
+      ]
+    }
+  ],
+  "density": "medium-low",
+  "silhouette": {
+    "primaryMassing": "readable-urban-structure",
+    "roofProfile": "mixed",
+    "heightProfile": "compact",
+    "skyline": "clear-and-readable",
+    "footprintProfile": "balanced",
+    "detailPriority": [
+      "entrada",
+      "janelas",
+      "volume principal",
+      "anexo secundario"
+    ]
+  },
+  "dominantHeight": "mixed",
+  "materials": [
+    "alvenaria simples",
+    "telha",
+    "reboco parcial",
+    "anexo improvisado"
+  ],
+  "volumetry": {
+    "stackCountHint": "2-to-5-main-masses",
+    "mainMassBias": "irregular-main-volume",
+    "averageReferenceSize": {
+      "width": 1452,
+      "height": 1376
+    },
+    "tallestReference": {
+      "file": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/drug_dealing/boca_5.jpg",
+      "width": 1920,
+      "height": 1440
+    }
+  },
+  "requiredElements": [
+    "silhueta clara",
+    "fachada legivel",
+    "entrada visivel",
+    "massa principal reconhecivel"
+  ],
+  "forbiddenElements": [
+    "fundo solido",
+    "icone abstrato isolado",
+    "simbolo sem volumetria",
+    "detalhe microilegivel"
+  ],
+  "requiredModules": [
+    "anchor-shadow",
+    "boca-core",
+    "boca-guarded-entry",
+    "awning",
+    "external-pipe",
+    "water-tank"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "truss",
+    "speaker-stack",
+    "tower-modern-core"
+  ],
+  "legibilityRules": [
+    "priorizar silhueta reconhecivel em zoom de mapa",
+    "manter contraste entre massa principal e secundarias",
+    "evitar detalhes finos abaixo da escala de leitura",
+    "destacar entradas, vazios e anexos com hierarquia visual"
+  ],
+  "cameraHints": {
+    "projection": "isometric-2:1",
+    "pitch": "fixed-game-map",
+    "yawBias": "front-left-readable",
+    "framing": "show-main-volume-and-entry"
+  },
+  "paletteHints": {
+    "base": [
+      "cinza urbano",
+      "bege",
+      "madeira",
+      "metal"
+    ],
+    "accents": [
+      "azul frio",
+      "ambar"
+    ],
+    "avoid": [
+      "cores sem hierarquia"
+    ]
+  },
+  "composition": {
+    "layout": "readable-urban-structure",
+    "primaryAxis": "front-left",
+    "stacking": "balanced",
+    "streetPresence": "medium",
+    "edgeNoise": "medium",
+    "anchorMass": "center-left",
+    "layering": [
+      "main-volume",
+      "secondary-volume",
+      "roof",
+      "detail"
+    ],
+    "variationPriority": [
+      "height",
+      "roof",
+      "attachments"
+    ]
+  },
+  "compositionHints": {
+    "preferredLayering": [
+      "main volume",
+      "secondary volume",
+      "roofline",
+      "entry",
+      "detail accents"
+    ],
+    "clusterBias": "balanced",
+    "readabilityPriority": [
+      "main silhouette",
+      "entry",
+      "materials"
+    ]
+  },
+  "projectStyleGuide": {
+    "name": "cs-rio-semirealista",
+    "version": 1,
+    "projection": "isometric-2:1",
+    "baseViewBox": "0 0 160 160",
+    "family": "boca",
+    "resolvedProfile": "dense-favela",
+    "visual": {
+      "shadowAlpha": 0.2,
+      "baseStrokeWidth": 2,
+      "maxAccentColors": 3,
+      "contrastBias": "gritty-dense",
+      "silhouettePriority": "very-high",
+      "materialNoise": "medium-high",
+      "roofVariation": "medium-high"
+    },
+    "modulePolicy": {
+      "targetNodeCount": 4,
+      "primaryModules": [
+        "boca-core"
+      ],
+      "secondaryModules": [
+        "boca-guarded-entry",
+        "awning",
+        "external-pipe"
+      ],
+      "detailModules": [
+        "water-tank"
+      ],
+      "forbiddenModules": [
+        "stage",
+        "truss",
+        "speaker-stack",
+        "tower-modern-core"
+      ]
+    },
+    "compositionPolicy": {
+      "layout": "compressed-entry",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.06
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium-high",
+      "attachmentVariation": "medium"
+    },
+    "visualRules": [
+      "deve ler como ponto clandestino protegido, nao como comercio formal",
+      "a entrada precisa ser escura e comprimida",
+      "o entorno ainda precisa sugerir favela"
+    ]
+  }
+}

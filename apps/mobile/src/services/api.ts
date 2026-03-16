@@ -11,6 +11,7 @@ import {
   type CrimeAttemptResponse,
   type CrimeCatalogResponse,
   type DocksEventStatusResponse,
+  type EventResultListResponse,
   type DrugFactoryCollectResponse,
   type DrugFactoryCreateInput,
   type DrugFactoryCreateResponse,
@@ -57,16 +58,35 @@ import {
   type MarketOrderCreateInput,
   type MarketOrderMutationResponse,
   type PlayerCreationInput,
+  type PlayerContactCreateInput,
+  type PlayerContactMutationResponse,
+  type PlayerContactRemovalResponse,
+  type PlayerContactsResponse,
   type PlayerProfile,
+  type PlayerPublicProfile,
   type PlayerTravelInput,
+  type PlayerVocationCenterResponse,
+  type PlayerVocationChangeInput,
+  type PlayerVocationChangeResponse,
   type PrisonActionResponse,
   type PrisonCenterResponse,
   type PropertyCatalogResponse,
+  type PropertySabotageAttemptResponse,
+  type PropertySabotageCenterResponse,
+  type PropertySabotageRecoveryResponse,
   type PropertyHireSoldiersInput,
   type PropertyHireSoldiersResponse,
+  type PropertyPurchaseInput,
+  type PropertyPurchaseResponse,
   type PropertyUpgradeResponse,
   type PuteiroCollectResponse,
+  type PuteiroHireInput,
+  type PuteiroHireResponse,
   type PuteiroListResponse,
+  type PrivateMessageSendInput,
+  type PrivateMessageSendResponse,
+  type PrivateMessageThreadListResponse,
+  type PrivateMessageThreadResponse,
   type PoliceEventStatusResponse,
   type PvpAssassinationContractsResponse,
   type PvpAmbushResponse,
@@ -89,6 +109,7 @@ import {
   type TrainingStartInput,
   type TrainingStartResponse,
   type TerritoryOverviewResponse,
+  type TerritoryLossFeedResponse,
   type FavelaConquestInput,
   type FavelaConquestResponse,
   type FavelaServiceInstallInput,
@@ -107,11 +128,13 @@ import {
   type FactionWarStatusResponse,
   type TribunalCaseGenerateResponse,
   type TribunalCenterResponse,
+  type TribunalCueListResponse,
   type TribunalJudgmentInput,
   type TribunalJudgmentResponse,
   type UniversityCenterResponse,
   type UniversityEnrollInput,
   type UniversityEnrollResponse,
+  type InventoryListResponse,
 } from '@cs-rio/shared';
 import axios, {
   AxiosHeaders,
@@ -164,8 +187,49 @@ export const playerApi = {
   getProfile(): Promise<PlayerProfile> {
     return get<PlayerProfile>('/players/me');
   },
+  getPublicProfile(nickname: string): Promise<PlayerPublicProfile> {
+    return get<PlayerPublicProfile>(`/players/public/${nickname}`);
+  },
+  getVocationCenter(): Promise<PlayerVocationCenterResponse> {
+    return get<PlayerVocationCenterResponse>('/players/vocation');
+  },
   travel(input: PlayerTravelInput): Promise<PlayerProfile> {
     return post<PlayerProfile, PlayerTravelInput>('/players/travel', input);
+  },
+  changeVocation(
+    input: PlayerVocationChangeInput,
+  ): Promise<PlayerVocationChangeResponse> {
+    return post<PlayerVocationChangeResponse, PlayerVocationChangeInput>(
+      '/players/vocation/change',
+      input,
+    );
+  },
+};
+
+export const contactApi = {
+  add(input: PlayerContactCreateInput): Promise<PlayerContactMutationResponse> {
+    return post<PlayerContactMutationResponse, PlayerContactCreateInput>('/contacts', input);
+  },
+  list(): Promise<PlayerContactsResponse> {
+    return get<PlayerContactsResponse>('/contacts');
+  },
+  remove(contactId: string): Promise<PlayerContactRemovalResponse> {
+    return del<PlayerContactRemovalResponse>(`/contacts/${contactId}`);
+  },
+};
+
+export const privateMessageApi = {
+  getThread(contactId: string): Promise<PrivateMessageThreadResponse> {
+    return get<PrivateMessageThreadResponse>(`/private-messages/threads/${contactId}`);
+  },
+  listThreads(): Promise<PrivateMessageThreadListResponse> {
+    return get<PrivateMessageThreadListResponse>('/private-messages/threads');
+  },
+  send(contactId: string, input: PrivateMessageSendInput): Promise<PrivateMessageSendResponse> {
+    return post<PrivateMessageSendResponse, PrivateMessageSendInput>(
+      `/private-messages/threads/${contactId}`,
+      input,
+    );
   },
 };
 
@@ -200,15 +264,15 @@ export const eventApi = {
   getPoliceStatus(): Promise<PoliceEventStatusResponse> {
     return get<PoliceEventStatusResponse>('/events/police');
   },
+  getResults(): Promise<EventResultListResponse> {
+    return get<EventResultListResponse>('/events/results');
+  },
   getSeasonalStatus(): Promise<SeasonalEventStatusResponse> {
     return get<SeasonalEventStatusResponse>('/events/seasonal');
   },
 };
 
 export const hospitalApi = {
-  applyDstTreatment(): Promise<HospitalActionResponse> {
-    return postEmpty<HospitalActionResponse>('/hospital/dst-treatment');
-  },
   applyTreatment(): Promise<HospitalActionResponse> {
     return postEmpty<HospitalActionResponse>('/hospital/treatment');
   },
@@ -331,6 +395,12 @@ export const factionApi = {
 };
 
 export const propertyApi = {
+  attemptSabotage(propertyId: string): Promise<PropertySabotageAttemptResponse> {
+    return postEmpty<PropertySabotageAttemptResponse>(`/properties/${propertyId}/sabotage`);
+  },
+  getSabotageCenter(): Promise<PropertySabotageCenterResponse> {
+    return get<PropertySabotageCenterResponse>('/properties/sabotage');
+  },
   hireSoldiers(
     propertyId: string,
     input: PropertyHireSoldiersInput,
@@ -342,6 +412,12 @@ export const propertyApi = {
   },
   list(): Promise<PropertyCatalogResponse> {
     return get<PropertyCatalogResponse>('/properties');
+  },
+  purchase(input: PropertyPurchaseInput): Promise<PropertyPurchaseResponse> {
+    return post<PropertyPurchaseResponse, PropertyPurchaseInput>('/properties', input);
+  },
+  recoverSabotage(propertyId: string): Promise<PropertySabotageRecoveryResponse> {
+    return postEmpty<PropertySabotageRecoveryResponse>(`/properties/${propertyId}/sabotage/recover`);
   },
   upgrade(propertyId: string): Promise<PropertyUpgradeResponse> {
     return postEmpty<PropertyUpgradeResponse>(`/properties/${propertyId}/upgrade`);
@@ -362,8 +438,14 @@ export const inventoryApi = {
   consume(inventoryItemId: string): Promise<DrugConsumeResponse> {
     return postEmpty<DrugConsumeResponse>(`/inventory/${inventoryItemId}/consume`);
   },
+  equip(inventoryItemId: string): Promise<InventoryListResponse> {
+    return postEmpty<InventoryListResponse>(`/inventory/${inventoryItemId}/equip`);
+  },
   repair(inventoryItemId: string): Promise<InventoryRepairResponse> {
     return postEmpty<InventoryRepairResponse>(`/inventory/${inventoryItemId}/repair`);
+  },
+  unequip(inventoryItemId: string): Promise<InventoryListResponse> {
+    return postEmpty<InventoryListResponse>(`/inventory/${inventoryItemId}/unequip`);
   },
 };
 
@@ -406,6 +488,9 @@ export const raveApi = {
 export const puteiroApi = {
   collect(propertyId: string): Promise<PuteiroCollectResponse> {
     return postEmpty<PuteiroCollectResponse>(`/puteiros/${propertyId}/collect`);
+  },
+  hireGps(propertyId: string, input: PuteiroHireInput): Promise<PuteiroHireResponse> {
+    return post<PuteiroHireResponse, PuteiroHireInput>(`/puteiros/${propertyId}/gps`, input);
   },
   list(): Promise<PuteiroListResponse> {
     return get<PuteiroListResponse>('/puteiros');
@@ -479,6 +564,9 @@ export const universityApi = {
 };
 
 export const tribunalApi = {
+  getCues(): Promise<TribunalCueListResponse> {
+    return get<TribunalCueListResponse>('/tribunal/cues');
+  },
   generateCase(favelaId: string): Promise<TribunalCaseGenerateResponse> {
     return postEmpty<TribunalCaseGenerateResponse>(`/tribunal/favelas/${favelaId}/case`);
   },
@@ -553,6 +641,9 @@ export const territoryApi = {
   },
   getWar(favelaId: string): Promise<FactionWarStatusResponse> {
     return get<FactionWarStatusResponse>(`/territory/favelas/${favelaId}/war`);
+  },
+  getLosses(): Promise<TerritoryLossFeedResponse> {
+    return get<TerritoryLossFeedResponse>('/territory/losses');
   },
   list(): Promise<TerritoryOverviewResponse> {
     return get<TerritoryOverviewResponse>('/territory/favelas');
@@ -641,9 +732,7 @@ export function formatApiError(error: unknown): Error {
     maybeAxiosError.message === 'Network Error' ||
     (maybeAxiosError.request && !maybeAxiosError.response)
   ) {
-    return new Error(
-      `Não foi possível conectar ao backend em ${normalizeApiBaseUrl(appEnv.apiUrl)}. Verifique se o celular consegue abrir ${normalizeApiBaseUrl(appEnv.apiUrl)}/health.`,
-    );
+    return new Error('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
   }
 
   if (maybeAxiosError.code === 'ECONNABORTED') {

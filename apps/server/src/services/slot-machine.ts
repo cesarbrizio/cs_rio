@@ -50,6 +50,7 @@ import { calculateFactionPointsDelta, insertFactionBankLedgerEntry } from './fac
 import { GameConfigService } from './game-config.js';
 import { invalidatePlayerProfileCache } from './player-cache.js';
 import {
+  buildPropertySabotageStatusSummary,
   resolvePropertyDailyUpkeep,
   roundCurrency,
 } from './property.js';
@@ -110,6 +111,9 @@ interface SlotMachineSnapshotRecord {
   operationCostMultiplier: number;
   policePressure: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: SlotMachineSoldierRosterRecord[];
   suspended: boolean;
   wealthIndex: number;
@@ -681,6 +685,9 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
         operationCostMultiplier: regions.operationCostMultiplier,
         policePressure: regions.policePressure,
         regionId: properties.regionId,
+        sabotageRecoveryReadyAt: properties.sabotageRecoveryReadyAt,
+        sabotageResolvedAt: properties.sabotageResolvedAt,
+        sabotageState: properties.sabotageState,
         suspended: properties.suspended,
         wealthIndex: regions.wealthIndex,
       })
@@ -737,6 +744,9 @@ export class DatabaseSlotMachineRepository implements SlotMachineRepository {
       operationCostMultiplier: roundCurrency(Number.parseFloat(String(row.operationCostMultiplier))),
       policePressure: row.policePressure,
       regionId: row.regionId as RegionId,
+      sabotageRecoveryReadyAt: row.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: row.sabotageResolvedAt,
+      sabotageState: row.sabotageState,
       soldierRoster: soldiersByPropertyId.get(row.id)
         ? [soldiersByPropertyId.get(row.id) as SlotMachineSoldierRosterRecord]
         : [],
@@ -1017,6 +1027,13 @@ export class SlotMachineService implements SlotMachineServiceContract {
       passiveProfile.business.propertyMaintenanceMultiplier *
         regionalDominationBonus.maintenanceMultiplier,
     );
+    const sabotageStatus = buildPropertySabotageStatusSummary({
+      now: this.now(),
+      sabotageRecoveryReadyAt: slotMachine.sabotageRecoveryReadyAt,
+      sabotageResolvedAt: slotMachine.sabotageResolvedAt,
+      sabotageState: slotMachine.sabotageState,
+      type: 'slot_machine',
+    });
     const cycleMs = SLOT_MACHINE_OPERATION_CYCLE_MINUTES * 60 * 1000;
     const elapsedCycles = Math.floor(
       Math.max(0, this.now().getTime() - slotMachine.lastPlayAt.getTime()) / cycleMs,
@@ -1034,7 +1051,7 @@ export class SlotMachineService implements SlotMachineServiceContract {
       propertyDefinition,
     );
 
-    if (elapsedCycles > 0 && !maintenanceStatus.blocked && slotMachine.installedMachines > 0) {
+    if (elapsedCycles > 0 && !maintenanceStatus.blocked && !sabotageStatus.blocked && slotMachine.installedMachines > 0) {
       const grossRevenuePerCycle = buildSlotMachineGrossRevenuePerCycle(
         slotMachine,
         events,
@@ -1044,7 +1061,9 @@ export class SlotMachineService implements SlotMachineServiceContract {
       );
 
       if (grossRevenuePerCycle > 0) {
-        const grossRevenue = roundCurrency(grossRevenuePerCycle * elapsedCycles);
+        const grossRevenue = roundCurrency(
+          grossRevenuePerCycle * elapsedCycles * sabotageStatus.operationalMultiplier,
+        );
         const commissionAmount = roundCurrency(grossRevenue * effectiveFactionCommissionRate);
         const netRevenue = roundCurrency(grossRevenue - commissionAmount);
 
@@ -1216,17 +1235,24 @@ function serializeSlotMachineSummary(
 ): SlotMachineSummary {
   const propertyDefinition = resolveEconomyPropertyDefinition(configCatalog, 'slot_machine');
   const eventProfile = resolvePropertyEventProfile(configCatalog, 'slot_machine');
+  const sabotageStatus = buildPropertySabotageStatusSummary({
+    now: new Date(),
+    sabotageRecoveryReadyAt: slotMachine.sabotageRecoveryReadyAt,
+    sabotageResolvedAt: slotMachine.sabotageResolvedAt,
+    sabotageState: slotMachine.sabotageState,
+    type: 'slot_machine',
+  });
   const locationMultiplier = buildSlotMachineLocationMultiplier(slotMachine);
   const trafficMultiplier = buildSlotMachineTrafficMultiplier(slotMachine, events, eventProfile);
   const expectedGrossRevenuePerCycle =
-    !maintenanceStatus.blocked && slotMachine.installedMachines > 0
+    !maintenanceStatus.blocked && !sabotageStatus.blocked && slotMachine.installedMachines > 0
       ? buildSlotMachineGrossRevenuePerCycle(
           slotMachine,
           events,
           passiveProfile,
           regionalDominationBonus,
           eventProfile,
-        )
+        ) * sabotageStatus.operationalMultiplier
       : 0;
   const estimatedHourlyGrossRevenue = roundCurrency(
     expectedGrossRevenuePerCycle * (60 / SLOT_MACHINE_OPERATION_CYCLE_MINUTES),
@@ -1280,8 +1306,11 @@ function serializeSlotMachineSummary(
       overdueDays: maintenanceStatus.overdueDays,
     },
     regionId: slotMachine.regionId,
-    status: maintenanceStatus.blocked
-      ? 'maintenance_blocked'
+    sabotageStatus,
+    status: sabotageStatus.blocked
+      ? 'sabotage_blocked'
+      : maintenanceStatus.blocked
+        ? 'maintenance_blocked'
       : slotMachine.installedMachines <= 0
         ? 'installation_required'
         : 'active',

@@ -12,6 +12,7 @@ import {
   formatCrimeChance,
   formatCrimeCooldown,
   formatCrimeCurrency,
+  formatCrimeRewardReadLabel,
   groupCrimesByLevel,
 } from '../features/crimes';
 import { crimesApi, formatApiError } from '../services/api';
@@ -113,18 +114,18 @@ export function CrimesScreen(): JSX.Element {
       >
         <View style={styles.summaryRow}>
           <SummaryCard
-            label="Stamina"
+            label="Cansaço"
             tone={colors.success}
-            value={`${player?.resources.stamina ?? '--'}`}
+            value={`${player?.resources.cansaco ?? '--'}`}
           />
           <SummaryCard
-            label="Nervos"
+            label="Disposição"
             tone="#7bb2ff"
-            value={`${player?.resources.nerve ?? '--'}`}
+            value={`${player?.resources.disposicao ?? '--'}`}
           />
           <SummaryCard label="HP" tone="#f49d9d" value={`${player?.resources.hp ?? '--'}`} />
           <SummaryCard
-            label="Prestígio"
+            label="Conceito"
             tone={colors.accent}
             value={`${player?.resources.conceito ?? '--'}`}
           />
@@ -168,8 +169,9 @@ export function CrimesScreen(): JSX.Element {
                   <Text style={styles.crimeMeta}>
                     {formatCrimeCurrency(crime.rewardMin)} → {formatCrimeCurrency(crime.rewardMax)}
                   </Text>
+                  <Text style={styles.crimeMeta}>{formatCrimeRewardReadLabel(crime.rewardRead)}</Text>
                   <Text style={styles.crimeMeta}>
-                    {crime.staminaCost} STA · {crime.nerveCost} NRV · cooldown{' '}
+                    {crime.cansacoCost} CAN · {crime.disposicaoCost} DIS · cooldown{' '}
                     {formatCrimeCooldown(crime.cooldownRemainingSeconds)}
                   </Text>
                   {crime.lockReason ? (
@@ -210,10 +212,10 @@ export function CrimesScreen(): JSX.Element {
                       <View style={styles.metricRow}>
                         <InfoPill
                           label="Custo"
-                          value={`${crime.staminaCost} STA · ${crime.nerveCost} NRV`}
+                          value={`${crime.cansacoCost} CAN · ${crime.disposicaoCost} DIS`}
                         />
                         <InfoPill
-                          label="Recompensa"
+                          label={crime.rewardRead === 'exact' ? 'Recompensa real' : 'Recompensa estimada'}
                           value={`${formatCrimeCurrency(crime.rewardMin)} → ${formatCrimeCurrency(crime.rewardMax)}`}
                         />
                         <InfoPill label="Conceito" value={`+${crime.conceitoReward}`} />

@@ -96,33 +96,6 @@ export function createHospitalRoutes({
     );
 
     fastify.post(
-      '/hospital/dst-treatment',
-      {
-        schema: {
-          response: buildStandardResponseSchema(200),
-        },
-      },
-      async (request, reply) => {
-      if (!request.playerId) {
-        return reply.code(401).send({ message: 'Token ausente.' });
-      }
-
-      try {
-        const result = await actionIdempotency.run(
-          request,
-          {
-            action: 'hospital.dst-treatment',
-          },
-          () => hospitalService.applyDstTreatment(request.playerId!),
-        );
-        return reply.send(result);
-      } catch (error) {
-        return sendHospitalError(reply, error);
-      }
-      },
-    );
-
-    fastify.post(
       '/hospital/health-plan',
       {
         schema: {

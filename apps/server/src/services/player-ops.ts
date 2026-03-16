@@ -41,9 +41,9 @@ type ResourceOperation =
   | { type: 'full-resources' }
   | { type: 'set-addiction'; value: number }
   | { type: 'set-hp'; value: number }
-  | { type: 'set-morale'; value: number }
-  | { type: 'set-nerve'; value: number }
-  | { type: 'set-stamina'; value: number };
+  | { type: 'set-brisa'; value: number }
+  | { type: 'set-disposicao'; value: number }
+  | { type: 'set-cansaco'; value: number };
 
 type ProgressionOperation =
   | { type: 'set-conceito'; value: number }
@@ -118,13 +118,13 @@ interface PlayerOpsPlayerRecord {
   id: string;
   level: number;
   money: string;
-  morale: number;
-  nerve: number;
+  brisa: number;
+  disposicao: number;
   nickname: string;
   positionX: number;
   positionY: number;
   regionId: RegionId;
-  stamina: number;
+  cansaco: number;
   vocation: VocationType;
 }
 
@@ -154,8 +154,8 @@ export interface PlayerOpsSnapshot {
   inventory: InventorySnapshotItem[];
   level: number;
   money: number;
-  morale: number;
-  nerve: number;
+  brisa: number;
+  disposicao: number;
   nickname: string;
   position: {
     regionId: RegionId;
@@ -170,7 +170,7 @@ export interface PlayerOpsSnapshot {
     reason: string | null;
     remainingSeconds: number;
   };
-  stamina: number;
+  cansaco: number;
   vocation: VocationType;
   wealth: {
     bankMoney: number;
@@ -326,15 +326,15 @@ export class PlayerOpsService {
       case 'set-hp':
         await this.updatePlayer(player.id, { hp: clampStat(operation.value, 0, 100, operation.type) });
         return `HP ajustado para ${operation.value}.`;
-      case 'set-stamina':
-        await this.updatePlayer(player.id, { stamina: clampStat(operation.value, 0, 100, operation.type) });
-        return `Stamina ajustada para ${operation.value}.`;
-      case 'set-nerve':
-        await this.updatePlayer(player.id, { nerve: clampStat(operation.value, 0, 100, operation.type) });
-        return `Nervos ajustados para ${operation.value}.`;
-      case 'set-morale':
-        await this.updatePlayer(player.id, { morale: clampStat(operation.value, 0, 100, operation.type) });
-        return `Moral ajustada para ${operation.value}.`;
+      case 'set-cansaco':
+        await this.updatePlayer(player.id, { cansaco: clampStat(operation.value, 0, 100, operation.type) });
+        return `Cansaço ajustado para ${operation.value}.`;
+      case 'set-disposicao':
+        await this.updatePlayer(player.id, { disposicao: clampStat(operation.value, 0, 100, operation.type) });
+        return `Disposição ajustada para ${operation.value}.`;
+      case 'set-brisa':
+        await this.updatePlayer(player.id, { brisa: clampStat(operation.value, 0, 100, operation.type) });
+        return `Brisa ajustada para ${operation.value}.`;
       case 'set-addiction':
         await this.updatePlayer(player.id, { addiction: clampStat(operation.value, 0, 100, operation.type) });
         return `Vício ajustado para ${operation.value}.`;
@@ -342,11 +342,11 @@ export class PlayerOpsService {
         await this.updatePlayer(player.id, {
           addiction: 0,
           hp: 100,
-          morale: 100,
-          nerve: 100,
-          stamina: 100,
+          brisa: 100,
+          disposicao: 100,
+          cansaco: 100,
         });
-        return 'HP, stamina, nervos e moral restaurados; vício zerado.';
+        return 'HP, cansaço, disposição e brisa restaurados; vício zerado.';
       case 'set-conceito':
         await this.updatePlayer(player.id, { conceito: requireWholeNumber(operation.value, operation.type) });
         return `Conceito ajustado para ${operation.value}.`;
@@ -558,31 +558,31 @@ export class PlayerOpsService {
       }
       case 'set-hp':
         return previewStat(player, operation, 'hp', 'HP');
-      case 'set-stamina':
-        return previewStat(player, operation, 'stamina', 'Stamina');
-      case 'set-nerve':
-        return previewStat(player, operation, 'nerve', 'Nervos');
-      case 'set-morale':
-        return previewStat(player, operation, 'morale', 'Moral');
+      case 'set-cansaco':
+        return previewStat(player, operation, 'cansaco', 'Cansaço');
+      case 'set-disposicao':
+        return previewStat(player, operation, 'disposicao', 'Disposição');
+      case 'set-brisa':
+        return previewStat(player, operation, 'brisa', 'Brisa');
       case 'set-addiction':
         return previewStat(player, operation, 'addiction', 'Vício');
       case 'full-resources': {
         const changed =
           player.hp !== 100 ||
-          player.stamina !== 100 ||
-          player.nerve !== 100 ||
-          player.morale !== 100 ||
+          player.cansaco !== 100 ||
+          player.disposicao !== 100 ||
+          player.brisa !== 100 ||
           player.addiction !== 0;
         player.hp = 100;
-        player.stamina = 100;
-        player.nerve = 100;
-        player.morale = 100;
+        player.cansaco = 100;
+        player.disposicao = 100;
+        player.brisa = 100;
         player.addiction = 0;
         return {
           changed,
           operationType: operation.type,
           summary: changed
-            ? 'Dry-run: HP, stamina, nervos e moral seriam restaurados; vício seria zerado.'
+            ? 'Dry-run: HP, cansaço, disposição e brisa seriam restaurados; vício seria zerado.'
             : 'Recursos já estão cheios e vício já está zerado.',
         };
       }
@@ -912,8 +912,8 @@ export class PlayerOpsService {
       inventory,
       level: player.level,
       money: Number.parseFloat(player.money),
-      morale: player.morale,
-      nerve: player.nerve,
+      brisa: player.brisa,
+      disposicao: player.disposicao,
       nickname: player.nickname,
       position: {
         regionId: player.regionId,
@@ -928,7 +928,7 @@ export class PlayerOpsService {
         reason: prison.reason,
         remainingSeconds: prison.remainingSeconds,
       },
-      stamina: player.stamina,
+      cansaco: player.cansaco,
       vocation: player.vocation,
       wealth: {
         bankMoney: Number.parseFloat(player.bankMoney),
@@ -978,13 +978,13 @@ export class PlayerOpsService {
         id: players.id,
         level: players.level,
         money: players.money,
-        morale: players.morale,
-        nerve: players.nerve,
+        brisa: players.brisa,
+        disposicao: players.disposicao,
         nickname: players.nickname,
         positionX: players.positionX,
         positionY: players.positionY,
         regionId: players.regionId,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
         vocation: players.vocation,
       })
       .from(players)
@@ -1019,12 +1019,12 @@ export class PlayerOpsService {
       hp: number;
       level: number;
       money: string;
-      morale: number;
-      nerve: number;
+      brisa: number;
+      disposicao: number;
       positionX: number;
       positionY: number;
       regionId: RegionId;
-      stamina: number;
+      cansaco: number;
       vocation: VocationType;
     }>,
   ): Promise<void> {
@@ -1078,10 +1078,10 @@ function previewStat(
   operation:
     | { type: 'set-addiction'; value: number }
     | { type: 'set-hp'; value: number }
-    | { type: 'set-morale'; value: number }
-    | { type: 'set-nerve'; value: number }
-    | { type: 'set-stamina'; value: number },
-  key: 'addiction' | 'hp' | 'morale' | 'nerve' | 'stamina',
+    | { type: 'set-brisa'; value: number }
+    | { type: 'set-disposicao'; value: number }
+    | { type: 'set-cansaco'; value: number },
+  key: 'addiction' | 'hp' | 'brisa' | 'disposicao' | 'cansaco',
   label: string,
 ): { changed: boolean; operationType: PlayerOpsOperation['type']; summary: string } {
   const nextValue = clampStat(operation.value, 0, 100, operation.type);

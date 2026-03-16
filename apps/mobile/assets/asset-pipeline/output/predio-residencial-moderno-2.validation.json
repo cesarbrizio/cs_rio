@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-moderno-2.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 12,
+      "deltaY": 21,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 7,
+      "max": 36,
+      "palette": [
+        "#c7d2db",
+        "#2f241f",
+        "#607786",
+        "#6f8999",
+        "#96d0ea",
+        "#7fe2ff",
+        "#d2eef8"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 33,
+    "pathCount": 0,
+    "colorCount": 7,
+    "resolvedMaxColors": 36,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 72,
+      "minY": 64,
+      "maxX": 112,
+      "maxY": 138,
+      "width": 40,
+      "height": 74,
+      "centerX": 92,
+      "centerY": 101
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "residential-tower-modern predio-residencial-moderno-2",
+  "category": "residential",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-moderno-2.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-residencial-moderno-2.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-moderno-2.preview.json"
+}

@@ -180,7 +180,7 @@ Fases de desenvolvimento:
 Foi criado o arquivo JOGO.md v1 com 23 seções cobrindo:
 1. Conceito geral e ciclo de rodada
 2. Criação de personagem (5 vocações, 4 atributos, aparência)
-3. Progressão (10 níveis, conceito, estamina, vida)
+3. Progressão (10 níveis, conceito, cansaço, vida)
 4. Sistema de crimes (solo e facção, probabilidade)
 5. Equipamento (14 armas, 9 coletes, 5 tipos de soldados, mercado negro)
 6. Itens especiais e impulsos (todos os renomeados conforme solicitado)
@@ -256,9 +256,9 @@ JOGO.md reescrito por completo (v2) com 25 seções, incorporando:
 - **Bônus de Domínio Regional** para facção que controla todas as favelas de uma região
 
 **Novos sistemas adicionados:**
-- **Seção 3.4 — Nervos (Nerve):** recurso secundário que limita crimes arriscados, regenera lentamente, consumido por crimes nível 3+
+- **Seção 3.4 — Disposição:** recurso secundário que limita crimes arriscados, regenera lentamente, consumido por crimes nível 3+
 - **Seção 3.6 — Vício (Addiction):** sistema completo com 6 faixas de efeito (0-100%), efeitos negativos progressivos, overdose automática em 100%
-- **Seção 4 (crimes) expandida:** consumo de nervos por tier, crimes até nível 10, "O Grande Golpe" como crime lendário
+- **Seção 4 (crimes) expandida:** consumo de disposição por tier, crimes até nível 10, "O Grande Golpe" como crime lendário
 - **Seção 12 — Tribunal do Tráfico:** seção inteira nova (~200 linhas) com:
   - 7 tipos de caso (roubo, talaricagem, dívida de jogo, dívida de drogas, estupro, agressão, homicídio não autorizado)
   - 6 punições (liberar com aviso, surra, expulsar, matar, esquartejar, queimar no pneu)
@@ -266,7 +266,7 @@ JOGO.md reescrito por completo (v2) com 25 seções, incorporando:
   - Mecânica do **Antigão** como NPC conselheiro
   - Conceito ganho/perdido por tipo de decisão
 - **Seção 14.2 — Calor da Polícia:** mecânica invisível de atenção policial acumulativa
-- **Seção 23 — Estratégias Avançadas:** meta-game, otimização de estamina/drogas/progressão/economia/PvP
+- **Seção 23 — Estratégias Avançadas:** meta-game, otimização de cansaço/drogas/progressão/economia/PvP
 - **Seção 1.3 — Filosofia de Design:** explicita que é jogo de otimização estratégica, não ação direta
 - Tabelas de preço para todas as armas/coletes
 - Detalhamento de todas as 6 regiões com favelas reais, bairros e características
@@ -292,7 +292,7 @@ Criado TODO.md com **189 tarefas** em **22 fases** (0-21):
 
 - **Fase 3 — HUD e Interface (8 tarefas):** StatusBar, Minimap, ActionBar, ContextMenu, telas de Inventário/Perfil/Mapa/Configurações
 
-- **Fases 4-15 — Gameplay:** Crime engine, cooldowns Redis, calor da polícia, regeneração sob demanda (estamina/nervos/vício), progressão, inventário, mercado negro, leilão, drogas, fábricas, negócios (bocas/raves/puteiros/fachada/maquininhas/bicho/imóveis), treino, universidade, facções CRUD, hierarquia, banco, upgrades, crimes coletivos, favela state machine, conquista, serviços, satisfação, domínio regional, X9, propina, baile funk, guerra, tribunal do tráfico (case generator, Antigão AI, 50+ templates), PvP (1v1/emboscada/contratos), prisão/hospital, event scheduler, navio/blitz/sazonais, banco/inflação/rodadas
+- **Fases 4-15 — Gameplay:** Crime engine, cooldowns Redis, calor da polícia, regeneração sob demanda (cansaço/disposição/vício), progressão, inventário, mercado negro, leilão, drogas, fábricas, negócios (bocas/raves/puteiros/fachada/maquininhas/bicho/imóveis), treino, universidade, facções CRUD, hierarquia, banco, upgrades, crimes coletivos, favela state machine, conquista, serviços, satisfação, domínio regional, X9, propina, baile funk, guerra, tribunal do tráfico (case generator, Antigão AI, 50+ templates), PvP (1v1/emboscada/contratos), prisão/hospital, event scheduler, navio/blitz/sazonais, banco/inflação/rodadas
 
 - **Fase 16 — Audio e Polish:** Audio (expo-av), SFX placeholder, musica por regiao placeholder, tutorial onboarding, animacoes, particulas, push notifications
 
@@ -352,7 +352,7 @@ Ficou consolidado o seguinte modelo de design:
 - **Toda propriedade pertence ao jogador.** A faccao nunca vira dona do ativo.
 - **Faccao atua como camada de protecao e arrecadacao**, nao de posse.
 - **Ativos foram divididos em duas familias:**
-  - **Patrimoniais:** casa, carro, joias, barcos, iates, lanchas, jet ski, casa de praia, mansao, avioes, helicopteros, arte e luxo. Nao geram renda direta; entregam prestigio, utilidade, conforto e logistica, com custo de manutencao.
+  - **Patrimoniais:** casa, carro, joias, barcos, iates, lanchas, jet ski, casa de praia, mansao, avioes, helicopteros, arte e luxo. Nao geram renda direta; entregam utilidade, conforto, logistica e protecao, com custo de manutencao.
   - **Operacionais:** boca, rave, fabrica, puteiro, loja de fachada, maquininha e outros negocios. Geram receita, mas pagam comissao fixa para a faccao do dono, se houver.
 - **Troca de faccao nao transfere a posse.** O bem continua do jogador, mas a camada de protecao/comissao passa a obedecer a nova faccao apos um cooldown de transicao.
 - **Dominio territorial total de uma regiao fortalece a defesa e a operacao das propriedades dos membros da faccao naquela area**, reduzindo risco de invasao, roubo e tomada e melhorando eficiencia. Isso **nao** torna as propriedades invulneraveis.
@@ -453,7 +453,7 @@ Após uma revisão do `JOGO.md`, foram identificados blocos ainda muito abertos 
   - `Blitz da PM`
   - `Saidinha de Natal`
 - **Nomenclatura**
-  - `embalo` como estado do jogador
+  - `brisa` como estado do jogador
   - `satisfação dos moradores` como estado da favela
   - `satisfação interna da facção` como estado da facção
 
@@ -894,7 +894,7 @@ Garantir que os eventos do jogo já sejam percebidos no pré-alpha com clareza e
 | Respeito | Conceito |
 | Posse de propriedades | Sempre do jogador |
 | Papel da facção sobre propriedades | Protecao + comissao sobre negocios lucrativos |
-| Patrimonio pessoal | Nao gera renda direta; gera custo, prestigio e utilidade |
+| Patrimonio pessoal | Nao gera renda direta; gera custo, utilidade, logistica e protecao |
 | Troca de faccao | Mantem posse, migra camada de protecao/comissao |
 | Dominio territorial total | Aumenta receita, protecao e eficiencia; nao da imunidade |
 | Roubos estruturados | Sistema proprio, separado dos crimes solo genericos |
@@ -1007,7 +1007,7 @@ Fechar a base estrutural do efetivo territorial antes do sistema de roubos da `1
   - delta de calor policial
   - delta de pressao policial regional
   - comissao fixa para a faccao
-- o jogador passou a poder executar o roubo diretamente, consumindo `stamina` e `nerve`
+- o jogador passou a poder executar o roubo diretamente, consumindo `cansaco` e `disposicao`
 - a faccao passou a poder executar o roubo via bandidos da favela, consumindo o efetivo real da `15.2`
 - falha dos bandidos agora:
   - prende bandidos reais

@@ -20,14 +20,24 @@ import {
   buildAttackNotificationDraft,
   buildAsyncActivityNotificationDraft,
   buildEventNotificationDraft,
+  buildEventResultNotificationDraft,
   buildFactionPromotionNotificationDraft,
+  buildPrivateMessageNotificationDraft,
+  buildSabotageNotificationDraft,
+  buildTerritoryLossNotificationDraft,
   buildTimerNotificationDrafts,
+  buildTribunalCueNotificationDraft,
   buildWarResultNotificationDraft,
   type NotificationPermissionState,
 } from '../features/notifications';
 import { type AsyncActivityCue } from '../features/activity-results';
 import { type EventNotificationItem } from '../features/events';
+import { type EventResultCue } from '../features/event-results';
 import { type FactionPromotionCue } from '../features/faction-promotion';
+import { type PrivateMessageCue } from '../features/private-messages';
+import { type SabotageCue } from '../features/sabotage';
+import { type TerritoryLossCue } from '../features/territory-loss';
+import { type TribunalCue } from '../features/tribunal-results';
 import { type WarResultCue } from '../features/war-results';
 import { useAppStore } from '../stores/appStore';
 
@@ -93,7 +103,12 @@ interface NotificationContextValue {
   notifyAttack: (notification: AssassinationContractNotification) => Promise<void>;
   notifyAsyncActivity: (cue: AsyncActivityCue) => Promise<void>;
   notifyEvent: (notification: EventNotificationItem) => Promise<void>;
+  notifyEventResult: (cue: EventResultCue) => Promise<void>;
   notifyFactionPromotion: (cue: FactionPromotionCue) => Promise<void>;
+  notifyPrivateMessage: (cue: PrivateMessageCue) => Promise<void>;
+  notifySabotageCue: (cue: SabotageCue) => Promise<void>;
+  notifyTerritoryLoss: (cue: TerritoryLossCue) => Promise<void>;
+  notifyTribunalCue: (cue: TribunalCue) => Promise<void>;
   notifyWarResult: (cue: WarResultCue) => Promise<void>;
   requestNotificationPermissions: () => Promise<NotificationPermissionState>;
   syncTimerNotifications: (
@@ -228,6 +243,16 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
     });
   }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
+  const notifyEventResult = useCallback(async (cue: EventResultCue) => {
+    const draft = buildEventResultNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
   const notifyWarResult = useCallback(async (cue: WarResultCue) => {
     const draft = buildWarResultNotificationDraft(cue);
     await presentImmediateNotification({
@@ -240,6 +265,46 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
 
   const notifyFactionPromotion = useCallback(async (cue: FactionPromotionCue) => {
     const draft = buildFactionPromotionNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifyPrivateMessage = useCallback(async (cue: PrivateMessageCue) => {
+    const draft = buildPrivateMessageNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifySabotageCue = useCallback(async (cue: SabotageCue) => {
+    const draft = buildSabotageNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifyTerritoryLoss = useCallback(async (cue: TerritoryLossCue) => {
+    const draft = buildTerritoryLossNotificationDraft(cue);
+    await presentImmediateNotification({
+      deliveredIdsRef,
+      draft,
+      enabled: notificationSettings.enabled,
+      permissionStatus: notificationSettings.permissionStatus,
+    });
+  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
+
+  const notifyTribunalCue = useCallback(async (cue: TribunalCue) => {
+    const draft = buildTribunalCueNotificationDraft(cue);
     await presentImmediateNotification({
       deliveredIdsRef,
       draft,
@@ -333,7 +398,12 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
       notifyAttack,
       notifyAsyncActivity,
       notifyEvent,
+      notifyEventResult,
       notifyFactionPromotion,
+      notifyPrivateMessage,
+      notifySabotageCue,
+      notifyTerritoryLoss,
+      notifyTribunalCue,
       notifyWarResult,
       requestNotificationPermissions,
       syncTimerNotifications,
@@ -344,7 +414,12 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
       notifyAttack,
       notifyAsyncActivity,
       notifyEvent,
+      notifyEventResult,
       notifyFactionPromotion,
+      notifyPrivateMessage,
+      notifySabotageCue,
+      notifyTerritoryLoss,
+      notifyTribunalCue,
       notifyWarResult,
       requestNotificationPermissions,
       syncTimerNotifications,

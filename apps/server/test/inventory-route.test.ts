@@ -28,6 +28,7 @@ import type {
 const INVENTORY_DEFINITIONS: Record<string, InventoryDefinitionRecord> = {
   'drug:drug-1': {
     durabilityMax: null,
+    equipment: null,
     itemId: 'drug-1',
     itemName: 'Maconha',
     itemType: 'drug',
@@ -37,6 +38,11 @@ const INVENTORY_DEFINITIONS: Record<string, InventoryDefinitionRecord> = {
   },
   'vest:vest-1': {
     durabilityMax: 180,
+    equipment: {
+      defense: 12,
+      power: null,
+      slot: 'vest',
+    },
     itemId: 'vest-1',
     itemName: 'Colete de treino',
     itemType: 'vest',
@@ -46,6 +52,11 @@ const INVENTORY_DEFINITIONS: Record<string, InventoryDefinitionRecord> = {
   },
   'weapon:weapon-1': {
     durabilityMax: 120,
+    equipment: {
+      defense: null,
+      power: 18,
+      slot: 'weapon',
+    },
     itemId: 'weapon-1',
     itemName: 'Pistola de treino',
     itemType: 'weapon',
@@ -55,6 +66,11 @@ const INVENTORY_DEFINITIONS: Record<string, InventoryDefinitionRecord> = {
   },
   'weapon:weapon-2': {
     durabilityMax: 90,
+    equipment: {
+      defense: null,
+      power: 26,
+      slot: 'weapon',
+    },
     itemId: 'weapon-2',
     itemName: 'Escopeta curta',
     itemType: 'weapon',
@@ -81,7 +97,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -90,7 +106,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
   setPlayerResources(
     playerId: string,
-    input: Partial<Pick<AuthPlayerRecord, 'addiction' | 'morale' | 'nerve' | 'stamina'>>,
+    input: Partial<Pick<AuthPlayerRecord, 'addiction' | 'brisa' | 'disposicao' | 'cansaco'>>,
   ): boolean {
     const player = this.players.get(playerId);
 
@@ -102,16 +118,16 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       player.addiction = input.addiction;
     }
 
-    if (typeof input.morale === 'number') {
-      player.morale = input.morale;
+    if (typeof input.brisa === 'number') {
+      player.brisa = input.brisa;
     }
 
-    if (typeof input.nerve === 'number') {
-      player.nerve = input.nerve;
+    if (typeof input.disposicao === 'number') {
+      player.disposicao = input.disposicao;
     }
 
-    if (typeof input.stamina === 'number') {
-      player.stamina = input.stamina;
+    if (typeof input.cansaco === 'number') {
+      player.cansaco = input.cansaco;
     }
 
     return true;
@@ -187,9 +203,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -218,12 +234,12 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     player.hp = 100;
     player.inteligencia = attributes.inteligencia;
     player.level = 4;
-    player.morale = 100;
-    player.nerve = 100;
+    player.brisa = 100;
+    player.disposicao = 100;
     player.positionX = spawnPoint.positionX;
     player.positionY = spawnPoint.positionY;
     player.resistencia = attributes.resistencia;
-    player.stamina = 100;
+    player.cansaco = 100;
     player.vocation = input.vocation;
 
     return this.getPlayerProfile(playerId);
@@ -251,16 +267,16 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '3000',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 0,
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -315,11 +331,11 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
       addictionRate: 1,
       code: drugId,
       drugId,
-      moralBoost: 2,
+      brisaBoost: 2,
       name: `mock-${drugId}`,
-      nerveBoost: 3,
+      disposicaoBoost: 3,
       productionLevel: 1,
-      staminaRecovery: 4,
+      cansacoRecovery: 4,
       type: DrugType.Maconha,
     };
   }
@@ -371,6 +387,7 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
     inventory.push({
       durability: definition.durabilityMax,
       equipSlot: null,
+      equipment: definition.equipment ?? null,
       id: randomUUID(),
       isEquipped: false,
       itemId: input.itemId,
@@ -487,9 +504,9 @@ class InMemoryPlayerRepository implements AuthRepository, PlayerRepository {
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 }
 
@@ -606,6 +623,15 @@ describe('inventory routes', () => {
         currentWeight: 3,
         usedSlots: 1,
       },
+      items: [
+        expect.objectContaining({
+          equipment: {
+            defense: null,
+            power: 18,
+            slot: 'weapon',
+          },
+        }),
+      ],
     });
 
     const secondWeaponResponse = await app.inject({
@@ -634,6 +660,11 @@ describe('inventory routes', () => {
 
     expect(equipFirstResponse.statusCode).toBe(200);
     expect(equipFirstResponse.json().items.find((item: { id: string }) => item.id === firstWeapon.id)).toMatchObject({
+      equipment: {
+        defense: null,
+        power: 18,
+        slot: 'weapon',
+      },
       equipSlot: 'weapon',
       isEquipped: true,
     });
@@ -651,6 +682,11 @@ describe('inventory routes', () => {
       isEquipped: false,
     });
     expect(equippedInventory.items.find((item: { id: string }) => item.id === secondWeapon.id)).toMatchObject({
+      equipment: {
+        defense: null,
+        power: 26,
+        slot: 'weapon',
+      },
       equipSlot: 'weapon',
       isEquipped: true,
     });
@@ -720,9 +756,9 @@ describe('inventory routes', () => {
     expect(
       repository.setPlayerResources(session.player.id, {
         addiction: 4,
-        morale: 97,
-        nerve: 95,
-        stamina: 88,
+        brisa: 97,
+        disposicao: 95,
+        cansaco: 88,
       }),
     ).toBe(true);
 
@@ -741,9 +777,9 @@ describe('inventory routes', () => {
       },
       effects: {
         addictionGained: 1,
-        moraleRecovered: 2,
-        nerveRecovered: 3,
-        staminaRecovered: 4,
+        brisaRecovered: 2,
+        disposicaoRecovered: 3,
+        cansacoRecovered: 4,
       },
       player: {
         inventory: expect.arrayContaining([
@@ -754,9 +790,9 @@ describe('inventory routes', () => {
         ]),
         resources: expect.objectContaining({
           addiction: 5,
-          morale: 99,
-          nerve: 98,
-          stamina: 92,
+          brisa: 99,
+          disposicao: 98,
+          cansaco: 92,
         }),
       },
       tolerance: {
@@ -790,6 +826,98 @@ describe('inventory routes', () => {
       capacity: {
         usedSlots: 2,
       },
+    });
+  });
+
+  it('blocks equipping broken gear and allows unequip for armor', async () => {
+    const registerResponse = await app.inject({
+      method: 'POST',
+      payload: {
+        email: 'inventory.b85@example.com',
+        nickname: 'inventory_b85',
+        password: 'supersegura123',
+      },
+      url: '/api/auth/register',
+    });
+    const session = registerResponse.json();
+    const authorization = `Bearer ${session.accessToken}`;
+
+    const createCharacterResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      payload: {
+        appearance: DEFAULT_CHARACTER_APPEARANCE,
+        vocation: VocationType.Soldado,
+      },
+      url: '/api/players/create',
+    });
+
+    expect(createCharacterResponse.statusCode).toBe(201);
+
+    const weaponResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      payload: {
+        itemId: 'weapon-1',
+        itemType: 'weapon',
+        quantity: 1,
+      },
+      url: '/api/inventory/items',
+    });
+    const vestResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      payload: {
+        itemId: 'vest-1',
+        itemType: 'vest',
+        quantity: 1,
+      },
+      url: '/api/inventory/items',
+    });
+
+    const weaponItem = weaponResponse.json().items.find((item: { itemId: string }) => item.itemId === 'weapon-1');
+    const vestItem = vestResponse.json().items.find((item: { itemId: string }) => item.itemId === 'vest-1');
+
+    expect(repository.damageInventoryItem(session.player.id, weaponItem.id, 0)).toBe(true);
+
+    const equipBrokenWeaponResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      url: `/api/inventory/${weaponItem.id}/equip`,
+    });
+
+    expect(equipBrokenWeaponResponse.statusCode).toBe(409);
+    expect(equipBrokenWeaponResponse.json()).toMatchObject({
+      message: 'Pistola de treino esta quebrado e precisa de reparo antes de equipar.',
+    });
+
+    const equipVestResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      url: `/api/inventory/${vestItem.id}/equip`,
+    });
+
+    expect(equipVestResponse.statusCode).toBe(200);
+    expect(equipVestResponse.json().items.find((item: { id: string }) => item.id === vestItem.id)).toMatchObject({
+      equipment: {
+        defense: 12,
+        power: null,
+        slot: 'vest',
+      },
+      equipSlot: 'vest',
+      isEquipped: true,
+    });
+
+    const unequipVestResponse = await app.inject({
+      headers: { authorization },
+      method: 'POST',
+      url: `/api/inventory/${vestItem.id}/unequip`,
+    });
+
+    expect(unequipVestResponse.statusCode).toBe(200);
+    expect(unequipVestResponse.json().items.find((item: { id: string }) => item.id === vestItem.id)).toMatchObject({
+      equipSlot: null,
+      isEquipped: false,
     });
   });
 });

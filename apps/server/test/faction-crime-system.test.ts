@@ -60,10 +60,10 @@ function createParticipant(input: {
   id?: string;
   level?: number;
   money?: number;
-  nerve?: number;
+  disposicao?: number;
   nickname: string;
   rank: FactionRank;
-  stamina?: number;
+  cansaco?: number;
 }): Awaited<ReturnType<InMemoryFactionCrimeRepository['listFactionParticipants']>>[number] {
   return {
     attributes: {
@@ -96,8 +96,8 @@ function createParticipant(input: {
         conceito: 1500,
         hp: input.hp ?? 100,
         money: input.money ?? 1000,
-        nerve: input.nerve ?? 100,
-        stamina: input.stamina ?? 100,
+        disposicao: input.disposicao ?? 100,
+        cansaco: input.cansaco ?? 100,
       },
       vocation: VocationType.Soldado,
     },
@@ -117,8 +117,8 @@ class InMemoryFactionCrimeRepository implements FactionCrimeRepository {
       conceito: number;
       hp: number;
       money: number;
-      nerve: number;
-      stamina: number;
+      disposicao: number;
+      cansaco: number;
     };
     playerId: string;
   }> = [];
@@ -187,10 +187,10 @@ describe('faction crime system', () => {
         levelRequired: 5,
         minPower: 1500,
         name: 'Roubo a banco central em bonde',
-        nerveCost: 20,
+        disposicaoCost: 20,
         rewardMax: 200000,
         rewardMin: 100000,
-        staminaCost: 30,
+        cansacoCost: 30,
         type: CrimeType.Faccao,
       },
       [leader, general],
@@ -215,14 +215,14 @@ describe('faction crime system', () => {
         expect.objectContaining({
           conceitoDelta: 120,
           moneyDelta: 65000,
-          nerveSpent: 20,
-          staminaSpent: 30,
+          disposicaoSpent: 20,
+          cansacoSpent: 30,
         }),
       ]),
     );
     expect(repository.persistedUpdates).toHaveLength(2);
     expect(repository.persistedUpdates[0]?.logType).toBe('faction_crime_success');
-    expect(repository.persistedUpdates[1]?.nextResources.stamina).toBe(70);
+    expect(repository.persistedUpdates[1]?.nextResources.cansaco).toBe(70);
 
     await expect(
       system.attemptCrime(leader.player.id, 'faction-1', 'crime-faccao-1', {
@@ -254,10 +254,10 @@ describe('faction crime system', () => {
         levelRequired: 5,
         minPower: 1500,
         name: 'Roubo a banco central em bonde',
-        nerveCost: 20,
+        disposicaoCost: 20,
         rewardMax: 200000,
         rewardMin: 100000,
-        staminaCost: 30,
+        cansacoCost: 30,
         type: CrimeType.Faccao,
       },
       [soldado, general],

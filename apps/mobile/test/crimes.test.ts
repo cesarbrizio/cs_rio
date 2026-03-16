@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatCrimeChance,
   formatCrimeCooldown,
+  formatCrimeRewardReadLabel,
   getCrimeLevelLabel,
   groupCrimesByLevel,
   resolveCrimeResultHeadline,
@@ -26,11 +27,12 @@ describe('crime helpers', () => {
         minPower: 150,
         name: 'Golpe do falso delivery',
         playerPower: 400,
-        nerveCost: 0,
+        disposicaoCost: 0,
         conceitoReward: 10,
+        rewardRead: 'exact',
         rewardMax: 5000,
         rewardMin: 2000,
-        staminaCost: 12,
+        cansacoCost: 12,
         type: CrimeType.Solo,
       },
       {
@@ -46,11 +48,12 @@ describe('crime helpers', () => {
         minPower: 50,
         name: 'Roubar celular no sinal',
         playerPower: 160,
-        nerveCost: 0,
+        disposicaoCost: 0,
         conceitoReward: 6,
+        rewardRead: 'approximate',
         rewardMax: 1800,
         rewardMin: 500,
-        staminaCost: 8,
+        cansacoCost: 8,
         type: CrimeType.Solo,
       },
     ]);
@@ -64,6 +67,8 @@ describe('crime helpers', () => {
     expect(formatCrimeChance(73.6)).toBe('74%');
     expect(formatCrimeCooldown(0)).toBe('Disponível');
     expect(formatCrimeCooldown(75)).toBe('1m 15s');
+    expect(formatCrimeRewardReadLabel('approximate')).toBe('faixa estimada');
+    expect(formatCrimeRewardReadLabel('exact')).toBe('valor real');
     expect(getCrimeLevelLabel(4)).toContain('Nível 4');
   });
 
@@ -87,17 +92,17 @@ describe('crime helpers', () => {
         moneyDelta: 100,
         nextConceitoRequired: 50,
         nextLevel: 2,
-        nerveSpent: 0,
+        disposicaoSpent: 0,
         playerPower: 100,
         resources: {
           addiction: 0,
           conceito: 5,
           hp: 100,
           money: 100,
-          nerve: 100,
-          stamina: 90,
+          disposicao: 100,
+          cansaco: 90,
         },
-        staminaSpent: 10,
+        cansacoSpent: 10,
         success: true,
       }),
     ).toBe('Crime concluído');
@@ -121,17 +126,17 @@ describe('crime helpers', () => {
         moneyDelta: 0,
         nextConceitoRequired: 50,
         nextLevel: 2,
-        nerveSpent: 5,
+        disposicaoSpent: 5,
         playerPower: 90,
         resources: {
           addiction: 0,
           conceito: 1,
           hp: 80,
           money: 100,
-          nerve: 95,
-          stamina: 85,
+          disposicao: 95,
+          cansaco: 85,
         },
-        staminaSpent: 10,
+        cansacoSpent: 10,
         success: false,
       }),
     ).toBe('danger');

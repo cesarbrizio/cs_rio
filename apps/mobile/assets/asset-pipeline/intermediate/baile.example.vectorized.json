@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "stage": "vectorization",
+  "tool": "inkscape",
+  "status": "ok",
+  "scenePath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.scene.svg",
+  "vectorizedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.vectorized.svg",
+  "command": "inkscape /home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.scene.svg --export-type=svg --export-filename=/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.vectorized.svg --export-plain-svg",
+  "version": "Inkscape 1.2.2 (b0a8486, 2022-12-01)",
+  "bytes": 2204
+}

@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "assetType": "market-clandestino mercado-negro",
+  "category": "market",
+  "density": "medium-low",
+  "dominantHeight": "mixed",
+  "silhouette": {
+    "primaryMassing": "readable-urban-structure",
+    "roofProfile": "mixed",
+    "heightProfile": "spread",
+    "skyline": "clear-and-readable",
+    "footprintProfile": "balanced",
+    "detailPriority": [
+      "entrada",
+      "janelas",
+      "volume principal",
+      "anexo secundario"
+    ]
+  },
+  "materials": [
+    "toldo",
+    "placa comercial",
+    "estrutura leve",
+    "estoque exposto",
+    "placa"
+  ],
+  "requiredModules": [
+    "anchor-shadow",
+    "market-core",
+    "market-stall-row",
+    "awning",
+    "corrugated-roof"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "truss",
+    "prison-wall",
+    "tower-modern-core"
+  ],
+  "composition": {
+    "layout": "readable-urban-structure",
+    "primaryAxis": "front-left",
+    "stacking": "balanced",
+    "streetPresence": "medium",
+    "edgeNoise": "medium",
+    "anchorMass": "center-left",
+    "layering": [
+      "main-volume",
+      "secondary-volume",
+      "roof",
+      "detail"
+    ],
+    "variationPriority": [
+      "height",
+      "roof",
+      "attachments"
+    ]
+  },
+  "styleGuide": {
+    "profile": "cs-rio-semirealista",
+    "resolvedProfile": "default",
+    "family": "market-clandestino",
+    "perspective": "isometric-2:1",
+    "paletteIntent": null,
+    "compositionPolicy": {
+      "layout": "market-row",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "midground",
+        "overlay"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 4,
+      "primaryModules": [
+        "market-core"
+      ],
+      "secondaryModules": [
+        "market-stall-row",
+        "awning"
+      ],
+      "detailModules": [
+        "corrugated-roof"
+      ],
+      "forbiddenModules": [
+        "stage",
+        "truss",
+        "prison-wall",
+        "tower-modern-core"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.97,
+        "max": 1.05
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium",
+      "attachmentVariation": "medium"
+    },
+    "visualRules": [
+      "deve parecer economia paralela urbana, nao feira colorida genérica",
+      "os toldos ajudam a leitura mas nao podem dominar o asset"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "market-core-1",
+      "module": "market-core",
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "heightTier": "primary",
+      "variationSeed": 1,
+      "children": []
+    },
+    {
+      "id": "market-stall-row-2",
+      "module": "market-stall-row",
+      "layer": "foreground",
+      "anchor": {
+        "x": 106,
+        "y": 122
+      },
+      "heightTier": "primary",
+      "variationSeed": 2,
+      "children": []
+    },
+    {
+      "id": "awning-3",
+      "module": "awning",
+      "layer": "midground",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "heightTier": "secondary",
+      "variationSeed": 3,
+      "children": []
+    },
+    {
+      "id": "corrugated-roof-4",
+      "module": "corrugated-roof",
+      "layer": "overlay",
+      "anchor": {
+        "x": 106,
+        "y": 114
+      },
+      "heightTier": "secondary",
+      "variationSeed": 4,
+      "children": []
+    }
+  ]
+}

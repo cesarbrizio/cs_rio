@@ -705,9 +705,9 @@ async function attachPlayerToFactionAndFavela(
       factionId: factionRow!.id,
       level: input.level ?? 8,
       money: '0.00',
-      nerve: 100,
+      disposicao: 100,
       regionId: playerRow!.regionId,
-      stamina: 100,
+      cansaco: 100,
     })
     .where(eq(players.id, playerId));
 

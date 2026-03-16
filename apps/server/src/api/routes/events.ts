@@ -37,5 +37,14 @@ export function createEventRoutes({
       const response = await gameEventService.getSeasonalStatus();
       return reply.send(response);
     });
+
+    fastify.get('/events/results', {
+      schema: {
+        response: buildStandardResponseSchema(),
+      },
+    }, async (_request, reply) => {
+      const response = await gameEventService.getRecentResults();
+      return reply.send(response);
+    });
   };
 }

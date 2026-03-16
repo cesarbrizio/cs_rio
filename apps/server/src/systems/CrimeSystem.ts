@@ -1,4 +1,4 @@
-import { type CrimeCatalogItem, CrimeType, VocationType } from '@cs-rio/shared';
+import { type CrimeCatalogItem, type CrimeRewardRead, CrimeType, VocationType } from '@cs-rio/shared';
 import { and, asc, desc, eq, lte } from 'drizzle-orm';
 
 import { db } from '../db/client.js';
@@ -59,10 +59,10 @@ export interface CrimeDefinitionRecord {
   levelRequired: number;
   minPower: number;
   name: string;
-  nerveCost: number;
+  disposicaoCost: number;
   rewardMax: number;
   rewardMin: number;
-  staminaCost: number;
+  cansacoCost: number;
   type: CrimeType;
 }
 
@@ -78,8 +78,8 @@ export interface CrimeResourcesSnapshot {
   conceito: number;
   hp: number;
   money: number;
-  nerve: number;
-  stamina: number;
+  disposicao: number;
+  cansaco: number;
 }
 
 export interface CrimeEquippedWeapon {
@@ -175,10 +175,10 @@ export interface CrimeAttemptResult {
   moneyDelta: number;
   nextConceitoRequired: number | null;
   nextLevel: number | null;
-  nerveSpent: number;
+  disposicaoSpent: number;
   playerPower: number;
   resources: CrimeResourcesSnapshot;
-  staminaSpent: number;
+  cansacoSpent: number;
   success: boolean;
 }
 
@@ -333,8 +333,8 @@ export class DatabaseCrimeRepository implements CrimeRepository {
           conceito: player.conceito,
           hp: player.hp,
           money: Number(player.money),
-          nerve: player.nerve,
-          stamina: player.stamina,
+          disposicao: player.disposicao,
+          cansaco: player.cansaco,
         },
         vocation: player.vocation as VocationType,
       },
@@ -351,8 +351,8 @@ export class DatabaseCrimeRepository implements CrimeRepository {
           hp: input.nextResources.hp,
           level: input.nextLevel,
           money: formatMoney(input.nextResources.money),
-          nerve: input.nextResources.nerve,
-          stamina: input.nextResources.stamina,
+          disposicao: input.nextResources.disposicao,
+          cansaco: input.nextResources.cansaco,
         })
         .where(eq(players.id, input.playerId));
 
@@ -572,6 +572,10 @@ export class CrimeSystem {
       };
       const playerPower = this.calculatePlayerPower(effectivePlayerContext, crime.type);
       const rewardRange = resolveCrimeRewardRange(crime, passiveProfile);
+      const visibleRewardRange = resolveVisibleCrimeRewardRange(
+        rewardRange,
+        passiveProfile.crime.revealsTargetValue,
+      );
       const estimatedSuccessChance = Math.round(
         this.estimateCrimeSuccessChance(
           playerPower,
@@ -583,8 +587,8 @@ export class CrimeSystem {
       const levelLocked = effectivePlayerContext.player.level < crime.levelRequired;
       const factionLocked = crime.type !== CrimeType.Solo && !effectivePlayerContext.factionId;
       const resourceBlocked =
-        effectivePlayerContext.player.resources.stamina < crime.staminaCost ||
-        effectivePlayerContext.player.resources.nerve < crime.nerveCost;
+        effectivePlayerContext.player.resources.cansaco < crime.cansacoCost ||
+        effectivePlayerContext.player.resources.disposicao < crime.disposicaoCost;
       const lockReason = resolveCrimeLockReason({
         cooldownRemainingSeconds: cooldown.remainingSeconds,
         factionLocked,
@@ -607,11 +611,12 @@ export class CrimeSystem {
         minPower: crime.minPower,
         name: crime.name,
         playerPower,
-        nerveCost: crime.nerveCost,
+        disposicaoCost: crime.disposicaoCost,
         conceitoReward: crime.conceitoReward,
-        rewardMax: rewardRange.max,
-        rewardMin: rewardRange.min,
-        staminaCost: crime.staminaCost,
+        rewardMax: visibleRewardRange.max,
+        rewardMin: visibleRewardRange.min,
+        rewardRead: visibleRewardRange.read,
+        cansacoCost: crime.cansacoCost,
         type: crime.type,
       };
     });
@@ -706,12 +711,12 @@ export class CrimeSystem {
     }
 
     if (
-      effectivePlayerContext.player.resources.stamina < crime.staminaCost ||
-      effectivePlayerContext.player.resources.nerve < crime.nerveCost
+      effectivePlayerContext.player.resources.cansaco < crime.cansacoCost ||
+      effectivePlayerContext.player.resources.disposicao < crime.disposicaoCost
     ) {
       throw new CrimeError(
         'insufficient_resources',
-        'Estamina ou nervos insuficientes para executar esse crime.',
+        'Cansaço ou disposição insuficientes para executar esse crime.',
       );
     }
 
@@ -741,12 +746,12 @@ export class CrimeSystem {
     );
     const success = this.random() <= chance;
 
-    const staminaAfter = clamp(effectivePlayerContext.player.resources.stamina - crime.staminaCost, 0, 100);
-    const nerveAfter = clamp(effectivePlayerContext.player.resources.nerve - crime.nerveCost, 0, 100);
+    const cansacoAfter = clamp(effectivePlayerContext.player.resources.cansaco - crime.cansacoCost, 0, 100);
+    const disposicaoAfter = clamp(effectivePlayerContext.player.resources.disposicao - crime.disposicaoCost, 0, 100);
     const baseResources: CrimeResourcesSnapshot = {
       ...effectivePlayerContext.player.resources,
-      nerve: nerveAfter,
-      stamina: staminaAfter,
+      disposicao: disposicaoAfter,
+      cansaco: cansacoAfter,
     };
 
     let arrested = false;
@@ -854,10 +859,10 @@ export class CrimeSystem {
       moneyDelta,
       nextConceitoRequired: levelProgression.nextConceitoRequired,
       nextLevel: levelProgression.nextLevel,
-      nerveSpent: crime.nerveCost,
+      disposicaoSpent: crime.disposicaoCost,
       playerPower,
       resources: persistedState.resources,
-      staminaSpent: crime.staminaCost,
+      cansacoSpent: crime.cansacoCost,
       success,
     };
   }
@@ -955,7 +960,7 @@ function resolveCrimeLockReason(input: {
   }
 
   if (input.resourceBlocked) {
-    return 'Estamina ou nervos insuficientes.';
+    return 'Cansaço ou disposição insuficientes.';
   }
 
   return null;
@@ -972,7 +977,7 @@ function calculateDropChance(levelRequired: number): number {
 function calculateHeatGain(crime: CrimeDefinitionRecord): number {
   return Math.max(
     1,
-    Math.round(crime.levelRequired * 2 + crime.nerveCost / 5 + crime.staminaCost / 10),
+    Math.round(crime.levelRequired * 2 + crime.disposicaoCost / 5 + crime.cansacoCost / 10),
   );
 }
 
@@ -1101,6 +1106,57 @@ function resolveCrimeRewardRange(
   };
 }
 
+function resolveVisibleCrimeRewardRange(
+  actualRange: { max: number; min: number },
+  revealsTargetValue: boolean,
+): {
+  max: number;
+  min: number;
+  read: CrimeRewardRead;
+} {
+  if (revealsTargetValue) {
+    return {
+      ...actualRange,
+      read: 'exact',
+    };
+  }
+
+  const step = resolveCrimeRewardHintStep(actualRange.max);
+  let min = Math.max(step, Math.floor(actualRange.min / step) * step);
+  let max = Math.max(min + step, Math.ceil(actualRange.max / step) * step);
+
+  if (min === actualRange.min && max === actualRange.max) {
+    min = Math.max(step, min - step);
+    max += step;
+  }
+
+  return {
+    max,
+    min,
+    read: 'approximate',
+  };
+}
+
+function resolveCrimeRewardHintStep(maxReward: number): number {
+  if (maxReward <= 500) {
+    return 100;
+  }
+
+  if (maxReward <= 2_000) {
+    return 250;
+  }
+
+  if (maxReward <= 10_000) {
+    return 1_000;
+  }
+
+  if (maxReward <= 100_000) {
+    return 5_000;
+  }
+
+  return 50_000;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -1119,10 +1175,10 @@ function mapCrimeDefinition(crime: CrimeRow): CrimeDefinitionRecord {
     levelRequired: crime.levelRequired,
     minPower: crime.minPower,
     name: crime.name,
-    nerveCost: crime.nerveCost,
+    disposicaoCost: crime.disposicaoCost,
     rewardMax: Number(crime.rewardMax),
     rewardMin: Number(crime.rewardMin),
-    staminaCost: crime.staminaCost,
+    cansacoCost: crime.cansacoCost,
     type: crime.crimeType as CrimeType,
   };
 }

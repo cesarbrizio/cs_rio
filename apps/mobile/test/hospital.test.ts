@@ -70,8 +70,6 @@ describe('hospital helpers', () => {
           addiction: 0,
           appearance: { hair: 'corte_curto', outfit: 'camisa_branca', skin: 'pele_media' },
           credits: 10,
-          dstRecoversAt: null,
-          hasDst: false,
           healthPlanActive: false,
           healthPlanCycleKey: null,
           hp: 80,
@@ -80,7 +78,6 @@ describe('hospital helpers', () => {
         },
         services: {
           detox: { available: false, creditsCost: null, moneyCost: 0, reason: 'Sem vício.' },
-          dstTreatment: { available: false, creditsCost: null, moneyCost: 5000, reason: 'Sem DST.' },
           healthPlan: { available: true, creditsCost: 10, moneyCost: null, reason: null },
           surgery: { available: true, creditsCost: 5, moneyCost: null, reason: null },
           treatment: { available: true, creditsCost: null, moneyCost: 1000, reason: null },

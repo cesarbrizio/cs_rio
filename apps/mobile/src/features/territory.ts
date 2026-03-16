@@ -27,6 +27,22 @@ export interface TerritoryRegionGroup {
   region: TerritoryRegionSummary;
 }
 
+export function buildFavelaForceSummaryLines(favela: TerritoryFavelaSummary): string[] {
+  const banditTail = [
+    favela.bandits.arrested > 0 ? `${favela.bandits.arrested} presos` : null,
+    favela.bandits.deadRecent > 0 ? `${favela.bandits.deadRecent} baixas recentes` : null,
+    favela.bandits.nextReturnAt ? `retorno ${formatTerritoryTimestamp(favela.bandits.nextReturnAt)}` : null,
+  ].filter((entry): entry is string => Boolean(entry));
+
+  return [
+    `Soldados ${favela.soldiers.active}/${favela.soldiers.max} · ocupação ${Math.round(favela.soldiers.occupancyPercent)}%`,
+    [
+      `Bandidos ${favela.bandits.active}/${favela.bandits.targetActive}`,
+      ...banditTail,
+    ].join(' · '),
+  ];
+}
+
 export function buildFavelaAlertLines(favela: TerritoryFavelaSummary): string[] {
   const lines: string[] = [];
 

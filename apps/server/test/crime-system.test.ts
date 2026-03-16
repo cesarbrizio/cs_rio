@@ -203,8 +203,8 @@ function createPlayerContext(resources: Partial<CrimeResourcesSnapshot> = {}): C
         conceito: 800,
         hp: 100,
         money: 1000,
-        nerve: 40,
-        stamina: 80,
+        disposicao: 40,
+        cansaco: 80,
         ...resources,
       },
       vocation: VocationType.Cria,
@@ -292,10 +292,10 @@ describe('crime system', () => {
       levelRequired: 2,
       minPower: 150,
       name: 'Furtar turista',
-      nerveCost: 0,
+      disposicaoCost: 0,
       rewardMax: 300,
       rewardMin: 100,
-      staminaCost: 10,
+      cansacoCost: 10,
       type: CrimeType.Solo,
     };
     const playerContext = createPlayerContext();
@@ -328,7 +328,7 @@ describe('crime system', () => {
     expect(result.resources).toMatchObject({
       conceito: 810,
       money: 1200,
-      stamina: 70,
+      cansaco: 70,
     });
     expect(result.cooldownRemainingSeconds).toBe(120);
     expect(result.heatBefore).toBe(0);
@@ -378,10 +378,10 @@ describe('crime system', () => {
         levelRequired: 4,
         minPower: 2500,
         name: 'Roubar joalheria',
-        nerveCost: 10,
+        disposicaoCost: 10,
         rewardMax: 1000,
         rewardMin: 400,
-        staminaCost: 20,
+        cansacoCost: 20,
         type: CrimeType.Solo,
       },
       playerContext,
@@ -407,8 +407,8 @@ describe('crime system', () => {
     expect(result.resources).toMatchObject({
       conceito: 779,
       hp: 74,
-      nerve: 30,
-      stamina: 60,
+      disposicao: 30,
+      cansaco: 60,
     });
     expect(repository.lastPersistInput?.logType).toBe('crime_arrested');
     expect(repository.lastPersistInput?.prisonReleaseAt).toBeInstanceOf(Date);
@@ -453,10 +453,10 @@ describe('crime system', () => {
       levelRequired: 2,
       minPower: 150,
       name: 'Furtar turista',
-      nerveCost: 0,
+      disposicaoCost: 0,
       rewardMax: 300,
       rewardMin: 100,
-      staminaCost: 10,
+      cansacoCost: 10,
       type: CrimeType.Solo,
     };
     const playerContext = createPlayerContext();
@@ -497,10 +497,10 @@ describe('crime system', () => {
       levelRequired: 2,
       minPower: 150,
       name: 'Furtar turista',
-      nerveCost: 0,
+      disposicaoCost: 0,
       rewardMax: 300,
       rewardMin: 100,
-      staminaCost: 10,
+      cansacoCost: 10,
       type: CrimeType.Solo,
     };
     const playerContext = createPlayerContext();
@@ -533,10 +533,10 @@ describe('crime system', () => {
       levelRequired: 2,
       minPower: 150,
       name: 'Furtar turista',
-      nerveCost: 0,
+      disposicaoCost: 0,
       rewardMax: 300,
       rewardMin: 100,
-      staminaCost: 10,
+      cansacoCost: 10,
       type: CrimeType.Solo,
     };
     const repository = new InMemoryCrimeRepository(crime, playerContext);
@@ -568,10 +568,10 @@ describe('crime system', () => {
       levelRequired: 2,
       minPower: 500,
       name: 'Furtar turista',
-      nerveCost: 0,
+      disposicaoCost: 0,
       rewardMax: 300,
       rewardMin: 100,
-      staminaCost: 10,
+      cansacoCost: 10,
       type: CrimeType.Solo,
     };
     const baselinePlayerContext = createPlayerContext();
@@ -609,6 +609,100 @@ describe('crime system', () => {
     );
   });
 
+  it('reveals the exact reward range only after Olho Clinico is active', async () => {
+    const now = Date.parse('2026-03-10T12:00:00.000Z');
+    const store = new InMemoryKeyValueStore(() => now);
+    const cooldownSystem = new CooldownSystem({
+      keyValueStore: store,
+      now: () => now,
+    });
+    const crime: CrimeDefinitionRecord = {
+      arrestChance: 8,
+      code: 'furtar_turista',
+      conceitoReward: 10,
+      cooldownSeconds: 120,
+      id: 'crime-olho-clinico-1',
+      levelRequired: 2,
+      minPower: 500,
+      name: 'Furtar turista',
+      disposicaoCost: 0,
+      rewardMax: 300,
+      rewardMin: 100,
+      cansacoCost: 10,
+      type: CrimeType.Solo,
+    };
+    const baselinePlayerContext = createPlayerContext();
+    const revealedPlayerContext = createPlayerContext();
+
+    const baselineSystem = new CrimeSystem({
+      cooldownSystem,
+      repository: new InMemoryCrimeRepository(crime, baselinePlayerContext),
+    });
+    const revealedSystem = new CrimeSystem({
+      cooldownSystem,
+      repository: new InMemoryCrimeRepository(crime, revealedPlayerContext),
+      universityReader: {
+        async getActiveCourse() {
+          return null;
+        },
+        async getPassiveProfile() {
+          return {
+            business: {
+              bocaDemandMultiplier: 1,
+              gpRevenueMultiplier: 1,
+              launderingReturnMultiplier: 1,
+              passiveRevenueMultiplier: 1,
+              propertyMaintenanceMultiplier: 1,
+            },
+            crime: {
+              arrestChanceMultiplier: 1,
+              lowLevelSoloRewardMultiplier: 1,
+              revealsTargetValue: true,
+              soloSuccessMultiplier: 1,
+            },
+            factory: {
+              extraDrugSlots: 0,
+              productionMultiplier: 1,
+            },
+            faction: {
+              factionCharismaAura: 0,
+            },
+            market: {
+              feeRate: 0.05,
+            },
+            police: {
+              bribeCostMultiplier: 1,
+              negotiationSuccessMultiplier: 1,
+            },
+            pvp: {
+              ambushPowerMultiplier: 1,
+              assaultPowerMultiplier: 1,
+              damageDealtMultiplier: 1,
+              lowHpDamageTakenMultiplier: 1,
+            },
+            social: {
+              communityInfluenceMultiplier: 1,
+            },
+          };
+        },
+      },
+    });
+
+    const [baselineCatalogItem] = await baselineSystem.getCrimeCatalog(baselinePlayerContext.player.id);
+    const [revealedCatalogItem] = await revealedSystem.getCrimeCatalog(revealedPlayerContext.player.id);
+
+    expect(baselineCatalogItem).toMatchObject({
+      rewardMax: 400,
+      rewardMin: 100,
+      rewardRead: 'approximate',
+    });
+    expect(revealedCatalogItem).toMatchObject({
+      rewardMax: 300,
+      rewardMin: 100,
+      rewardRead: 'exact',
+    });
+  });
+
   it('caps weapon proficiency gain at 100', async () => {
     const now = Date.parse('2026-03-10T12:00:00.000Z');
     const store = new InMemoryKeyValueStore(() => now);
@@ -629,10 +723,10 @@ describe('crime system', () => {
       levelRequired: 5,
       minPower: 300,
       name: 'Assaltar carga',
-      nerveCost: 8,
+      disposicaoCost: 8,
       rewardMax: 600,
       rewardMin: 250,
-      staminaCost: 15,
+      cansacoCost: 15,
       type: CrimeType.Solo,
     };
     const playerContext = createPlayerContext();

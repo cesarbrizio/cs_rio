@@ -75,6 +75,9 @@ export type PropertyType =
   | 'slot_machine';
 export type PropertyAssetClass = 'business' | 'real_estate' | 'vehicle' | 'luxury';
 export type PropertyTravelMode = 'ground' | 'sea' | 'air';
+export type PropertySabotageState = 'normal' | 'damaged' | 'destroyed';
+export type PropertySabotageOutcome = 'damaged' | 'destroyed' | 'failure_clean' | 'failure_hard';
+export type PropertySabotageOwnerAlertMode = 'anonymous' | 'identified';
 export type GpType = 'novinha' | 'experiente' | 'premium' | 'vip' | 'diamante';
 export type PuteiroGpStatus = 'active' | 'escaped' | 'deceased';
 export type FrontStoreKind = 'lava_rapido' | 'barbearia' | 'igreja' | 'acai' | 'oficina';
@@ -96,8 +99,15 @@ export type DocksEventPhase = 'active' | 'idle' | 'scheduled';
 export type PoliceEventType = 'blitz_pm' | 'faca_na_caveira' | 'operacao_policial';
 export type SeasonalEventType = 'ano_novo_copa' | 'carnaval' | 'operacao_verao';
 export type SeasonalEventPoliceMood = 'distracted' | 'reinforced';
+export type GameEventResultType =
+  | 'navio_docas'
+  | 'saidinha_natal'
+  | PoliceEventType
+  | SeasonalEventType;
+export type GameEventResultSeverity = 'danger' | 'info' | 'warning';
+export type GameEventResultDestination = 'map' | 'market' | 'prison' | 'territory';
 export type HospitalizationReason = 'combat' | 'overdose';
-export type OverdoseTrigger = 'stamina_overflow' | 'max_addiction' | 'poly_drug_mix';
+export type OverdoseTrigger = 'cansaco_overflow' | 'max_addiction' | 'poly_drug_mix';
 export type HospitalStatItemCode =
   | 'cerebrina'
   | 'pocao_carisma'
@@ -111,6 +121,8 @@ export type RobberyFailureOutcome = 'escaped' | 'hospitalized' | 'imprisoned' | 
 export type FactionRobberyPolicyMode = 'allowed' | 'forbidden';
 export type TrainingType = 'basic' | 'advanced' | 'intensive';
 export type FactionRank = 'patrao' | 'general' | 'gerente' | 'vapor' | 'soldado' | 'cria';
+export type PlayerContactType = 'partner' | 'known';
+export type PlayerContactOrigin = 'manual' | 'same_faction';
 export type FactionBankEntryType =
   | 'deposit'
   | 'withdrawal'
@@ -210,9 +222,9 @@ export interface PlayerAttributes {
 
 export interface PlayerResources {
   conceito: number;
-  stamina: number;
-  nerve: number;
-  morale: number;
+  cansaco: number;
+  disposicao: number;
+  brisa: number;
   hp: number;
   addiction: number;
   money: number;
@@ -585,6 +597,7 @@ export interface FactionLeadershipChallengeResponse extends FactionLeadershipCen
 
 export interface PlayerInventoryItem {
   equipSlot: InventoryEquipSlot | null;
+  equipment?: PlayerInventoryEquipmentSummary | null;
   id: string;
   isEquipped: boolean;
   itemId: string | null;
@@ -598,6 +611,12 @@ export interface PlayerInventoryItem {
   stackable: boolean;
   totalWeight: number;
   unitWeight: number;
+}
+
+export interface PlayerInventoryEquipmentSummary {
+  defense: number | null;
+  power: number | null;
+  slot: InventoryEquipSlot;
 }
 
 export interface InventoryCapacity {
@@ -725,6 +744,117 @@ export interface PlayerProfile extends PlayerSummary {
   location: PlayerLocation;
   prison: PlayerPrisonStatus;
   properties: PlayerPropertySummary[];
+}
+
+export interface PlayerPublicProfileRanking {
+  currentRank: number;
+  totalPlayers: number;
+}
+
+export interface PlayerPublicProfileVisibility {
+  inventoryItemCount: number;
+  propertyCount: number;
+  preciseLocationVisible: boolean;
+}
+
+export interface PlayerPublicProfile {
+  conceito: number;
+  faction: PlayerFactionSummary | null;
+  id: string;
+  level: number;
+  location: PlayerLocation;
+  nickname: string;
+  ranking: PlayerPublicProfileRanking;
+  regionId: RegionId;
+  title: LevelTitle;
+  visibility: PlayerPublicProfileVisibility;
+  vocation: VocationType;
+}
+
+export interface PlayerContactLimitSummary {
+  max: number;
+  remaining: number;
+  used: number;
+}
+
+export interface PlayerContactSummary {
+  contactId: string;
+  faction: PlayerFactionSummary | null;
+  level: number;
+  nickname: string;
+  origin: PlayerContactOrigin;
+  since: string;
+  title: LevelTitle;
+  type: PlayerContactType;
+  vocation: VocationType;
+}
+
+export interface PlayerContactsResponse {
+  contacts: PlayerContactSummary[];
+  limits: {
+    known: PlayerContactLimitSummary;
+    partner: PlayerContactLimitSummary;
+  };
+}
+
+export interface PlayerContactCreateInput {
+  nickname: string;
+  type: PlayerContactType;
+}
+
+export interface PlayerContactMutationResponse extends PlayerContactsResponse {
+  contact: PlayerContactSummary;
+  message: string;
+}
+
+export interface PlayerContactRemovalResponse extends PlayerContactsResponse {
+  message: string;
+  removedContactId: string;
+  removedType: PlayerContactType;
+}
+
+export interface PlayerContactFactionSyncResult {
+  nextFactionId: string | null;
+  playerId: string;
+  removedContactIds: string[];
+  removedPartners: number;
+}
+
+export interface PrivateMessageSummary {
+  id: string;
+  message: string;
+  senderId: string;
+  senderNickname: string;
+  sentAt: string;
+}
+
+export interface PrivateMessageThreadSummary {
+  contact: PlayerContactSummary;
+  lastMessage: PrivateMessageSummary | null;
+  messageCount: number;
+  threadId: string;
+  updatedAt: string | null;
+}
+
+export interface PrivateMessageThreadListResponse {
+  generatedAt: string;
+  threads: PrivateMessageThreadSummary[];
+}
+
+export interface PrivateMessageThreadResponse {
+  contact: PlayerContactSummary;
+  generatedAt: string;
+  messages: PrivateMessageSummary[];
+  threadId: string;
+}
+
+export interface PrivateMessageSendInput {
+  message: string;
+}
+
+export interface PrivateMessageSendResponse extends PrivateMessageThreadResponse {
+  message: string;
+  sentMessage: PrivateMessageSummary;
 }
 
 export interface PrisonActionAvailability {
@@ -900,13 +1030,13 @@ export interface RobberyPlayerImpactSummary {
   moneyAfter: number;
   moneyBefore: number;
   moneyDelta: number;
-  nerveAfter: number;
-  nerveBefore: number;
-  nerveDelta: number;
+  disposicaoAfter: number;
+  disposicaoBefore: number;
+  disposicaoDelta: number;
   prison: PlayerPrisonStatus;
-  staminaAfter: number;
-  staminaBefore: number;
-  staminaDelta: number;
+  cansacoAfter: number;
+  cansacoBefore: number;
+  cansacoDelta: number;
 }
 
 export interface RobberyAttemptResponse {
@@ -971,6 +1101,59 @@ export interface PlayerTravelInput {
   regionId: RegionId;
 }
 
+export type PlayerVocationState = 'ready' | 'cooldown' | 'transition';
+
+export interface PlayerVocationStatus {
+  changedAt: string | null;
+  cooldownEndsAt: string | null;
+  cooldownRemainingSeconds: number;
+  currentVocation: VocationType;
+  nextChangeAvailableAt: string | null;
+  pendingVocation: VocationType | null;
+  state: PlayerVocationState;
+  transitionEndsAt: string | null;
+}
+
+export interface PlayerVocationAvailability {
+  available: boolean;
+  creditsCost: number;
+  reason: string | null;
+}
+
+export interface PlayerVocationOptionSummary {
+  baseAttributes: PlayerAttributes;
+  id: VocationType;
+  isCurrent: boolean;
+  label: string;
+  primaryAttribute: keyof PlayerAttributes;
+  secondaryAttribute: keyof PlayerAttributes;
+}
+
+export interface PlayerVocationCenterPlayerState {
+  credits: number;
+  level: number;
+  nickname: string;
+  vocation: VocationType;
+}
+
+export interface PlayerVocationCenterResponse {
+  availability: PlayerVocationAvailability;
+  cooldownHours: number;
+  options: PlayerVocationOptionSummary[];
+  player: PlayerVocationCenterPlayerState;
+  status: PlayerVocationStatus;
+}
+
+export interface PlayerVocationChangeInput {
+  vocation: VocationType;
+}
+
+export interface PlayerVocationChangeResponse {
+  center: PlayerVocationCenterResponse;
+  message: string;
+  player: PlayerProfile;
+}
+
 export interface InventoryGrantInput {
   itemId: string;
   itemType: InventoryItemType;
@@ -1014,8 +1197,6 @@ export interface HospitalCenterPlayerState {
   addiction: number;
   appearance: CharacterAppearance;
   credits: number;
-  dstRecoversAt: string | null;
-  hasDst: boolean;
   healthPlanActive: boolean;
   healthPlanCycleKey: string | null;
   hp: number;
@@ -1030,7 +1211,6 @@ export interface HospitalCenterResponse {
   player: HospitalCenterPlayerState;
   services: {
     detox: HospitalServiceAvailability;
-    dstTreatment: HospitalServiceAvailability;
     healthPlan: HospitalServiceAvailability;
     surgery: HospitalServiceAvailability;
     treatment: HospitalServiceAvailability;
@@ -1049,7 +1229,6 @@ export interface HospitalStatPurchaseInput {
 
 export type HospitalActionType =
   | 'detox'
-  | 'dst_treatment'
   | 'health_plan'
   | 'stat_item'
   | 'surgery'
@@ -1067,7 +1246,7 @@ export interface TrainingDefinitionSummary {
   minimumBasicSessionsCompleted: number;
   moneyCost: number;
   rewardMultiplier: number;
-  staminaCost: number;
+  cansacoCost: number;
   type: TrainingType;
   unlockLevel: number;
 }
@@ -1075,7 +1254,7 @@ export interface TrainingDefinitionSummary {
 export interface TrainingSessionSummary {
   claimedAt: string | null;
   costMoney: number;
-  costStamina: number;
+  costCansaco: number;
   diminishingMultiplier: number;
   endsAt: string;
   id: string;
@@ -1183,6 +1362,30 @@ export interface UniversityCourseSummary extends UniversityCourseDefinitionSumma
   startedAt: string | null;
 }
 
+export type UniversityPerkStatus = 'available' | 'completed' | 'in_progress' | 'locked';
+
+export type UniversityVocationProgressionStage = 'developing' | 'mastered' | 'starting';
+
+export interface UniversityVocationPerkSummary extends UniversityCourseSummary {
+  isMasteryPerk: boolean;
+  perkSlot: number;
+  status: UniversityPerkStatus;
+}
+
+export interface UniversityVocationProgressionSummary {
+  completedPerks: number;
+  completionRatio: number;
+  currentPerkCode: UniversityCourseCode | null;
+  masteryUnlocked: boolean;
+  nextPerk: UniversityVocationPerkSummary | null;
+  passiveProfile: UniversityPassiveProfile;
+  perks: UniversityVocationPerkSummary[];
+  stage: UniversityVocationProgressionStage;
+  totalPerks: number;
+  trackLabel: string;
+  vocation: VocationType;
+}
+
 export interface UniversityCenterResponse {
   activeCourse: UniversityCourseSummary | null;
   completedCourseCodes: UniversityCourseCode[];
@@ -1190,6 +1393,7 @@ export interface UniversityCenterResponse {
   npcInflation: NpcInflationSummary;
   passiveProfile: UniversityPassiveProfile;
   player: PlayerSummary;
+  progression: UniversityVocationProgressionSummary;
 }
 
 export interface UniversityEnrollInput {
@@ -1212,9 +1416,9 @@ export interface DrugToleranceSummary {
 
 export interface DrugConsumeEffectSummary {
   addictionGained: number;
-  moraleRecovered: number;
-  nerveRecovered: number;
-  staminaRecovered: number;
+  brisaRecovered: number;
+  disposicaoRecovered: number;
+  cansacoRecovered: number;
 }
 
 export interface DrugOverdoseSummary {
@@ -1223,7 +1427,7 @@ export interface DrugOverdoseSummary {
   penalties: {
     addictionResetTo: number;
     conceitoLost: number;
-    moraleResetTo: number;
+    brisaResetTo: number;
   };
   recentDrugTypes: DrugType[];
   trigger: OverdoseTrigger;
@@ -1366,14 +1570,16 @@ export interface CrimeDefinition {
   name: string;
   type: CrimeType;
   levelRequired: number;
-  staminaCost: number;
-  nerveCost: number;
+  cansacoCost: number;
+  disposicaoCost: number;
   minPower: number;
   rewardMin: number;
   rewardMax: number;
   conceitoReward: number;
   arrestChance: number;
 }
+
+export type CrimeRewardRead = 'approximate' | 'exact';
 
 export interface CrimeCatalogItem extends CrimeDefinition {
   cooldownRemainingSeconds: number;
@@ -1383,6 +1589,7 @@ export interface CrimeCatalogItem extends CrimeDefinition {
   isRunnable: boolean;
   lockReason: string | null;
   playerPower: number;
+  rewardRead: CrimeRewardRead;
 }
 
 export interface CrimeCatalogResponse {
@@ -1414,10 +1621,10 @@ export interface CrimeAttemptResponse {
   moneyDelta: number;
   nextConceitoRequired: number | null;
   nextLevel: number | null;
-  nerveSpent: number;
+  disposicaoSpent: number;
   playerPower: number;
-  resources: Pick<PlayerResources, 'addiction' | 'conceito' | 'hp' | 'money' | 'nerve' | 'stamina'>;
-  staminaSpent: number;
+  resources: Pick<PlayerResources, 'addiction' | 'conceito' | 'hp' | 'money' | 'disposicao' | 'cansaco'>;
+  cansacoSpent: number;
   success: boolean;
 }
 
@@ -1429,7 +1636,7 @@ export interface FactionCrimeCrewMemberSummary {
   nickname: string;
   playerPower: number;
   rank: FactionRank;
-  resources: Pick<PlayerResources, 'hp' | 'nerve' | 'stamina'>;
+  resources: Pick<PlayerResources, 'hp' | 'disposicao' | 'cansaco'>;
 }
 
 export interface FactionCrimeCatalogItem extends CrimeDefinition {
@@ -1461,12 +1668,12 @@ export interface FactionCrimeParticipantOutcome {
   level: number;
   leveledUp: boolean;
   moneyDelta: number;
-  nerveSpent: number;
+  disposicaoSpent: number;
   nickname: string;
   playerPower: number;
   rank: FactionRank;
-  resources: Pick<PlayerResources, 'conceito' | 'hp' | 'money' | 'nerve' | 'stamina'>;
-  staminaSpent: number;
+  resources: Pick<PlayerResources, 'conceito' | 'hp' | 'money' | 'disposicao' | 'cansaco'>;
+  cansacoSpent: number;
 }
 
 export interface FactionCrimeAttemptResponse {
@@ -1534,9 +1741,9 @@ export interface PvpCombatSideOutcomeSummary {
   moneyDelta?: number;
   nickname: string;
   prisonFollowUpChance?: number;
-  staminaAfter?: number;
-  staminaBefore?: number;
-  staminaDelta?: number;
+  cansacoAfter?: number;
+  cansacoBefore?: number;
+  cansacoDelta?: number;
 }
 
 export interface PvpAssaultResponse {
@@ -1573,9 +1780,9 @@ export interface PvpAmbushParticipantOutcomeSummary {
   power: number;
   powerSharePercent: number;
   rank: FactionRank;
-  staminaAfter: number;
-  staminaBefore: number;
-  staminaDelta: number;
+  cansacoAfter: number;
+  cansacoBefore: number;
+  cansacoDelta: number;
 }
 
 export interface PvpAmbushResponse {
@@ -1815,13 +2022,13 @@ export interface FactionWarPreparationSummary {
 
 export interface FactionWarRoundSummary {
   attackerHpLoss: number;
-  attackerNerveLoss: number;
+  attackerDisposicaoLoss: number;
   attackerPower: number;
-  attackerStaminaLoss: number;
+  attackerCansacoLoss: number;
   defenderHpLoss: number;
-  defenderNerveLoss: number;
+  defenderDisposicaoLoss: number;
   defenderPower: number;
-  defenderStaminaLoss: number;
+  defenderCansacoLoss: number;
   message: string;
   outcome: FactionWarRoundOutcome;
   resolvedAt: string;
@@ -1910,6 +2117,31 @@ export interface TerritoryOverviewResponse {
   regions: TerritoryRegionSummary[];
 }
 
+export type TerritoryLossCause = 'war_defeat' | 'state_takeover' | 'control_removed';
+
+export interface TerritoryLossCueSummary {
+  body: string;
+  cause: TerritoryLossCause;
+  economicImpact: string;
+  favelaId: string;
+  favelaName: string;
+  key: string;
+  lostByFactionAbbreviation: string | null;
+  lostByFactionId: string;
+  newControllerFactionAbbreviation: string | null;
+  newControllerFactionId: string | null;
+  occurredAt: string;
+  politicalImpact: string;
+  regionId: RegionId;
+  territorialImpact: string;
+  title: string;
+}
+
+export interface TerritoryLossFeedResponse {
+  cues: TerritoryLossCueSummary[];
+  generatedAt: string;
+}
+
 export interface FavelaStateTransitionInput {
   action: FavelaStateTransitionAction;
 }
@@ -1938,9 +2170,9 @@ export interface TerritoryConquestParticipantOutcome {
   playerPower: number;
   rank: FactionRank;
   regionId: RegionId;
-  resources: Pick<PlayerResources, 'conceito' | 'hp' | 'nerve' | 'stamina'>;
-  nerveSpent: number;
-  staminaSpent: number;
+  resources: Pick<PlayerResources, 'conceito' | 'hp' | 'disposicao' | 'cansaco'>;
+  disposicaoSpent: number;
+  cansacoSpent: number;
 }
 
 export interface FavelaConquestResponse extends TerritoryOverviewResponse {
@@ -2010,7 +2242,7 @@ export interface FavelaBaileSummary {
   mcTier: FavelaBaileMcTier | null;
   resultTier: FavelaBaileResultTier | null;
   satisfactionDelta: number | null;
-  staminaBoostPercent: number | null;
+  cansacoBoostPercent: number | null;
   status: FavelaBaileStatus;
 }
 
@@ -2106,18 +2338,27 @@ export interface TribunalCaseSummary {
   caseType: TribunalCaseType;
   communitySupports: TribunalCaseSide;
   createdAt: string;
+  decisionDeadlineAt: string;
   definition: TribunalCaseDefinitionSummary;
   favelaId: string;
   id: string;
   judgedAt: string | null;
   punishmentChosen: TribunalPunishment | null;
+  resolutionSource: TribunalResolutionSource | null;
+  status: TribunalCaseStatus;
   summary: string;
   truthRead: TribunalCaseSide;
 }
 
+export type TribunalCaseStatus = 'open' | 'resolved_by_npc' | 'resolved_by_player';
+
+export type TribunalResolutionSource = 'npc' | 'player';
+
 export interface TribunalCenterResponse {
   activeCase: TribunalCaseSummary | null;
   favela: TribunalFavelaSummary;
+  latestResolvedCase: TribunalCaseSummary | null;
+  latestResolvedOutcome: TribunalResolutionSummary | null;
   player: PlayerSummary;
 }
 
@@ -2147,12 +2388,43 @@ export interface TribunalJudgmentSummary {
   moradoresImpact: number;
   punishmentChosen: TribunalPunishment;
   read: TribunalJudgmentRead;
+  resolvedAt: string;
+  resolutionSource: TribunalResolutionSource;
   summary: string;
 }
 
 export interface TribunalJudgmentResponse extends TribunalCenterResponse {
   activeCase: TribunalCaseSummary;
   judgment: TribunalJudgmentSummary;
+}
+
+export interface TribunalResolutionSummary {
+  conceitoDelta: number;
+  faccaoImpact: number;
+  moradoresImpact: number;
+  punishmentChosen: TribunalPunishment;
+  read: TribunalJudgmentRead;
+  resolvedAt: string;
+  resolutionSource: TribunalResolutionSource;
+  summary: string;
+}
+
+export type TribunalCueKind = 'opened' | 'resolved';
+
+export interface TribunalCueSummary {
+  body: string;
+  case: TribunalCaseSummary;
+  favela: TribunalFavelaSummary;
+  headline: string;
+  kind: TribunalCueKind;
+  occurredAt: string;
+  outcome: TribunalResolutionSummary | null;
+  title: string;
+}
+
+export interface TribunalCueListResponse {
+  cues: TribunalCueSummary[];
+  generatedAt: string;
 }
 
 export interface ItemDefinition {
@@ -2169,10 +2441,10 @@ export interface WeaponDefinition extends ItemDefinition {
 
 export interface DrugDefinition extends ItemDefinition {
   type: DrugType;
-  staminaRecovery: number;
-  moraleBoost: number;
+  cansacoRecovery: number;
+  brisaBoost: number;
   addictionRate: number;
-  nerveBoost: number;
+  disposicaoBoost: number;
 }
 
 export interface ComponentDefinition extends ItemDefinition {
@@ -2187,7 +2459,6 @@ export interface PropertyDefinitionSummary {
   factionCommissionRate: number;
   label: string;
   maxLevel: number;
-  prestigeScore: number;
   profitable: boolean;
   purchaseMode: 'direct' | 'specialized';
   soldierCapacity: number;
@@ -2196,7 +2467,7 @@ export interface PropertyDefinitionSummary {
   utility: {
     inventorySlotsBonus: number;
     inventoryWeightBonus: number;
-    staminaRecoveryPerHourBonus: number;
+    cansacoRecoveryPerHourBonus: number;
     travelMode: PropertyTravelMode | null;
   };
 }
@@ -2214,7 +2485,6 @@ export interface OwnedPropertySummary {
   definition: PropertyDefinitionSummary;
   economics: {
     effectiveFactionCommissionRate: number;
-    effectivePrestigeScore: number;
     profitable: boolean;
     totalDailyUpkeep: number;
   };
@@ -2227,6 +2497,7 @@ export interface OwnedPropertySummary {
     moneySpentOnSync: number;
     overdueDays: number;
   };
+  sabotageStatus: PropertySabotageStatusSummary;
   protection: {
     defenseScore: number;
     factionProtectionActive: boolean;
@@ -2246,14 +2517,100 @@ export interface OwnedPropertySummary {
     type: SoldierType;
   }>;
   soldiersCount: number;
-  status: 'active' | 'maintenance_blocked';
+  status: 'active' | 'maintenance_blocked' | 'sabotage_blocked';
   type: PropertyType;
+}
+
+export interface PropertySabotageStatusSummary {
+  blocked: boolean;
+  recoveryCost: number | null;
+  recoveryReady: boolean;
+  recoveryReadyAt: string | null;
+  resolvedAt: string | null;
+  state: PropertySabotageState;
+  operationalMultiplier: number;
 }
 
 export interface PropertyCatalogResponse {
   availableProperties: PropertyDefinitionSummary[];
   ownedProperties: OwnedPropertySummary[];
   soldierTemplates: SoldierTemplateSummary[];
+}
+
+export interface PropertySabotageAvailability {
+  available: boolean;
+  cansacoCost: number;
+  disposicaoCost: number;
+  levelRequired: number;
+  reason: string | null;
+}
+
+export interface PropertySabotageCenterPlayerState {
+  factionId: string | null;
+  id: string;
+  level: number;
+  nickname: string;
+  regionId: RegionId;
+  resources: {
+    cansaco: number;
+    disposicao: number;
+  };
+}
+
+export interface PropertySabotageTargetSummary {
+  defenseScore: number;
+  favelaId: string | null;
+  id: string;
+  ownerFactionId: string | null;
+  ownerNickname: string;
+  ownerPlayerId: string;
+  regionId: RegionId;
+  sabotageStatus: PropertySabotageStatusSummary;
+  soldiersCount: number;
+  status: 'cooldown' | 'eligible';
+  targetCooldownSeconds: number;
+  type: PropertyType;
+}
+
+export interface PropertySabotageLogSummary {
+  attackRatio: number;
+  attackScore: number;
+  attackerFactionId: string | null;
+  attackerPlayerId: string;
+  createdAt: string;
+  defenseScore: number;
+  favelaId: string | null;
+  heatDelta: number;
+  id: string;
+  outcome: PropertySabotageOutcome;
+  ownerAlertMode: PropertySabotageOwnerAlertMode;
+  ownerFactionId: string | null;
+  ownerPlayerId: string;
+  prisonMinutes: number | null;
+  propertyId: string;
+  regionId: RegionId;
+  type: PropertyType;
+}
+
+export interface PropertySabotageCenterResponse {
+  availability: PropertySabotageAvailability;
+  player: PropertySabotageCenterPlayerState;
+  recentLogs: PropertySabotageLogSummary[];
+  targets: PropertySabotageTargetSummary[];
+}
+
+export interface PropertySabotageAttemptResponse {
+  center: PropertySabotageCenterResponse;
+  message: string;
+  result: PropertySabotageLogSummary;
+  target: PropertySabotageTargetSummary;
+}
+
+export interface PropertySabotageRecoveryResponse {
+  center: PropertySabotageCenterResponse;
+  message: string;
+  property: OwnedPropertySummary;
+  recoveryCost: number;
 }
 
 export interface PropertyPurchaseInput {
@@ -2319,8 +2676,9 @@ export interface BocaSummary {
     moneySpentOnSync: number;
     overdueDays: number;
   };
+  sabotageStatus: PropertySabotageStatusSummary;
   regionId: RegionId;
-  status: 'active' | 'maintenance_blocked' | 'out_of_stock';
+  status: 'active' | 'maintenance_blocked' | 'out_of_stock' | 'sabotage_blocked';
   stock: BocaStockItemSummary[];
   stockUnits: number;
 }
@@ -2386,8 +2744,9 @@ export interface RaveSummary {
     moneySpentOnSync: number;
     overdueDays: number;
   };
+  sabotageStatus: PropertySabotageStatusSummary;
   regionId: RegionId;
-  status: 'active' | 'maintenance_blocked' | 'no_lineup';
+  status: 'active' | 'maintenance_blocked' | 'no_lineup' | 'sabotage_blocked';
 }
 
 export interface RaveListResponse {
@@ -2429,7 +2788,7 @@ export interface GpTemplateSummary {
   baseDailyRevenue: number;
   label: string;
   purchasePrice: number;
-  staminaRestorePercent: number;
+  cansacoRestorePercent: number;
   type: GpType;
 }
 
@@ -2447,7 +2806,7 @@ export interface PuteiroWorkerSummary {
   label: string;
   lastIncidentAt: string | null;
   purchasePrice: number;
-  staminaRestorePercent: number;
+  cansacoRestorePercent: number;
   status: PuteiroGpStatus;
   type: GpType;
 }
@@ -2488,7 +2847,8 @@ export interface PuteiroSummary {
   };
   regionId: RegionId;
   roster: PuteiroWorkerSummary[];
-  status: 'active' | 'maintenance_blocked' | 'no_gps';
+  sabotageStatus: PropertySabotageStatusSummary;
+  status: 'active' | 'maintenance_blocked' | 'no_gps' | 'sabotage_blocked';
 }
 
 export interface PuteiroListResponse {
@@ -2576,7 +2936,13 @@ export interface FrontStoreSummary {
     overdueDays: number;
   };
   regionId: RegionId;
-  status: 'active' | 'investigation_blocked' | 'maintenance_blocked' | 'setup_required';
+  sabotageStatus: PropertySabotageStatusSummary;
+  status:
+    | 'active'
+    | 'investigation_blocked'
+    | 'maintenance_blocked'
+    | 'sabotage_blocked'
+    | 'setup_required';
 }
 
 export interface FrontStoreListResponse {
@@ -2636,7 +3002,8 @@ export interface SlotMachineSummary {
     overdueDays: number;
   };
   regionId: RegionId;
-  status: 'active' | 'installation_required' | 'maintenance_blocked';
+  sabotageStatus: PropertySabotageStatusSummary;
+  status: 'active' | 'installation_required' | 'maintenance_blocked' | 'sabotage_blocked';
 }
 
 export interface SlotMachineListResponse {
@@ -2710,17 +3077,10 @@ export interface BichoBetSummary {
   status: BichoBetStatus;
 }
 
-export interface BichoFactionCommissionSummary {
-  active: boolean;
-  amount: number;
-  ratePercent: number;
-}
-
 export interface BichoListResponse {
   animals: BichoAnimalSummary[];
   bets: BichoBetSummary[];
   currentDraw: BichoCurrentDrawSummary;
-  factionCommission: BichoFactionCommissionSummary;
   recentDraws: BichoHistoryDrawSummary[];
 }
 
@@ -2734,7 +3094,6 @@ export interface BichoPlaceBetInput {
 export interface BichoPlaceBetResponse {
   bet: BichoBetSummary;
   currentDraw: BichoCurrentDrawSummary;
-  factionCommission: BichoFactionCommissionSummary;
   playerMoneyAfterBet: number;
 }
 
@@ -2757,7 +3116,7 @@ export interface DrugFactoryRecipeSummary {
 
 export interface DrugFactorySummary {
   baseProduction: number;
-  blockedReason: 'components' | 'maintenance' | null;
+  blockedReason: 'components' | 'maintenance' | 'sabotage' | null;
   createdAt: string;
   cycleMinutes: number;
   dailyMaintenanceCost: number;
@@ -2769,6 +3128,7 @@ export interface DrugFactorySummary {
     moneySpentOnSync: number;
     overdueDays: number;
   };
+  sabotageStatus: PropertySabotageStatusSummary;
   multipliers: {
     impulse: number;
     intelligence: number;
@@ -2836,7 +3196,7 @@ export interface DrugSaleQuoteResponse {
     id: DrugSaleChannel;
     label: string;
     propertyTypeRequired: 'boca' | 'rave' | null;
-    staminaCost: number;
+    cansacoCost: number;
   };
   drug: {
     code: string;
@@ -2924,8 +3284,36 @@ export interface SeasonalEventStatusResponse {
   generatedAt: string;
 }
 
+export interface GameEventResultMetric {
+  label: string;
+  value: string;
+}
+
+export interface GameEventResultSummary {
+  body: string;
+  destination: GameEventResultDestination;
+  eventType: GameEventResultType;
+  favelaId: string | null;
+  favelaName: string | null;
+  headline: string;
+  id: string;
+  impactSummary: string;
+  metrics: GameEventResultMetric[];
+  regionId: RegionId | null;
+  regionName: string | null;
+  resolvedAt: string;
+  severity: GameEventResultSeverity;
+  startedAt: string;
+  title: string;
+}
+
+export interface EventResultListResponse {
+  generatedAt: string;
+  results: GameEventResultSummary[];
+}
+
 export interface DrugSaleExecuteResponse extends DrugSaleQuoteResponse {
   playerMoneyAfterSale: number;
-  playerStaminaAfterSale: number;
+  playerCansacoAfterSale: number;
   soldAt: string;
 }

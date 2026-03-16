@@ -1,0 +1,611 @@
+{
+  "version": 1,
+  "stage": "catalog-generate",
+  "ok": true,
+  "totalKinds": 29,
+  "summary": {
+    "ok": 29
+  },
+  "families": {
+    "barraco": 5,
+    "favela-cluster": 1,
+    "boca": 1,
+    "baile": 2,
+    "hospital": 1,
+    "prison": 1,
+    "factory": 1,
+    "market-clandestino": 1,
+    "gym": 1,
+    "university": 1,
+    "dock-industrial": 1,
+    "junkyard": 1,
+    "residential-tower-simple": 2,
+    "residential-tower-modern": 2,
+    "commercial-block-simple": 2,
+    "commercial-block-modern": 2,
+    "house-simple": 2,
+    "house-wealthy": 2
+  },
+  "results": [
+    {
+      "kind": "barraco-1",
+      "assetType": "barraco barraco-1",
+      "targetFamily": "barraco",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/tend/barraco_1.webp",
+        "assets/examples/neighboor/Pobre_1.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "barraco-2",
+      "assetType": "barraco barraco-2",
+      "targetFamily": "barraco",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/tend/barraco_2.jpg",
+        "assets/examples/neighboor/Pobre_2.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "barraco-3",
+      "assetType": "barraco barraco-3",
+      "targetFamily": "barraco",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/tend/barraco_3.jpg",
+        "assets/examples/neighboor/Pobre_3.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-3.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-3.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-3.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "barraco-4",
+      "assetType": "barraco barraco-4",
+      "targetFamily": "barraco",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/tend/barraco_4.jpg",
+        "assets/examples/favela/Favela_1.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-4.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-4.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-4.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "barraco-5",
+      "assetType": "barraco barraco-5",
+      "targetFamily": "barraco",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/tend/barraco_5.jpg",
+        "assets/examples/tend/barraco_6.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/barraco-5.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/barraco-5.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/barraco-5.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "favela-cluster",
+      "assetType": "favela-cluster favela-cluster",
+      "targetFamily": "favela-cluster",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/favela/Favela_1.jpg",
+        "assets/examples/tend/barraco_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/favela-cluster.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/favela-cluster.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/favela-cluster.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/favela-cluster",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "boca",
+      "assetType": "boca boca",
+      "targetFamily": "boca",
+      "targetCategory": "favela",
+      "styleGuide": "dense-favela",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/drug_dealing/boca_1.webp",
+        "assets/examples/drug_dealing/boca_5.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/boca.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/boca.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/boca.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/boca",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "baile",
+      "assetType": "baile baile",
+      "targetFamily": "baile",
+      "targetCategory": "nightlife",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "existing-family",
+      "referenceFiles": [
+        "assets/examples/funk/baile_funk_1.jpg",
+        "assets/examples/party/palco_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/baile.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/baile.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/baile.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "rave",
+      "assetType": "baile rave",
+      "targetFamily": "baile",
+      "targetCategory": "nightlife",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "existing-family-with-variation",
+      "referenceFiles": [
+        "assets/examples/funk/baile_funk_2.jpg",
+        "assets/examples/party/palco_1.webp"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/rave.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/rave.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/rave.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/baile",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "hospital",
+      "assetType": "hospital hospital",
+      "targetFamily": "hospital",
+      "targetCategory": "hospital",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/hospital/hospital_1.jpg",
+        "assets/examples/hospital/hospital_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/hospital.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/hospital.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/hospital.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/hospital",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "prison",
+      "assetType": "prison prison",
+      "targetFamily": "prison",
+      "targetCategory": "institucional",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/prison/prsiao_1.jpg",
+        "assets/examples/prison/prsiao_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/prison.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/prison.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/prison.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/prison",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "factory",
+      "assetType": "factory factory",
+      "targetFamily": "factory",
+      "targetCategory": "factory",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/factory/fabrica_1.jpg",
+        "assets/examples/factory/fabrica_7.png"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/factory.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/factory.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/factory.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/factory",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "mercado-negro",
+      "assetType": "market-clandestino mercado-negro",
+      "targetFamily": "market-clandestino",
+      "targetCategory": "poor",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/drug_dealing/boca_6.jpg",
+        "assets/examples/neighboor/Pobre_2.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/mercado-negro.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/mercado-negro.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/mercado-negro.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/market-clandestino",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "treino",
+      "assetType": "gym treino",
+      "targetFamily": "gym",
+      "targetCategory": "equipamento",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/gym/1.webp",
+        "assets/examples/gym/2.webp"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/treino.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/treino.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/treino.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/gym",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "universidade",
+      "assetType": "university universidade",
+      "targetFamily": "university",
+      "targetCategory": "institucional",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_5.jpg",
+        "assets/examples/hospital/hospital_3.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/universidade.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/universidade.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/universidade.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/university",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "docas",
+      "assetType": "dock-industrial docas",
+      "targetFamily": "dock-industrial",
+      "targetCategory": "factory",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/factory/fabrica_7.png",
+        "assets/examples/factory/fabrica_1.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/docas.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/docas.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/docas.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/dock-industrial",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "desmanche",
+      "assetType": "junkyard desmanche",
+      "targetFamily": "junkyard",
+      "targetCategory": "junkyard",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/junkyard/Desmanche_1.jpg",
+        "assets/examples/junkyard/Desmanche_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/desmanche.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/desmanche.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/desmanche.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/junkyard",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-residencial-simples-1",
+      "assetType": "residential-tower-simple predio-residencial-simples-1",
+      "targetFamily": "residential-tower-simple",
+      "targetCategory": "residential",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_1.jpg",
+        "assets/examples/neighboor/Residencial_2.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-simples-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-simples-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-residencial-simples-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/residential-tower-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-residencial-simples-2",
+      "assetType": "residential-tower-simple predio-residencial-simples-2",
+      "targetFamily": "residential-tower-simple",
+      "targetCategory": "residential",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_3.jpg",
+        "assets/examples/neighboor/Residencial_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-simples-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-simples-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-residencial-simples-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/residential-tower-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-residencial-moderno-1",
+      "assetType": "residential-tower-modern predio-residencial-moderno-1",
+      "targetFamily": "residential-tower-modern",
+      "targetCategory": "residential",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_5.jpg",
+        "assets/examples/neighboor/Residencial_6.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-moderno-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-moderno-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-residencial-moderno-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/residential-tower-modern",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-residencial-moderno-2",
+      "assetType": "residential-tower-modern predio-residencial-moderno-2",
+      "targetFamily": "residential-tower-modern",
+      "targetCategory": "residential",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_6.jpg",
+        "assets/examples/neighboor/Residencial_7.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-residencial-moderno-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-residencial-moderno-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-residencial-moderno-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/residential-tower-modern",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-comercial-simples-1",
+      "assetType": "commercial-block-simple predio-comercial-simples-1",
+      "targetFamily": "commercial-block-simple",
+      "targetCategory": "commercial",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_2.jpg",
+        "assets/examples/neighboor/Residencial_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-simples-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-simples-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-comercial-simples-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-comercial-simples-2",
+      "assetType": "commercial-block-simple predio-comercial-simples-2",
+      "targetFamily": "commercial-block-simple",
+      "targetCategory": "commercial",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_3.jpg",
+        "assets/examples/neighboor/Residencial_5.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-simples-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-simples-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-comercial-simples-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-comercial-moderno-1",
+      "assetType": "commercial-block-modern predio-comercial-moderno-1",
+      "targetFamily": "commercial-block-modern",
+      "targetCategory": "commercial",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_6.jpg",
+        "assets/examples/houses/casa_luxo_2.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-moderno-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-moderno-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-comercial-moderno-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "predio-comercial-moderno-2",
+      "assetType": "commercial-block-modern predio-comercial-moderno-2",
+      "targetFamily": "commercial-block-modern",
+      "targetCategory": "commercial",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_7.jpg",
+        "assets/examples/houses/casa_luxo_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/predio-comercial-moderno-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/predio-comercial-moderno-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/predio-comercial-moderno-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/commercial-block-modern",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "casa-residencial-simples-1",
+      "assetType": "house-simple casa-residencial-simples-1",
+      "targetFamily": "house-simple",
+      "targetCategory": "residential",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_1.jpg",
+        "assets/examples/neighboor/Residencial_2.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/casa-residencial-simples-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/casa-residencial-simples-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/casa-residencial-simples-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "casa-residencial-simples-2",
+      "assetType": "house-simple casa-residencial-simples-2",
+      "targetFamily": "house-simple",
+      "targetCategory": "residential",
+      "styleGuide": "default",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/neighboor/Residencial_3.jpg",
+        "assets/examples/neighboor/Residencial_4.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/casa-residencial-simples-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/casa-residencial-simples-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/casa-residencial-simples-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-simple",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "casa-residencial-moderna-1",
+      "assetType": "house-wealthy casa-residencial-moderna-1",
+      "targetFamily": "house-wealthy",
+      "targetCategory": "wealthy",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/houses/casa_luxo_1.jpg",
+        "assets/examples/houses/casa_luxo_3.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/casa-residencial-moderna-1.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/casa-residencial-moderna-1.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/casa-residencial-moderna-1.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    },
+    {
+      "kind": "casa-residencial-moderna-2",
+      "assetType": "house-wealthy casa-residencial-moderna-2",
+      "targetFamily": "house-wealthy",
+      "targetCategory": "wealthy",
+      "styleGuide": "simcity-urban",
+      "implementationMode": "new-family-needed",
+      "referenceFiles": [
+        "assets/examples/houses/casa_luxo_5.jpg",
+        "assets/examples/houses/casa_luxo_8.jpg"
+      ],
+      "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/casa-residencial-moderna-2.svg",
+      "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/casa-residencial-moderna-2.preview.png",
+      "validationManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/casa-residencial-moderna-2.validation.json",
+      "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy",
+      "ok": true,
+      "stage": "stage-8-validation",
+      "note": "Etapa 8 concluida: o SVG final foi validado tecnicamente e aprovado pelas regras automaticas do pipeline.",
+      "failedChecks": []
+    }
+  ]
+}

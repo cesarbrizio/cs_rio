@@ -1,13 +1,17 @@
 # HARDENING.md — Plano Técnico de Hardening
 
-**Versão:** `1.18.0`  
-**Data:** `2026-03-14`  
+**Versão:** `1.18.1`  
+**Data:** `2026-03-16`  
 **Status:** `Concluído`  
 **Escopo:** backend, mobile, observabilidade, validação HTTP, transações, cache, modularização e robustez operacional.
 
 ## Contexto
 
 Este documento consolida o plano de ação para corrigir os problemas técnicos levantados na revisão de hardening do `cs_rio`.
+
+As contagens de arquivos, testes e suites registradas aqui são **snapshots históricos de validação por etapa**.
+Para validação operacional atual de deploy, smoke, rollback e critérios de liberação, a fonte de verdade é [ROLL_OUT.md](./ROLL_OUT.md).
+O fato de este plano constar como `Concluído` significa fechamento do pacote histórico de hardening, e **não ausência de backlog residual**; achados posteriores devem ser rastreados em `TODO.md` e `PRODUCT_STATUS.md`.
 
 Os riscos principais identificados foram:
 
@@ -35,7 +39,7 @@ Cada etapa tem foco, ações concretas e critério de aceite.
 
 **Status da etapa 1:** `Concluída em 2026-03-14`
 
-### Estado atual da esteira
+### Baseline histórica da esteira
 
 Baseline medida no monorepo no momento de abertura do hardening:
 
@@ -819,15 +823,15 @@ Este checklist deve ser executado a cada bloco sensível do hardening:
 - checklist operacional criado em:
   - `ROLL_OUT.md`
 - `README.md` atualizado para apontar o rollout
-- esteira completa validada no monorepo:
+- snapshot final validado no fechamento do plano:
   - `@cs-rio/shared`: `2 arquivos / 12 testes`
   - `@cs-rio/game-engine`: `2 arquivos / 13 testes`
   - `@cs-rio/mobile`: `30 arquivos / 82 testes`
   - `@cs-rio/server`: `58 arquivos / 282 testes`
 
 **Observação importante:**
-- a etapa 20 foi concluída como consolidação operacional
-- o hardening como plano total **continua em andamento** porque a etapa `18` segue pendente
+- a etapa 20 concluiu a consolidação operacional do plano
+- a observação antiga dizendo que a etapa `18` seguia pendente era apenas resíduo documental e foi removida nesta revisão
 
 ### Matriz de regressão consolidada
 
@@ -878,14 +882,14 @@ No mobile, a observabilidade mínima esperada é:
 
 ---
 
-## Resultado esperado ao final
+## Resultado consolidado do plano
 
-Quando as 20 etapas estiverem concluídas, o `cs_rio` deverá estar:
+Com as 20 etapas concluídas, o `cs_rio` ficou posicionado para operar a Pré-Alpha com:
 
 - com HTTP validado e tipado
 - com erro tratável e rastreável
-- com operações financeiras atômicas
-- com cache coerente com autorização e estado do jogo
+- com a maior parte dos fluxos financeiros endurecida por transação, ainda sujeita a backlog residual de concorrência quando novas auditorias encontrarem gaps específicos
+- com cache mais coerente com autorização e estado do jogo
 - com serviços centrais mais modulares
 - com mobile mais resiliente
 - com observabilidade suficiente para operar e depurar a Pré-Alpha
@@ -985,3 +989,10 @@ Quando as 20 etapas estiverem concluídas, o `cs_rio` deverá estar:
   - `@cs-rio/game-engine`: `2 arquivos / 13 testes`
   - `@cs-rio/mobile`: `30 arquivos / 82 testes`
   - `@cs-rio/server`: `58 arquivos / 282 testes`
+
+### `1.18.1` — 2026-03-16
+
+- revisão documental pós-fechamento
+- correção da contradição que ainda apontava a etapa `18` como pendente
+- enquadramento explícito das contagens de testes como snapshots históricos, não contrato operacional vigente
+- alinhamento com `ROLL_OUT.md` como fonte de verdade para validação atual de deploy e smoke

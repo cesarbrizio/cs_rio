@@ -3,6 +3,9 @@ import type {
   InventoryEquipSlot,
   InventoryGrantInput,
   InventoryItemType,
+  PlayerVocationChangeInput,
+  PlayerPublicProfileRanking,
+  PlayerInventoryEquipmentSummary,
   PlayerCreationInput,
   PlayerFactionSummary,
   PlayerInventoryItem,
@@ -13,10 +16,10 @@ import type {
 import type { AddictionSystem } from '../../systems/AddictionSystem.js';
 import type { DrugToleranceSystem } from '../../systems/DrugToleranceSystem.js';
 import type { LevelSystem } from '../../systems/LevelSystem.js';
-import type { NerveSystem } from '../../systems/NerveSystem.js';
+import type { DisposicaoSystem } from '../../systems/DisposicaoSystem.js';
 import type { OverdoseSystem } from '../../systems/OverdoseSystem.js';
 import type { PrisonSystemContract } from '../../systems/PrisonSystem.js';
-import type { StaminaSystem } from '../../systems/StaminaSystem.js';
+import type { CansacoSystem } from '../../systems/CansacoSystem.js';
 import type { KeyValueStore } from '../auth.js';
 import type { AuthPlayerRecord } from '../auth.js';
 import type { FactionUpgradeEffectReaderContract } from '../faction/types.js';
@@ -28,8 +31,17 @@ export interface PlayerProfileRecord {
   properties: PlayerPropertySummary[];
 }
 
+export interface PlayerPublicProfileRecord {
+  faction: PlayerFactionSummary | null;
+  inventoryItemCount: number;
+  player: AuthPlayerRecord;
+  propertiesCount: number;
+  ranking: PlayerPublicProfileRanking;
+}
+
 export interface InventoryDefinitionRecord {
   durabilityMax: number | null;
+  equipment?: PlayerInventoryEquipmentSummary | null;
   itemId: string;
   itemName: string;
   itemType: InventoryItemType;
@@ -42,11 +54,11 @@ export interface DrugDefinitionRecord {
   addictionRate: number;
   code: string;
   drugId: string;
-  moralBoost: number;
+  brisaBoost: number;
   name: string;
-  nerveBoost: number;
+  disposicaoBoost: number;
   productionLevel: number;
-  staminaRecovery: number;
+  cansacoRecovery: number;
   type: DrugType;
 }
 
@@ -63,6 +75,14 @@ export interface PlayerRepository {
   ): Promise<boolean>;
   createCharacter(playerId: string, input: PlayerCreationInput): Promise<PlayerProfileRecord | null>;
   deleteInventoryItem(playerId: string, inventoryItemId: string): Promise<boolean>;
+  changeVocation(
+    playerId: string,
+    input: {
+      changedAt: Date;
+      creditsCost: number;
+      nextVocation: PlayerVocationChangeInput['vocation'];
+    },
+  ): Promise<PlayerProfileRecord | null>;
   getDrugDefinition(drugId: string): Promise<DrugDefinitionRecord | null>;
   getInventoryDefinition(
     itemType: InventoryItemType,
@@ -90,25 +110,29 @@ export interface PlayerRepository {
   updateRuntimeState(playerId: string, input: PlayerRuntimeStateInput): Promise<void>;
 }
 
+export interface PlayerPublicProfileReader {
+  getPublicProfileByNickname(nickname: string): Promise<PlayerPublicProfileRecord | null>;
+}
+
 export interface PlayerRuntimeStateInput {
   addiction: number;
   level: number;
-  morale: number;
-  nerve: number;
-  stamina: number;
+  brisa: number;
+  disposicao: number;
+  cansaco: number;
 }
 
 export interface PlayerDrugConsumptionInput {
   addiction: number;
-  morale: number;
-  nerve: number;
-  stamina: number;
+  brisa: number;
+  disposicao: number;
+  cansaco: number;
 }
 
 export interface PlayerOverdosePenaltyInput {
   addiction: number;
   conceito: number;
-  morale: number;
+  brisa: number;
 }
 
 export interface PlayerOverdosePenaltyResult {
@@ -121,11 +145,13 @@ export interface PlayerServiceOptions {
   factionUpgradeReader?: FactionUpgradeEffectReaderContract;
   keyValueStore?: KeyValueStore;
   levelSystem?: LevelSystem;
-  nerveSystem?: NerveSystem;
+  disposicaoSystem?: DisposicaoSystem;
   overdoseSystem?: OverdoseSystem;
   prisonSystem?: PrisonSystemContract;
+  publicProfileReader?: PlayerPublicProfileReader;
   repository?: PlayerRepository;
-  staminaSystem?: StaminaSystem;
+  cansacoSystem?: CansacoSystem;
+  now?: () => Date;
 }
 
 type PlayerErrorCode = 'conflict' | 'not_found' | 'unauthorized' | 'validation';

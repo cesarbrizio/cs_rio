@@ -145,6 +145,7 @@ export function createHttpRateLimitHook(options: CreateHttpRateLimitHookOptions 
   const store: HttpRateLimitStore = options.keyValueStore
     ? new KeyValueStoreHttpRateLimitStore(options.keyValueStore)
     : new InMemoryHttpRateLimitStore();
+  const testNamespace = resolveTestRateLimitNamespace();
 
   return async function httpRateLimitHook(request: FastifyRequest, reply: FastifyReply) {
     const policy = resolveHttpRateLimitPolicy(request);
@@ -155,7 +156,9 @@ export function createHttpRateLimitHook(options: CreateHttpRateLimitHookOptions 
 
     const routeUrl = normalizeRouteUrl(readRouteUrl(request));
     const actor = resolveRateLimitActor(request, policy.scope);
-    const key = `${request.method.toUpperCase()} ${routeUrl} :: ${actor}`;
+    const key = testNamespace
+      ? `${testNamespace} :: ${request.method.toUpperCase()} ${routeUrl} :: ${actor}`
+      : `${request.method.toUpperCase()} ${routeUrl} :: ${actor}`;
     const state = await store.consume(key, policy.maxRequests, policy.windowMs);
 
     if (!state.exceeded) {
@@ -169,6 +172,19 @@ export function createHttpRateLimitHook(options: CreateHttpRateLimitHookOptions 
       'Muitas requisicoes seguidas nesta rota. Aguarde um pouco antes de tentar novamente.',
     );
   };
+}
+
+function resolveTestRateLimitNamespace(): string | null {
+  if (process.env.NODE_ENV?.trim() !== 'test') {
+    return null;
+  }
+
+  const workerId =
+    process.env.VITEST_POOL_ID?.trim() ||
+    process.env.VITEST_WORKER_ID?.trim() ||
+    String(process.pid);
+
+  return `test-worker:${workerId}`;
 }
 
 function sanitizeRequestInputs(request: FastifyRequest): void {

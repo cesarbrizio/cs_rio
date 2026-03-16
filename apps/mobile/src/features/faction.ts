@@ -128,8 +128,6 @@ export function resolveFactionLedgerEntryLabel(entry: FactionBankLedgerEntry): s
   }
 
   switch (entry.originType) {
-    case 'bicho':
-      return 'Comissão automática do bicho';
     case 'boca':
       return 'Comissão automática de boca';
     case 'rave':

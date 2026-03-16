@@ -44,7 +44,6 @@ describe('hospital routes', () => {
     await updatePlayerState(player.id, {
       addiction: 20,
       credits: 12,
-      hasDst: true,
       hp: 63,
       money: '60000.00',
     });
@@ -62,17 +61,12 @@ describe('hospital routes', () => {
       player: {
         addiction: 20,
         credits: 12,
-        hasDst: true,
         hp: 63,
       },
       services: {
         detox: {
           available: true,
           moneyCost: 0,
-        },
-        dstTreatment: {
-          available: true,
-          moneyCost: 5000,
         },
         healthPlan: {
           available: true,
@@ -97,6 +91,9 @@ describe('hospital routes', () => {
         }),
       ]),
     );
+    expect(response.json().player).not.toHaveProperty('hasDst');
+    expect(response.json().player).not.toHaveProperty('dstRecoversAt');
+    expect(response.json().services).not.toHaveProperty('dstTreatment');
   });
 
   it('inflates hospital NPC prices by round day in the center and treatment flow', async () => {
@@ -304,12 +301,10 @@ describe('hospital routes', () => {
     });
   });
 
-  it('treats DST and activates health plan for future hospitalizations', async () => {
+  it('removes the old DST treatment route and keeps health plan for future hospitalizations', async () => {
     const player = await registerAndCreateCharacter();
     await updatePlayerState(player.id, {
       credits: 12,
-      dstRecoversAt: new Date(Date.now() + 60 * 60 * 1000),
-      hasDst: true,
       money: '10000.00',
     });
 
@@ -321,14 +316,7 @@ describe('hospital routes', () => {
       url: '/api/hospital/dst-treatment',
     });
 
-    expect(dstResponse.statusCode).toBe(200);
-    expect(dstResponse.json()).toMatchObject({
-      action: 'dst_treatment',
-      player: {
-        hasDst: false,
-        money: 5000,
-      },
-    });
+    expect(dstResponse.statusCode).toBe(404);
 
     const planResponse = await app.inject({
       headers: {
@@ -412,9 +400,7 @@ async function updatePlayerState(
     addiction: number;
     carisma: number;
     credits: number;
-    dstRecoversAt: Date | null;
     forca: number;
-    hasDst: boolean;
     hp: number;
     inteligencia: number;
     money: string;

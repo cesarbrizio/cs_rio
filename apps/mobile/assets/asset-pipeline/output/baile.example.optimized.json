@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "stage": "optimization",
+  "tool": "svgo",
+  "status": "ok",
+  "inputPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.vectorized.svg",
+  "optimizedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/baile/baile.example.svg",
+  "version": "4.0.1",
+  "bytes": 1318
+}

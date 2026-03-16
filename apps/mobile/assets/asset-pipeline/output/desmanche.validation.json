@@ -1,0 +1,81 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/desmanche.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 16,
+      "deltaY": 38.5,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 11,
+      "max": 44,
+      "palette": [
+        "#8e5e49",
+        "#40342f",
+        "#69747a",
+        "#a08d6a",
+        "#b9aba2",
+        "#2f241f",
+        "#6d625c",
+        "#827770",
+        "#7c736d",
+        "#65564b",
+        "#3d332d"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 29,
+    "pathCount": 0,
+    "colorCount": 11,
+    "resolvedMaxColors": 44,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 70,
+      "minY": 97,
+      "maxX": 122,
+      "maxY": 140,
+      "width": 52,
+      "height": 43,
+      "centerX": 96,
+      "centerY": 118.5
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "junkyard desmanche",
+  "category": "junkyard",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/desmanche.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/desmanche.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/desmanche.preview.json"
+}

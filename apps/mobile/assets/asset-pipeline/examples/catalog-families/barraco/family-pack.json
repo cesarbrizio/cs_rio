@@ -1,0 +1,157 @@
+{
+  "family": "barraco",
+  "title": "Barracos individuais e construcoes improvisadas",
+  "category": "favela",
+  "styleGuide": "dense-favela",
+  "kinds": [
+    "barraco-1",
+    "barraco-2",
+    "barraco-3",
+    "barraco-4",
+    "barraco-5"
+  ],
+  "assetTypes": [
+    "barraco"
+  ],
+  "planCategories": [
+    "favela"
+  ],
+  "implementationModes": [
+    "existing-family"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/favela/Favela_1.jpg",
+    "assets/examples/neighboor/Pobre_1.jpg",
+    "assets/examples/neighboor/Pobre_2.jpg",
+    "assets/examples/neighboor/Pobre_3.jpg",
+    "assets/examples/tend/barraco_1.webp",
+    "assets/examples/tend/barraco_2.jpg",
+    "assets/examples/tend/barraco_3.jpg",
+    "assets/examples/tend/barraco_4.jpg",
+    "assets/examples/tend/barraco_5.jpg",
+    "assets/examples/tend/barraco_6.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_4.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_5.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_1.webp"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_3.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_6.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/favela/Favela_1.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_1.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_2.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_3.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "massa vertical improvisada, com anexos, laje, telha ondulada e fachada remendada",
+  "mustCapture": [
+    "volumetria irregular",
+    "mistura de reboco e tijolo aparente",
+    "escada ou anexo lateral",
+    "cobertura improvisada"
+  ],
+  "avoid": [
+    "casinha de desenho",
+    "icone geométrico limpo",
+    "fachada institucional"
+  ],
+  "notes": [
+    "A familia barraco e a base de leitura para regioes pobres e massas de favela."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_4.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_4.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/01-tend-barraco_4.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_5.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_5.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/02-tend-barraco_5.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/tend/barraco_2.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_2.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/03-tend-barraco_2.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_1.webp",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_1.webp",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/04-tend-barraco_1.webp"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_3.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_3.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/05-tend-barraco_3.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/tend/barraco_6.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/tend/barraco_6.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/06-tend-barraco_6.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/favela/Favela_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/favela/Favela_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/07-favela-Favela_1.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Pobre_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/08-neighboor-Pobre_1.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_2.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Pobre_2.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/09-neighboor-Pobre_2.jpg"
+    },
+    {
+      "tier": "supporting",
+      "referenceFile": "assets/examples/neighboor/Pobre_3.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/neighboor/Pobre_3.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/barraco/references/10-neighboor-Pobre_3.jpg"
+    }
+  ]
+}

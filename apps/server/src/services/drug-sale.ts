@@ -41,7 +41,7 @@ interface DrugSalePlayerRecord {
   level: number;
   money: number;
   regionId: RegionId;
-  stamina: number;
+  cansaco: number;
 }
 
 interface DrugInventoryRecord {
@@ -83,12 +83,12 @@ interface DrugSaleCommitInput {
   netRevenue: number;
   playerId: string;
   quantitySold: number;
-  staminaCost: number;
+  cansacoCost: number;
 }
 
 interface DrugSaleCommitResult {
   playerMoneyAfterSale: number;
-  playerStaminaAfterSale: number;
+  playerCansacoAfterSale: number;
   remainingQuantity: number;
   soldAt: Date;
 }
@@ -317,7 +317,7 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
       const [player] = await tx
         .select({
           money: players.money,
-          stamina: players.stamina,
+          cansaco: players.cansaco,
         })
         .from(players)
         .where(eq(players.id, input.playerId))
@@ -341,7 +341,7 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
         return null;
       }
 
-      if (inventoryItem.quantity < input.quantitySold || player.stamina < input.staminaCost) {
+      if (inventoryItem.quantity < input.quantitySold || player.cansaco < input.cansacoCost) {
         return null;
       }
 
@@ -371,13 +371,13 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
       }
 
       const updatedMoney = roundCurrency(Number.parseFloat(player.money) + input.netRevenue);
-      const updatedStamina = player.stamina - input.staminaCost;
+      const updatedCansaco = player.cansaco - input.cansacoCost;
 
       await tx
         .update(players)
         .set({
           money: updatedMoney.toFixed(2),
-          stamina: updatedStamina,
+          cansaco: updatedCansaco,
         })
         .where(eq(players.id, input.playerId));
 
@@ -393,7 +393,7 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
 
       return {
         playerMoneyAfterSale: updatedMoney,
-        playerStaminaAfterSale: updatedStamina,
+        playerCansacoAfterSale: updatedCansaco,
         remainingQuantity,
         soldAt: new Date(),
       };
@@ -446,7 +446,7 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
         level: players.level,
         money: players.money,
         regionId: players.regionId,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
       })
       .from(players)
       .where(eq(players.id, playerId))
@@ -463,7 +463,7 @@ export class DatabaseDrugSaleRepository implements DrugSaleRepository {
       level: player.level,
       money: Number.parseFloat(player.money),
       regionId: player.regionId as RegionId,
-      stamina: player.stamina,
+      cansaco: player.cansaco,
     };
   }
 
@@ -571,7 +571,7 @@ export class DrugSaleService implements DrugSaleServiceContract {
     if (!committed) {
       throw new DrugSaleError(
         'conflict',
-        'Nao foi possivel concluir a venda. Confira inventario, estamina e tente novamente.',
+        'Nao foi possivel concluir a venda. Confira inventario, cansaço e tente novamente.',
       );
     }
 
@@ -580,7 +580,7 @@ export class DrugSaleService implements DrugSaleServiceContract {
     return {
       ...quote,
       playerMoneyAfterSale: committed.playerMoneyAfterSale,
-      playerStaminaAfterSale: committed.playerStaminaAfterSale,
+      playerCansacoAfterSale: committed.playerCansacoAfterSale,
       pricing: {
         ...quote.pricing,
       },
@@ -604,8 +604,8 @@ export class DrugSaleService implements DrugSaleServiceContract {
       );
     }
 
-    if (context.channel.staminaCost > 0 && context.player.stamina < context.channel.staminaCost) {
-      throw new DrugSaleError('validation', 'Estamina insuficiente para trafico direto.');
+    if (context.channel.cansacoCost > 0 && context.player.cansaco < context.channel.cansacoCost) {
+      throw new DrugSaleError('validation', 'Cansaço insuficiente para trafico direto.');
     }
 
     if (context.channel.id === 'docks') {
@@ -683,7 +683,7 @@ export class DrugSaleService implements DrugSaleServiceContract {
         id: context.channel.id,
         label: context.channel.label,
         propertyTypeRequired: context.channel.propertyTypeRequired,
-        staminaCost: context.channel.staminaCost,
+        cansacoCost: context.channel.cansacoCost,
       },
       commit: {
         channel: context.channel.id,
@@ -694,7 +694,7 @@ export class DrugSaleService implements DrugSaleServiceContract {
         netRevenue,
         playerId: context.player.id,
         quantitySold: sellableQuantity,
-        staminaCost: context.channel.staminaCost,
+        cansacoCost: context.channel.cansacoCost,
       },
       drug: {
         code: context.inventoryItem.code,

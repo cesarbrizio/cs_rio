@@ -3,7 +3,7 @@ import Fastify from 'fastify';
 
 import { resolveCorsOptions } from './config/cors.js';
 import { ActionIdempotency } from './api/action-idempotency.js';
-import { env } from './config/env.js';
+import { env, resolveTrustedProxyList } from './config/env.js';
 import { installHttpInputHardening, HTTP_BODY_LIMIT_BYTES } from './api/http-hardening.js';
 import { installGlobalHttpErrorHandler } from './api/http-errors.js';
 import { bindRequestContext, refreshRequestContext } from './observability/request-context.js';
@@ -17,6 +17,7 @@ import {
 import { BankService, type BankServiceContract } from './services/bank.js';
 import { BichoService, type BichoServiceContract } from './services/bicho.js';
 import { BocaService, type BocaServiceContract } from './services/boca.js';
+import { ContactService, type ContactRepository } from './services/contact.js';
 import { CrimeService, type CrimeServiceContract } from './services/crime.js';
 import { DrugSaleService, type DrugSaleServiceContract } from './services/drug-sale.js';
 import { GameConfigService } from './services/game-config.js';
@@ -26,9 +27,10 @@ import { FactoryService, type FactoryServiceContract } from './services/factory.
 import { FrontStoreService, type FrontStoreServiceContract } from './services/front-store.js';
 import { HospitalService, type HospitalServiceContract } from './services/hospital.js';
 import { MarketService, type MarketServiceContract } from './services/market.js';
-import { PlayerService, type PlayerRepository } from './services/player.js';
+import { PlayerService, type PlayerPublicProfileReader, type PlayerRepository } from './services/player.js';
 import { PrisonService, type PrisonServiceContract } from './services/prison.js';
 import { PvpService, type PvpServiceContract } from './services/pvp.js';
+import { PrivateMessageService } from './services/private-message.js';
 import { PuteiroService, type PuteiroServiceContract } from './services/puteiro.js';
 import { PropertyService, type PropertyServiceContract } from './services/property.js';
 import { RobberyService, type RobberyServiceContract } from './services/robbery.js';
@@ -51,6 +53,8 @@ export interface CreateAppOptions {
   bankService?: BankServiceContract;
   bichoService?: BichoServiceContract;
   bocaService?: BocaServiceContract;
+  contactRepository?: ContactRepository;
+  contactService?: ContactService;
   crimeService?: CrimeServiceContract;
   drugSaleService?: DrugSaleServiceContract;
   gameEventService?: GameEventServiceContract;
@@ -61,9 +65,12 @@ export interface CreateAppOptions {
   keyValueStore?: KeyValueStore;
   marketService?: MarketServiceContract;
   playerService?: PlayerService;
+  playerPublicProfileReader?: PlayerPublicProfileReader;
   playerRepository?: PlayerRepository;
   pvpService?: PvpServiceContract;
+  privateMessageService?: PrivateMessageService;
   prisonService?: PrisonServiceContract;
+  prisonRandom?: () => number;
   puteiroService?: PuteiroServiceContract;
   propertyService?: PropertyServiceContract;
   robberyService?: RobberyServiceContract;
@@ -77,11 +84,18 @@ export interface CreateAppOptions {
   prisonSystem?: PrisonSystemContract;
 }
 
+export function resolveFastifyTrustProxy(
+  input: string | string[] | false | null | undefined = env.trustProxy,
+): boolean | string | string[] {
+  return resolveTrustedProxyList(input);
+}
+
 export async function createApp(options: CreateAppOptions = {}) {
   const app = Fastify({
     bodyLimit: HTTP_BODY_LIMIT_BYTES,
     logger: true,
     requestIdHeader: 'x-request-id',
+    trustProxy: resolveFastifyTrustProxy(),
   });
   const ownsAuthService = !options.authService;
   const ownsBankService = !options.bankService;
@@ -126,9 +140,15 @@ export async function createApp(options: CreateAppOptions = {}) {
     new BichoService({
       keyValueStore,
     });
+  const contactService =
+    options.contactService ??
+    new ContactService({
+      repository: options.contactRepository,
+    });
   const factionService =
     options.factionService ??
     new FactionService({
+      contactSync: contactService,
       keyValueStore,
     });
   const prisonSystem =
@@ -142,6 +162,9 @@ export async function createApp(options: CreateAppOptions = {}) {
       factionUpgradeReader: factionService,
       keyValueStore,
       prisonSystem,
+      publicProfileReader:
+        options.playerPublicProfileReader ??
+        (options.playerRepository as PlayerPublicProfileReader | undefined),
       repository: options.playerRepository,
     });
   const universityService =
@@ -153,6 +176,7 @@ export async function createApp(options: CreateAppOptions = {}) {
     options.prisonService ??
     new PrisonService({
       keyValueStore,
+      random: options.prisonRandom,
       prisonSystem,
       universityReader: universityService,
     });
@@ -223,6 +247,11 @@ export async function createApp(options: CreateAppOptions = {}) {
       keyValueStore,
       universityReader: universityService,
     });
+  const privateMessageService =
+    options.privateMessageService ??
+    new PrivateMessageService({
+      contactRepository: options.contactRepository,
+    });
   const puteiroService =
     options.puteiroService ??
     new PuteiroService({
@@ -245,8 +274,14 @@ export async function createApp(options: CreateAppOptions = {}) {
     options.territoryService ??
     new TerritoryService({
       factionUpgradeReader: factionService,
+      keyValueStore,
     });
-  const tribunalService = options.tribunalService ?? new TribunalService();
+  const tribunalService =
+    options.tribunalService ??
+    new TribunalService({
+      keyValueStore,
+      universityReader: universityService,
+    });
   const trainingService =
     options.trainingService ??
     new TrainingService({
@@ -386,6 +421,7 @@ export async function createApp(options: CreateAppOptions = {}) {
       bankService,
       bichoService,
       bocaService,
+      contactService,
       crimeService,
       drugSaleService,
       gameEventService,
@@ -398,6 +434,7 @@ export async function createApp(options: CreateAppOptions = {}) {
       playerService,
       prisonService,
       prisonSystem,
+      privateMessageService,
       propertyService,
       puteiroService,
       pvpService,

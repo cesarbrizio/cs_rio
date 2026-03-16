@@ -135,7 +135,7 @@ interface InMemoryFavelaBaileRecord {
   organizedByPlayerId: string;
   resultTier: FavelaBaileResultTier;
   satisfactionDelta: number;
-  staminaBoostPercent: number;
+  cansacoBoostPercent: number;
 }
 
 interface InMemoryFactionWarPreparationRecord {
@@ -150,13 +150,13 @@ interface InMemoryFactionWarPreparationRecord {
 
 interface InMemoryFactionWarRoundRecord {
   attackerHpLoss: number;
-  attackerNerveLoss: number;
+  attackerDisposicaoLoss: number;
   attackerPower: number;
-  attackerStaminaLoss: number;
+  attackerCansacoLoss: number;
   defenderHpLoss: number;
-  defenderNerveLoss: number;
+  defenderDisposicaoLoss: number;
   defenderPower: number;
-  defenderStaminaLoss: number;
+  defenderCansacoLoss: number;
   message: string;
   outcome: FactionWarRoundOutcome;
   resolvedAt: Date;
@@ -461,8 +461,8 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
             resources: {
               conceito: player.conceito,
               hp: player.hp,
-              nerve: player.nerve,
-              stamina: player.stamina,
+              disposicao: player.disposicao,
+              cansaco: player.cansaco,
             },
             vocation: player.vocation,
           },
@@ -562,7 +562,7 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
     resultTier: FavelaBaileResultTier;
     satisfactionAfter: number;
     satisfactionDelta: number;
-    staminaBoostPercent: number;
+    cansacoBoostPercent: number;
   }): Promise<InMemoryFavelaBaileRecord> {
     void input.favelaName;
 
@@ -580,11 +580,11 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
 
     for (const player of this.state.players.values()) {
       if (
-        input.staminaBoostPercent > 0 &&
+        input.cansacoBoostPercent > 0 &&
         player.factionId === input.factionId &&
         player.regionId === input.regionId
       ) {
-        player.stamina = Math.min(100, player.stamina + input.staminaBoostPercent);
+        player.cansaco = Math.min(100, player.cansaco + input.cansacoBoostPercent);
       }
     }
 
@@ -604,7 +604,7 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
       organizedByPlayerId: input.organizedByPlayerId,
       resultTier: input.resultTier,
       satisfactionDelta: input.satisfactionDelta,
-      staminaBoostPercent: input.staminaBoostPercent,
+      cansacoBoostPercent: input.cansacoBoostPercent,
     };
 
     this.state.favelaBailes.set(record.id, record);
@@ -742,8 +742,8 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
       nextResources: {
         conceito: number;
         hp: number;
-        nerve: number;
-        stamina: number;
+        disposicao: number;
+        cansaco: number;
       };
       playerId: string;
     }>;
@@ -758,8 +758,8 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
       player.conceito = update.nextResources.conceito;
       player.hp = update.nextResources.hp;
       player.level = update.nextLevel;
-      player.nerve = update.nextResources.nerve;
-      player.stamina = update.nextResources.stamina;
+      player.disposicao = update.nextResources.disposicao;
+      player.cansaco = update.nextResources.cansaco;
     }
 
     if (!input.nextFavelaState) {
@@ -1165,8 +1165,8 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
       nextResources: {
         conceito: number;
         hp: number;
-        nerve: number;
-        stamina: number;
+        disposicao: number;
+        cansaco: number;
       };
       playerId: string;
     }>;
@@ -1197,8 +1197,8 @@ class InMemoryAuthTerritoryRepository implements AuthRepository, TerritoryReposi
       player.conceito = participant.nextResources.conceito;
       player.hp = participant.nextResources.hp;
       player.level = participant.nextLevel;
-      player.nerve = participant.nextResources.nerve;
-      player.stamina = participant.nextResources.stamina;
+      player.disposicao = participant.nextResources.disposicao;
+      player.cansaco = participant.nextResources.cansaco;
     }
 
     attackerFaction.bankMoney = roundCurrency(attackerFaction.bankMoney + input.attackerRewardMoney);
@@ -1624,6 +1624,25 @@ describe('territory routes', () => {
     expect(state.factions.get('faction-cv')?.points).toBe(820);
     expect(state.factions.get('faction-tcp')?.points).toBe(0);
 
+    const defenderLossesResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${defenderToken}`,
+      },
+      method: 'GET',
+      url: '/api/territory/losses',
+    });
+
+    expect(defenderLossesResponse.statusCode).toBe(200);
+    expect(defenderLossesResponse.json().cues).toEqual([
+      expect.objectContaining({
+        cause: 'war_defeat',
+        favelaId: 'favela-centro-1',
+        lostByFactionAbbreviation: 'TCP',
+        newControllerFactionAbbreviation: 'CV',
+        title: 'Morro da Providencia: guerra perdida',
+      }),
+    ]);
+
     state.favelas.set('favela-centro-2', {
       ...state.favelas.get('favela-centro-2')!,
       controllingFactionId: 'faction-tcp',
@@ -1671,8 +1690,8 @@ describe('territory routes', () => {
 
     const actor = [...state.players.values()].find((player) => player.nickname === 'Territorio');
 
-    expect(actor?.stamina).toBeLessThan(100);
-    expect(actor?.nerve).toBeLessThan(100);
+    expect(actor?.cansaco).toBeLessThan(100);
+    expect(actor?.disposicao).toBeLessThan(100);
     expect(state.favelas.get('favela-centro-2')?.controllingFactionId).toBe('faction-cv');
   });
 
@@ -2326,6 +2345,51 @@ describe('territory routes', () => {
     );
   });
 
+  it('records a territory loss cue when the state takes a favela for unpaid propina', async () => {
+    state.favelas.set('favela-centro-2', {
+      ...state.favelas.get('favela-centro-2')!,
+      controllingFactionId: 'faction-cv',
+      propinaDueDate: new Date('2026-03-03T03:10:00.000Z'),
+      propinaValue: 22200,
+      state: 'controlled',
+    });
+
+    const accessToken = await registerAndExtractToken(app.server);
+    const territoryResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/territory/favelas',
+    });
+
+    expect(territoryResponse.statusCode).toBe(200);
+    expect(
+      territoryResponse
+        .json()
+        .favelas.find((entry: { id: string }) => entry.id === 'favela-centro-2')?.state,
+    ).toBe('state');
+
+    const lossesResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/territory/losses',
+    });
+
+    expect(lossesResponse.statusCode).toBe(200);
+    expect(lossesResponse.json().cues).toEqual([
+      expect.objectContaining({
+        cause: 'state_takeover',
+        favelaId: 'favela-centro-2',
+        lostByFactionAbbreviation: 'CV',
+        newControllerFactionAbbreviation: 'Estado',
+        title: 'Santo Cristo: tomada estatal',
+      }),
+    ]);
+  });
+
   it('applies propina delinquency penalties to favela service revenue', async () => {
     state.favelas.set('favela-centro-2', {
       ...state.favelas.get('favela-centro-2')!,
@@ -2452,7 +2516,7 @@ describe('territory routes', () => {
     expect(response.json().baile.lastOrganizedAt).toBeNull();
   });
 
-  it('organizes a total-success baile, boosts morale and enforces cooldown', async () => {
+  it('organizes a total-success baile, boosts brisa and enforces cooldown', async () => {
     state.favelas.set('favela-centro-2', {
       ...state.favelas.get('favela-centro-2')!,
       controllingFactionId: 'faction-cv',
@@ -2465,7 +2529,7 @@ describe('territory routes', () => {
       throw new Error('Missing ally fixture');
     }
 
-    ally.stamina = 60;
+    ally.cansaco = 60;
 
     const accessToken = await registerAndExtractToken(app.server);
     const actor = [...state.players.values()].find((player) => player.nickname === 'Territorio');
@@ -2474,7 +2538,7 @@ describe('territory routes', () => {
       throw new Error('Missing actor fixture');
     }
 
-    actor.stamina = 55;
+    actor.cansaco = 55;
 
     const organizeResponse = await app.server.inject({
       headers: {
@@ -2496,8 +2560,8 @@ describe('territory routes', () => {
     expect(organizeResponse.json().baile.cooldownEndsAt).toBe('2026-03-14T03:10:00.000Z');
     expect(state.factions.get('faction-cv')?.bankMoney).toBe(210000);
     expect(state.factions.get('faction-cv')?.points).toBe(780);
-    expect(state.players.get('player-sombra')?.stamina).toBe(95);
-    expect(actor.stamina).toBe(90);
+    expect(state.players.get('player-sombra')?.cansaco).toBe(95);
+    expect(actor.cansaco).toBe(90);
     expect(
       organizeResponse.json().favela.satisfactionProfile.factors.some(
         (factor: { code: string }) => factor.code === 'baile',
@@ -2521,7 +2585,7 @@ describe('territory routes', () => {
     expect(secondAttempt.json().message).toContain('cooldown');
   });
 
-  it('organizes a failed baile, applies ressaca and drops faction prestige', async () => {
+  it('organizes a failed baile, applies ressaca and drops faction points', async () => {
     state.favelas.set('favela-centro-2', {
       ...state.favelas.get('favela-centro-2')!,
       controllingFactionId: 'faction-cv',
@@ -2606,6 +2670,7 @@ async function buildTestApp({
     repository,
   });
   const territoryService = new TerritoryService({
+    keyValueStore,
     now,
     random,
     repository,
@@ -2653,16 +2718,16 @@ function buildPlayerRecord(input: {
     inteligencia: 14,
     lastLogin: new Date('2026-03-10T12:30:00.000Z'),
     level: 8,
-    morale: 100,
+    brisa: 100,
     money: '80000',
-    nerve: 100,
+    disposicao: 100,
     nickname: input.nickname,
     passwordHash: input.passwordHash,
     positionX: 100,
     positionY: 100,
     regionId: input.regionId,
     resistencia: 17,
-    stamina: 100,
+    cansaco: 100,
     vocation: VocationType.Soldado,
   };
 }

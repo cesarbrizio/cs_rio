@@ -5,6 +5,7 @@ import {
   type FavelaServiceInstallInput,
   type FavelaServiceType,
   type FavelaStateTransitionInput,
+  type TerritoryLossFeedResponse,
 } from '@cs-rio/shared';
 import { type FastifyPluginAsync, type FastifyReply } from 'fastify';
 
@@ -64,6 +65,31 @@ export function createTerritoryRoutes({
       } catch (error) {
         return sendTerritoryError(reply, error);
       }
+      },
+    );
+
+    fastify.get(
+      '/territory/losses',
+      {
+        schema: {
+          response: buildStandardResponseSchema(200),
+        },
+      },
+      async (request, reply) => {
+        if (!request.playerId) {
+          return reply.code(401).send({
+            message: 'Token ausente.',
+          });
+        }
+
+        try {
+          const result: TerritoryLossFeedResponse = await territoryService.listTerritoryLosses(
+            request.playerId,
+          );
+          return reply.send(result);
+        } catch (error) {
+          return sendTerritoryError(reply, error);
+        }
       },
     );
 

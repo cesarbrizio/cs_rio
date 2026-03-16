@@ -208,9 +208,9 @@ export function TrainingScreen(): JSX.Element {
           value={formatTrainingCurrency(center?.player.resources.money ?? player?.resources.money ?? 0)}
         />
         <SummaryCard
-          label="Estamina"
+          label="Cansaço"
           tone={colors.info}
-          value={`${center?.player.resources.stamina ?? player?.resources.stamina ?? 0}`}
+          value={`${center?.player.resources.cansaco ?? player?.resources.cansaco ?? 0}`}
         />
         <SummaryCard
           label="Básicos"
@@ -277,7 +277,7 @@ export function TrainingScreen(): JSX.Element {
             <View style={styles.metricRow}>
               <MetricPill label="Tempo" value={formatTrainingRemaining(activeSession.remainingSeconds)} />
               <MetricPill label="Custo" value={formatTrainingCurrency(activeSession.costMoney)} />
-              <MetricPill label="Estamina" value={`${activeSession.costStamina}`} />
+              <MetricPill label="Cansaço" value={`${activeSession.costCansaco}`} />
               <MetricPill label="Mult." value={`${activeSession.diminishingMultiplier.toFixed(2)}x`} />
             </View>
 
@@ -305,7 +305,7 @@ export function TrainingScreen(): JSX.Element {
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Nenhum treino em andamento</Text>
             <Text style={styles.emptyCopy}>
-              Escolha um tipo abaixo para transformar caixa e estamina em progresso real de atributos.
+              Escolha um tipo abaixo para transformar caixa e cansaço em progresso real de atributos.
             </Text>
           </View>
         )}
@@ -344,7 +344,7 @@ export function TrainingScreen(): JSX.Element {
 
               <View style={styles.metricRow}>
                 <MetricPill label="Custo" value={formatTrainingCurrency(training.moneyCost)} />
-                <MetricPill label="Estamina" value={`${training.staminaCost}`} />
+                <MetricPill label="Cansaço" value={`${training.cansacoCost}`} />
                 <MetricPill label="Básicos" value={`${training.basicSessionsCompleted}/${training.minimumBasicSessionsCompleted}`} />
                 <MetricPill label="Próx. mult." value={`${training.nextDiminishingMultiplier.toFixed(2)}x`} />
               </View>
@@ -360,7 +360,7 @@ export function TrainingScreen(): JSX.Element {
                 <View style={styles.selectionCard}>
                   <Text style={styles.selectionTitle}>{training.label}</Text>
                   <Text style={styles.detailCopy}>
-                    Duração {formatTrainingDuration(training.durationMinutes)} · custo {formatTrainingCurrency(training.moneyCost)} · stamina {training.staminaCost}
+                    Duração {formatTrainingDuration(training.durationMinutes)} · custo {formatTrainingCurrency(training.moneyCost)} · cansaço {training.cansacoCost}
                   </Text>
                   <Text style={styles.detailCopy}>
                     Ganho previsto agora: {formatTrainingGains(training.projectedGains)}

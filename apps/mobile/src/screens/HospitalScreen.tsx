@@ -49,7 +49,7 @@ export function HospitalScreen(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [pendingAction, setPendingAction] = useState<
-    'detox' | 'dstTreatment' | 'healthPlan' | 'statItem' | 'surgery' | 'treatment' | null
+    'detox' | 'healthPlan' | 'statItem' | 'surgery' | 'treatment' | null
   >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
@@ -131,7 +131,6 @@ export function HospitalScreen(): JSX.Element {
   const runHospitalAction = useCallback(async (
     action:
       | 'detox'
-      | 'dstTreatment'
       | 'healthPlan'
       | 'statItem'
       | 'surgery'
@@ -145,14 +144,12 @@ export function HospitalScreen(): JSX.Element {
     setPendingAction(action);
 
     try {
-      const response =
-        action === 'treatment'
+        const response =
+          action === 'treatment'
           ? await hospitalApi.applyTreatment()
           : action === 'detox'
             ? await hospitalApi.detox()
-            : action === 'dstTreatment'
-              ? await hospitalApi.applyDstTreatment()
-              : action === 'healthPlan'
+            : action === 'healthPlan'
                 ? await hospitalApi.purchaseHealthPlan()
                 : action === 'statItem'
                   ? await hospitalApi.purchaseStatItem({ itemCode: payload?.itemCode ?? 'cerebrina' })
@@ -180,7 +177,7 @@ export function HospitalScreen(): JSX.Element {
 
   return (
     <InGameScreenLayout
-      subtitle="Veja a internação em tempo real, cuide da vida, trate vício e DST, ative o plano de saúde e ajuste o visual do personagem usando os serviços reais do backend."
+      subtitle="Veja a internação em tempo real, cuide da vida, trate vício, ative o plano de saúde e ajuste o visual do personagem usando os serviços reais do backend."
       title="Hospital"
     >
       <View style={styles.summaryGrid}>
@@ -233,15 +230,6 @@ export function HospitalScreen(): JSX.Element {
         </Text>
       </View>
 
-      {center?.player.hasDst ? (
-        <View style={styles.infoStrip}>
-          <Text style={styles.infoStripTitle}>DST ativa</Text>
-          <Text style={styles.infoStripCopy}>
-            Trate agora para remover a DST. Recuperação natural prevista para {center.player.dstRecoversAt ? formatDateTime(center.player.dstRecoversAt) : 'data indisponível'}.
-          </Text>
-        </View>
-      ) : null}
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Serviços rápidos</Text>
         <ActionCard
@@ -266,18 +254,6 @@ export function HospitalScreen(): JSX.Element {
           meta={buildHospitalServiceCopy('detox', center?.services.detox ?? unavailableHospitalService())}
           onPress={() => {
             void runHospitalAction('detox');
-          }}
-        />
-        <ActionCard
-          accent={colors.info}
-          availability={center?.services.dstTreatment}
-          buttonLabel="Tratar DST"
-          disabled={isMutating || !center?.services.dstTreatment.available}
-          isPending={pendingAction === 'dstTreatment'}
-          label="Tratamento de DST"
-          meta={buildHospitalServiceCopy('dstTreatment', center?.services.dstTreatment ?? unavailableHospitalService())}
-          onPress={() => {
-            void runHospitalAction('dstTreatment');
           }}
         />
         <ActionCard

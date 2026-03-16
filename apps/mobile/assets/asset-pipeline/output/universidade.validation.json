@@ -1,0 +1,82 @@
+{
+  "ok": true,
+  "stage": "validation",
+  "svgPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/universidade.svg",
+  "checks": {
+    "viewBox": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "dimensions": {
+      "ok": true,
+      "expected": "0 0 160 160",
+      "actual": "0 0 160 160"
+    },
+    "centralization": {
+      "ok": true,
+      "deltaX": 15.5,
+      "deltaY": 35,
+      "allowedDeltaX": 39.2,
+      "allowedDeltaY": 39.2
+    },
+    "colors": {
+      "ok": true,
+      "count": 12,
+      "max": 36,
+      "palette": [
+        "#e2e0da",
+        "#2f241f",
+        "#969488",
+        "#a9a79b",
+        "#d5d0c4",
+        "#3f5144",
+        "#d4d6cf",
+        "#818175",
+        "#97978b",
+        "#9ebcd0",
+        "#f0ede4",
+        "#b28f59"
+      ]
+    },
+    "paths": {
+      "ok": true,
+      "count": 0,
+      "max": 320
+    },
+    "transparency": {
+      "ok": true,
+      "issues": [],
+      "max": 6
+    },
+    "background": {
+      "ok": true,
+      "rejectOpaqueFullBackground": true,
+      "opaqueBackgroundDetected": false
+    }
+  },
+  "failedChecks": [],
+  "metrics": {
+    "tagCount": 38,
+    "pathCount": 0,
+    "colorCount": 12,
+    "resolvedMaxColors": 36,
+    "resolvedMaxPaths": 320,
+    "bounds": {
+      "minX": 62,
+      "minY": 88,
+      "maxX": 129,
+      "maxY": 142,
+      "width": 67,
+      "height": 54,
+      "centerX": 95.5,
+      "centerY": 115
+    }
+  },
+  "note": "SVG validado com sucesso pelas regras automaticas atuais.",
+  "assetType": "university universidade",
+  "category": "hospital",
+  "previewPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/universidade.preview.png",
+  "renderManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/output/universidade.render.json",
+  "previewManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/previews/universidade.preview.json"
+}

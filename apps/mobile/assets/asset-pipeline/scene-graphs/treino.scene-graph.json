@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "assetType": "gym treino",
+  "category": "poor",
+  "density": "medium-low",
+  "dominantHeight": "mixed",
+  "silhouette": {
+    "primaryMassing": "readable-urban-structure",
+    "roofProfile": "mixed",
+    "heightProfile": "compact",
+    "skyline": "clear-and-readable",
+    "footprintProfile": "balanced",
+    "detailPriority": [
+      "entrada",
+      "janelas",
+      "volume principal",
+      "anexo secundario"
+    ]
+  },
+  "materials": [
+    "alvenaria simples",
+    "telha",
+    "reboco parcial",
+    "anexo improvisado"
+  ],
+  "requiredModules": [
+    "anchor-shadow",
+    "gym-core",
+    "gym-sign"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "factory-stack",
+    "guard-tower"
+  ],
+  "composition": {
+    "layout": "readable-urban-structure",
+    "primaryAxis": "front-left",
+    "stacking": "balanced",
+    "streetPresence": "medium",
+    "edgeNoise": "medium",
+    "anchorMass": "center-left",
+    "layering": [
+      "main-volume",
+      "secondary-volume",
+      "roof",
+      "detail"
+    ],
+    "variationPriority": [
+      "height",
+      "roof",
+      "attachments"
+    ]
+  },
+  "styleGuide": {
+    "profile": "cs-rio-semirealista",
+    "resolvedProfile": "default",
+    "family": "gym",
+    "perspective": "isometric-2:1",
+    "paletteIntent": null,
+    "compositionPolicy": {
+      "layout": "single-frontage",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 1,
+      "xStep": 0,
+      "yStep": 0,
+      "rowLift": 6,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "overlay"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 3,
+      "primaryModules": [
+        "gym-core"
+      ],
+      "secondaryModules": [
+        "gym-sign"
+      ],
+      "detailModules": [],
+      "forbiddenModules": [
+        "stage",
+        "factory-stack",
+        "guard-tower"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 3,
+        "y": 2
+      },
+      "scale": {
+        "min": 0.98,
+        "max": 1.04
+      },
+      "roofVariation": "low",
+      "materialVariation": "medium",
+      "attachmentVariation": "low"
+    },
+    "visualRules": [
+      "a faixa frontal precisa sugerir treino sem texto literal",
+      "deve ler mais como equipamento de bairro do que galpao esportivo"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "gym-core-1",
+      "module": "gym-core",
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "heightTier": "primary",
+      "variationSeed": 1,
+      "children": []
+    },
+    {
+      "id": "gym-sign-2",
+      "module": "gym-sign",
+      "layer": "midground",
+      "anchor": {
+        "x": 92,
+        "y": 120
+      },
+      "heightTier": "primary",
+      "variationSeed": 2,
+      "children": []
+    },
+    {
+      "id": "anchor-shadow-3",
+      "module": "anchor-shadow",
+      "layer": "overlay",
+      "anchor": {
+        "x": 92,
+        "y": 114
+      },
+      "heightTier": "secondary",
+      "variationSeed": 3,
+      "children": []
+    }
+  ]
+}

@@ -1,0 +1,1380 @@
+{
+  "families": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile",
+    "boca",
+    "market-clandestino",
+    "gym",
+    "hospital",
+    "prison",
+    "university",
+    "factory",
+    "dock-industrial",
+    "junkyard",
+    "residential-tower-simple",
+    "residential-tower-modern",
+    "commercial-block-simple",
+    "commercial-block-modern",
+    "house-simple",
+    "house-wealthy"
+  ],
+  "moduleCount": 61,
+  "modules": [
+    {
+      "id": "anchor-shadow",
+      "family": "shared",
+      "tags": [
+        "shared",
+        "grounding"
+      ],
+      "description": "Marcador tecnico opcional para ancoragem visual durante composicao.",
+      "footprint": {
+        "width": 26,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 96,
+        "y": 122
+      },
+      "slots": [
+        "grounding"
+      ],
+      "previewLength": 113
+    },
+    {
+      "id": "depth-mask",
+      "family": "shared",
+      "tags": [
+        "shared",
+        "layering"
+      ],
+      "description": "Mascara de profundidade usada pelo renderer final.",
+      "footprint": {
+        "width": 32,
+        "depth": 12
+      },
+      "anchor": {
+        "x": 96,
+        "y": 122
+      },
+      "slots": [
+        "mask"
+      ],
+      "previewLength": 110
+    },
+    {
+      "id": "building-1f",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "barraco",
+        "core-volume"
+      ],
+      "description": "Bloco base de um pavimento para massas urbanas compactas.",
+      "footprint": {
+        "width": 46,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "facade-front",
+        "window"
+      ],
+      "previewLength": 731
+    },
+    {
+      "id": "building-2f",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "mid-height",
+        "core-volume"
+      ],
+      "description": "Bloco de dois pavimentos para empilhamento irregular.",
+      "footprint": {
+        "width": 48,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "facade-front",
+        "roof-detail"
+      ],
+      "previewLength": 1099
+    },
+    {
+      "id": "building-3f",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "vertical",
+        "core-volume"
+      ],
+      "description": "Bloco de tres pavimentos para silhueta comprimida.",
+      "footprint": {
+        "width": 42,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "facade-front",
+        "roof-detail"
+      ],
+      "previewLength": 1462
+    },
+    {
+      "id": "narrow-building",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "narrow",
+        "infill"
+      ],
+      "description": "Edificacao estreita para miolos adensados.",
+      "footprint": {
+        "width": 30,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 94,
+        "y": 118
+      },
+      "slots": [
+        "facade-front",
+        "window"
+      ],
+      "previewLength": 728
+    },
+    {
+      "id": "wide-building",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "wide",
+        "anchor"
+      ],
+      "description": "Edificacao larga para massa dominante lateral.",
+      "footprint": {
+        "width": 56,
+        "depth": 22
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "facade-front",
+        "awning"
+      ],
+      "previewLength": 1008
+    },
+    {
+      "id": "rooftop-slab",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "roof",
+        "concrete"
+      ],
+      "description": "Laje superior plana para leitura de concreto.",
+      "footprint": {
+        "width": 26,
+        "depth": 12
+      },
+      "anchor": {
+        "x": 92,
+        "y": 106
+      },
+      "slots": [
+        "roof-detail"
+      ],
+      "previewLength": 488
+    },
+    {
+      "id": "corrugated-roof",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "roof",
+        "metal"
+      ],
+      "description": "Cobertura ondulada metalica para textura urbana.",
+      "footprint": {
+        "width": 34,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 92,
+        "y": 104
+      },
+      "slots": [
+        "roof-detail"
+      ],
+      "previewLength": 553
+    },
+    {
+      "id": "water-tank",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "roof-detail",
+        "utility"
+      ],
+      "description": "Caixa dagua ou reservatorio de cobertura.",
+      "footprint": {
+        "width": 14,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 92,
+        "y": 104
+      },
+      "slots": [
+        "roof-detail"
+      ],
+      "previewLength": 384
+    },
+    {
+      "id": "external-pipe",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "utility",
+        "facade-detail"
+      ],
+      "description": "Tubulacao externa para leitura de improviso e servico.",
+      "footprint": {
+        "width": 8,
+        "depth": 6
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "utility-side"
+      ],
+      "previewLength": 417
+    },
+    {
+      "id": "awning",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "facade-detail",
+        "shade"
+      ],
+      "description": "Toldo de fachada e varanda.",
+      "footprint": {
+        "width": 24,
+        "depth": 12
+      },
+      "anchor": {
+        "x": 92,
+        "y": 112
+      },
+      "slots": [
+        "facade-front"
+      ],
+      "previewLength": 386
+    },
+    {
+      "id": "stair",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "circulation",
+        "external"
+      ],
+      "description": "Escada externa para leitura de acesso vertical.",
+      "footprint": {
+        "width": 30,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 86,
+        "y": 118
+      },
+      "slots": [
+        "circulation"
+      ],
+      "previewLength": 718
+    },
+    {
+      "id": "small-window",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "facade-detail",
+        "window"
+      ],
+      "description": "Janela pequena repetivel de fachada.",
+      "footprint": {
+        "width": 14,
+        "depth": 8
+      },
+      "anchor": {
+        "x": 92,
+        "y": 104
+      },
+      "slots": [
+        "window"
+      ],
+      "previewLength": 354
+    },
+    {
+      "id": "ac-unit",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "facade-detail",
+        "equipment"
+      ],
+      "description": "Ar-condicionado ou caixa tecnica lateral.",
+      "footprint": {
+        "width": 16,
+        "depth": 8
+      },
+      "anchor": {
+        "x": 92,
+        "y": 104
+      },
+      "slots": [
+        "facade-side"
+      ],
+      "previewLength": 516
+    },
+    {
+      "id": "side-wall",
+      "family": "favela",
+      "tags": [
+        "favela",
+        "facade-detail",
+        "wall"
+      ],
+      "description": "Parede lateral cega para encaixe de massa urbana.",
+      "footprint": {
+        "width": 26,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 92,
+        "y": 116
+      },
+      "slots": [
+        "facade-side"
+      ],
+      "previewLength": 231
+    },
+    {
+      "id": "cluster-core-dense",
+      "family": "favela-cluster",
+      "tags": [
+        "favela-cluster",
+        "anchor",
+        "mass"
+      ],
+      "description": "Nucleo denso de massa urbana para centro de favela.",
+      "footprint": {
+        "width": 84,
+        "depth": 34
+      },
+      "anchor": {
+        "x": 96,
+        "y": 118
+      },
+      "slots": [
+        "roof-detail",
+        "utility-top",
+        "facade-front"
+      ],
+      "previewLength": 5303
+    },
+    {
+      "id": "cluster-step-left",
+      "family": "favela-cluster",
+      "tags": [
+        "favela-cluster",
+        "terrace",
+        "left"
+      ],
+      "description": "Escalonamento lateral esquerdo para cluster comprimido.",
+      "footprint": {
+        "width": 74,
+        "depth": 30
+      },
+      "anchor": {
+        "x": 94,
+        "y": 118
+      },
+      "slots": [
+        "roof-detail",
+        "circulation"
+      ],
+      "previewLength": 3311
+    },
+    {
+      "id": "cluster-step-right",
+      "family": "favela-cluster",
+      "tags": [
+        "favela-cluster",
+        "terrace",
+        "right"
+      ],
+      "description": "Escalonamento lateral direito para cluster comprimido.",
+      "footprint": {
+        "width": 70,
+        "depth": 28
+      },
+      "anchor": {
+        "x": 98,
+        "y": 118
+      },
+      "slots": [
+        "roof-detail",
+        "utility-side"
+      ],
+      "previewLength": 3198
+    },
+    {
+      "id": "cluster-roofline",
+      "family": "favela-cluster",
+      "tags": [
+        "favela-cluster",
+        "roofline",
+        "utility"
+      ],
+      "description": "Faixa de coberturas e caixas dagua para fechar a silhueta superior.",
+      "footprint": {
+        "width": 64,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 98,
+        "y": 96
+      },
+      "slots": [
+        "roof-detail"
+      ],
+      "previewLength": 2107
+    },
+    {
+      "id": "cluster-service-strip",
+      "family": "favela-cluster",
+      "tags": [
+        "favela-cluster",
+        "service",
+        "street-edge"
+      ],
+      "description": "Faixa de servico e acesso no pe do cluster.",
+      "footprint": {
+        "width": 72,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "circulation",
+        "facade-front"
+      ],
+      "previewLength": 2853
+    },
+    {
+      "id": "barraco-unit",
+      "family": "barraco",
+      "tags": [
+        "barraco",
+        "single",
+        "core"
+      ],
+      "description": "Unidade base de barraco com cobertura metalica.",
+      "footprint": {
+        "width": 48,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "roof-detail",
+        "facade-front"
+      ],
+      "previewLength": 1164
+    },
+    {
+      "id": "barraco-stacked",
+      "family": "barraco",
+      "tags": [
+        "barraco",
+        "stacked",
+        "vertical"
+      ],
+      "description": "Barraco empilhado para beira de escada e encosta.",
+      "footprint": {
+        "width": 44,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "slots": [
+        "circulation",
+        "roof-detail"
+      ],
+      "previewLength": 1764
+    },
+    {
+      "id": "barraco-corner",
+      "family": "barraco",
+      "tags": [
+        "barraco",
+        "corner",
+        "service"
+      ],
+      "description": "Barraco de esquina com utilitarios aparentes.",
+      "footprint": {
+        "width": 40,
+        "depth": 22
+      },
+      "anchor": {
+        "x": 92,
+        "y": 116
+      },
+      "slots": [
+        "utility-top",
+        "utility-side"
+      ],
+      "previewLength": 1509
+    },
+    {
+      "id": "barraco-roof-patch",
+      "family": "barraco",
+      "tags": [
+        "barraco",
+        "roofline",
+        "detail"
+      ],
+      "description": "Conjunto de remendos e coberturas para quebra de silhueta.",
+      "footprint": {
+        "width": 34,
+        "depth": 14
+      },
+      "anchor": {
+        "x": 96,
+        "y": 112
+      },
+      "slots": [
+        "roof-detail"
+      ],
+      "previewLength": 1229
+    },
+    {
+      "id": "street-segment",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "ground",
+        "street"
+      ],
+      "description": "Trecho de rua que ancora o baile na favela.",
+      "footprint": {
+        "width": 78,
+        "depth": 30
+      },
+      "anchor": {
+        "x": 96,
+        "y": 122
+      },
+      "slots": [
+        "ground"
+      ],
+      "previewLength": 831
+    },
+    {
+      "id": "crowd-mass",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "crowd",
+        "foreground"
+      ],
+      "description": "Massa de publico legivel sem virar ruido.",
+      "footprint": {
+        "width": 42,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 96,
+        "y": 122
+      },
+      "slots": [
+        "crowd"
+      ],
+      "previewLength": 1652
+    },
+    {
+      "id": "stage",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "stage",
+        "anchor"
+      ],
+      "description": "Palco principal do evento.",
+      "footprint": {
+        "width": 40,
+        "depth": 22
+      },
+      "anchor": {
+        "x": 96,
+        "y": 120
+      },
+      "slots": [
+        "stage"
+      ],
+      "previewLength": 1104
+    },
+    {
+      "id": "truss",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "stage",
+        "structure"
+      ],
+      "description": "Estrutura metalica de palco e iluminacao.",
+      "footprint": {
+        "width": 42,
+        "depth": 14
+      },
+      "anchor": {
+        "x": 96,
+        "y": 120
+      },
+      "slots": [
+        "stage-top"
+      ],
+      "previewLength": 987
+    },
+    {
+      "id": "canopy-strip",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "cover",
+        "street"
+      ],
+      "description": "Faixa de cobertura ou lona ao longo da rua.",
+      "footprint": {
+        "width": 48,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 96,
+        "y": 110
+      },
+      "slots": [
+        "cover"
+      ],
+      "previewLength": 1905
+    },
+    {
+      "id": "favela-side-block-left",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "favela-edge",
+        "left"
+      ],
+      "description": "Massa lateral esquerda de favela que comprime a rua.",
+      "footprint": {
+        "width": 52,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 88,
+        "y": 122
+      },
+      "slots": [
+        "edge-left"
+      ],
+      "previewLength": 6104
+    },
+    {
+      "id": "favela-side-block-right",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "favela-edge",
+        "right"
+      ],
+      "description": "Massa lateral direita de favela que comprime a rua.",
+      "footprint": {
+        "width": 46,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 110,
+        "y": 122
+      },
+      "slots": [
+        "edge-right"
+      ],
+      "previewLength": 5502
+    },
+    {
+      "id": "pole",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "street-detail",
+        "utility"
+      ],
+      "description": "Poste urbano para ancorar luzes e fios.",
+      "footprint": {
+        "width": 8,
+        "depth": 8
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "utility"
+      ],
+      "previewLength": 724
+    },
+    {
+      "id": "wires",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "street-detail",
+        "utility"
+      ],
+      "description": "Fios aereos atravessando o trecho do evento.",
+      "footprint": {
+        "width": 58,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 96,
+        "y": 80
+      },
+      "slots": [
+        "utility-top"
+      ],
+      "previewLength": 681
+    },
+    {
+      "id": "tent",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "vendor",
+        "support"
+      ],
+      "description": "Barraca de apoio lateral do baile.",
+      "footprint": {
+        "width": 24,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 122,
+        "y": 122
+      },
+      "slots": [
+        "support"
+      ],
+      "previewLength": 955
+    },
+    {
+      "id": "speaker-stack",
+      "family": "baile",
+      "tags": [
+        "baile",
+        "audio",
+        "stage-detail"
+      ],
+      "description": "Torre ou pilha de caixas de som.",
+      "footprint": {
+        "width": 16,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 84,
+        "y": 120
+      },
+      "slots": [
+        "audio"
+      ],
+      "previewLength": 1885
+    },
+    {
+      "id": "boca-core",
+      "family": "boca",
+      "tags": [
+        "favela",
+        "clandestine",
+        "boca"
+      ],
+      "description": "Nucleo principal de frente clandestina em favela.",
+      "footprint": {
+        "width": 44,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 2595
+    },
+    {
+      "id": "boca-guarded-entry",
+      "family": "boca",
+      "tags": [
+        "favela",
+        "entry",
+        "boca"
+      ],
+      "description": "Entrada protegida e comprimida da boca.",
+      "footprint": {
+        "width": 28,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "entry"
+      ],
+      "previewLength": 1124
+    },
+    {
+      "id": "market-core",
+      "family": "market-clandestino",
+      "tags": [
+        "market",
+        "clandestine",
+        "core"
+      ],
+      "description": "Nucleo principal do mercado clandestino.",
+      "footprint": {
+        "width": 52,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1529
+    },
+    {
+      "id": "market-stall-row",
+      "family": "market-clandestino",
+      "tags": [
+        "market",
+        "stall",
+        "detail"
+      ],
+      "description": "Fila de bancas e toldos do mercado clandestino.",
+      "footprint": {
+        "width": 50,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 686
+    },
+    {
+      "id": "gym-core",
+      "family": "gym",
+      "tags": [
+        "gym",
+        "training",
+        "core"
+      ],
+      "description": "Predio base de academia ou centro de treino.",
+      "footprint": {
+        "width": 56,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 820
+    },
+    {
+      "id": "gym-sign",
+      "family": "gym",
+      "tags": [
+        "gym",
+        "sign",
+        "detail"
+      ],
+      "description": "Faixa e aparelhos sugeridos para leitura de treino.",
+      "footprint": {
+        "width": 28,
+        "depth": 8
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 381
+    },
+    {
+      "id": "hospital-core",
+      "family": "hospital",
+      "tags": [
+        "hospital",
+        "institutional",
+        "core"
+      ],
+      "description": "Bloco principal de hospital.",
+      "footprint": {
+        "width": 62,
+        "depth": 24
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1737
+    },
+    {
+      "id": "hospital-entry",
+      "family": "hospital",
+      "tags": [
+        "hospital",
+        "entry",
+        "detail"
+      ],
+      "description": "Entrada e sinalização discreta do hospital.",
+      "footprint": {
+        "width": 26,
+        "depth": 12
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "entry"
+      ],
+      "previewLength": 672
+    },
+    {
+      "id": "prison-core",
+      "family": "prison",
+      "tags": [
+        "prison",
+        "institutional",
+        "core"
+      ],
+      "description": "Bloco principal da prisão.",
+      "footprint": {
+        "width": 58,
+        "depth": 24
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 927
+    },
+    {
+      "id": "prison-wall",
+      "family": "prison",
+      "tags": [
+        "prison",
+        "wall",
+        "detail"
+      ],
+      "description": "Muro perimetral da prisão.",
+      "footprint": {
+        "width": 62,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 614
+    },
+    {
+      "id": "guard-tower",
+      "family": "prison",
+      "tags": [
+        "prison",
+        "tower",
+        "detail"
+      ],
+      "description": "Torre de vigilância.",
+      "footprint": {
+        "width": 16,
+        "depth": 10
+      },
+      "anchor": {
+        "x": 118,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 554
+    },
+    {
+      "id": "university-core",
+      "family": "university",
+      "tags": [
+        "university",
+        "institutional",
+        "core"
+      ],
+      "description": "Bloco principal de universidade.",
+      "footprint": {
+        "width": 60,
+        "depth": 24
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1358
+    },
+    {
+      "id": "university-wing",
+      "family": "university",
+      "tags": [
+        "university",
+        "wing",
+        "detail"
+      ],
+      "description": "Ala de apoio do equipamento universitário.",
+      "footprint": {
+        "width": 26,
+        "depth": 12
+      },
+      "anchor": {
+        "x": 116,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 784
+    },
+    {
+      "id": "factory-hall",
+      "family": "factory",
+      "tags": [
+        "factory",
+        "industrial",
+        "core"
+      ],
+      "description": "Galpão principal da fábrica.",
+      "footprint": {
+        "width": 64,
+        "depth": 24
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1461
+    },
+    {
+      "id": "factory-stack",
+      "family": "factory",
+      "tags": [
+        "factory",
+        "industrial",
+        "stack"
+      ],
+      "description": "Chaminé e corpo vertical da fábrica.",
+      "footprint": {
+        "width": 12,
+        "depth": 8
+      },
+      "anchor": {
+        "x": 118,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 622
+    },
+    {
+      "id": "dock-warehouse",
+      "family": "dock-industrial",
+      "tags": [
+        "dock",
+        "industrial",
+        "warehouse"
+      ],
+      "description": "Galpão de doca e armazenamento.",
+      "footprint": {
+        "width": 66,
+        "depth": 24
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 700
+    },
+    {
+      "id": "container-stack",
+      "family": "dock-industrial",
+      "tags": [
+        "dock",
+        "industrial",
+        "container"
+      ],
+      "description": "Pilha de containers e braço de carga.",
+      "footprint": {
+        "width": 54,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 465
+    },
+    {
+      "id": "junkyard-shed",
+      "family": "junkyard",
+      "tags": [
+        "junkyard",
+        "industrial",
+        "shed"
+      ],
+      "description": "Galpão precário do desmanche.",
+      "footprint": {
+        "width": 44,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 994
+    },
+    {
+      "id": "scrap-pile",
+      "family": "junkyard",
+      "tags": [
+        "junkyard",
+        "scrap",
+        "detail"
+      ],
+      "description": "Pilha de sucata para leitura imediata de ferro velho.",
+      "footprint": {
+        "width": 52,
+        "depth": 16
+      },
+      "anchor": {
+        "x": 94,
+        "y": 122
+      },
+      "slots": [
+        "detail"
+      ],
+      "previewLength": 502
+    },
+    {
+      "id": "tower-simple-core",
+      "family": "residential-tower-simple",
+      "tags": [
+        "residential",
+        "tower",
+        "simple"
+      ],
+      "description": "Torre residencial simples.",
+      "footprint": {
+        "width": 40,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1518
+    },
+    {
+      "id": "tower-modern-core",
+      "family": "residential-tower-modern",
+      "tags": [
+        "residential",
+        "tower",
+        "modern"
+      ],
+      "description": "Torre residencial moderna.",
+      "footprint": {
+        "width": 40,
+        "depth": 18
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1598
+    },
+    {
+      "id": "commercial-simple-core",
+      "family": "commercial-block-simple",
+      "tags": [
+        "commercial",
+        "block",
+        "simple"
+      ],
+      "description": "Bloco comercial simples.",
+      "footprint": {
+        "width": 52,
+        "depth": 22
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1568
+    },
+    {
+      "id": "commercial-modern-core",
+      "family": "commercial-block-modern",
+      "tags": [
+        "commercial",
+        "block",
+        "modern"
+      ],
+      "description": "Bloco comercial moderno.",
+      "footprint": {
+        "width": 52,
+        "depth": 22
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1350
+    },
+    {
+      "id": "house-simple-core",
+      "family": "house-simple",
+      "tags": [
+        "residential",
+        "house",
+        "simple"
+      ],
+      "description": "Casa residencial simples.",
+      "footprint": {
+        "width": 48,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1245
+    },
+    {
+      "id": "house-wealthy-core",
+      "family": "house-wealthy",
+      "tags": [
+        "residential",
+        "house",
+        "wealthy"
+      ],
+      "description": "Casa residencial nobre.",
+      "footprint": {
+        "width": 52,
+        "depth": 20
+      },
+      "anchor": {
+        "x": 92,
+        "y": 122
+      },
+      "slots": [
+        "core"
+      ],
+      "previewLength": 1375
+    }
+  ]
+}

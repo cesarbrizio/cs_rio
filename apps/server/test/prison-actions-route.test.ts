@@ -69,6 +69,12 @@ describe('prison routes', () => {
   });
 
   it('releases the player on successful bribe and deducts the attempted money', async () => {
+    await app.close();
+    app = await createApp({
+      prisonRandom: () => 0,
+    });
+    await app.ready();
+
     const player = await registerAndCreateCharacter();
     await updatePlayerState(player.id, {
       conceito: 0,
@@ -78,7 +84,6 @@ describe('prison routes', () => {
       reason: 'Flagrado em furto simples',
       releaseInHours: 2,
     });
-    vi.spyOn(Math, 'random').mockReturnValue(0);
 
     const response = await app.inject({
       headers: {
@@ -129,12 +134,17 @@ describe('prison routes', () => {
   });
 
   it('extends the sentence and increases police heat when escape fails', async () => {
+    await app.close();
+    app = await createApp({
+      prisonRandom: () => 0.99,
+    });
+    await app.ready();
+
     const player = await registerAndCreateCharacter();
     await imprisonPlayer(player.id, {
       reason: 'Flagrado em homicidio',
       releaseInHours: 1,
     });
-    vi.spyOn(Math, 'random').mockReturnValue(0.99);
 
     const response = await app.inject({
       headers: {

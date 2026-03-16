@@ -223,16 +223,16 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
       inteligencia: 18,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '1000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 12,
       positionY: 18,
       regionId: RegionId.ZonaNorte,
       resistencia: 18,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
       conceito: 1500,
     };
@@ -334,7 +334,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     assassin.hp = input.assassin.hpAfter;
     assassin.level = input.assassin.levelAfter;
     assassin.money = input.assassin.moneyAfter.toFixed(2);
-    assassin.stamina = input.assassin.staminaAfter;
+    assassin.cansaco = input.assassin.cansacoAfter;
 
     target.hp = input.target.hpAfter;
     target.money = input.target.moneyAfter.toFixed(2);
@@ -364,7 +364,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
       attacker.hp = attackerSnapshot.hpAfter;
       attacker.level = attackerSnapshot.levelAfter;
       attacker.money = attackerSnapshot.moneyAfter.toFixed(2);
-      attacker.stamina = attackerSnapshot.staminaAfter;
+      attacker.cansaco = attackerSnapshot.cansacoAfter;
     }
 
     const defender = this.state.players.get(input.defender.id);
@@ -393,7 +393,7 @@ class InMemoryAuthPvpRepository implements AuthRepository, PvpRepository {
     attacker.level = input.attacker.levelAfter;
     attacker.money = input.attacker.moneyAfter.toFixed(2);
     attacker.resistencia = input.attacker.attributes.resistencia;
-    attacker.stamina = input.attacker.staminaAfter;
+    attacker.cansaco = input.attacker.cansacoAfter;
 
     defender.carisma = input.defender.attributes.carisma;
     defender.forca = input.defender.attributes.forca;
@@ -460,7 +460,7 @@ class InMemoryCombatRepository {
           heat: heat.score,
           hp: player.hp,
           money: Number(player.money),
-          stamina: player.stamina,
+          cansaco: player.cansaco,
         },
         vocation: player.vocation as VocationType,
       },
@@ -599,7 +599,7 @@ describe('pvp routes', () => {
     await testApp.pvpService.close?.();
   });
 
-  it('executes a 1v1 assault, transfers loot, applies hospitalization and consumes stamina', async () => {
+  it('executes a 1v1 assault, transfers loot, applies hospitalization and consumes cansaco', async () => {
     const attackerAuth = await testApp.authService.register({
       email: 'attacker@csr.io',
       nickname: 'atacante',
@@ -645,7 +645,7 @@ describe('pvp routes', () => {
       attacker: {
         id: attacker.id,
         nickname: 'atacante',
-        staminaAfter: 80,
+        cansacoAfter: 80,
       },
       defender: {
         id: defender.id,
@@ -659,7 +659,7 @@ describe('pvp routes', () => {
 
     expect(Number(attacker.money)).toBe(1160);
     expect(Number(defender.money)).toBe(840);
-    expect(attacker.stamina).toBe(80);
+    expect(attacker.cansaco).toBe(80);
     expect(attacker.conceito).toBeGreaterThan(1500);
 
     const defenderHospitalization =
@@ -722,7 +722,7 @@ describe('pvp routes', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().message).toContain('hospitalizado');
     expect(state.players.get(defender.id)?.hp).toBe(100);
-    expect(state.players.get(attacker.id)?.stamina).toBe(100);
+    expect(state.players.get(attacker.id)?.cansaco).toBe(100);
   });
 
   it('blocks a repeated assault against the same target while cooldown is active', async () => {
@@ -978,7 +978,7 @@ describe('pvp routes', () => {
       targetCooldownSeconds: 43200,
     });
     expect(payload.attackers).toHaveLength(3);
-    expect(payload.attackers.every((attacker: { staminaAfter: number }) => attacker.staminaAfter === 85)).toBe(true);
+    expect(payload.attackers.every((attacker: { cansacoAfter: number }) => attacker.cansacoAfter === 85)).toBe(true);
     expect(payload.loot.amount).toBeGreaterThan(0);
 
     const totalAttackerGain = payload.attackers.reduce(

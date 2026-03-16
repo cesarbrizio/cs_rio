@@ -226,36 +226,36 @@ describe('faction helpers', () => {
     expect(
       resolveFactionLedgerEntryLabel({
         balanceAfter: 7000,
-        commissionAmount: 70,
+        commissionAmount: 120,
         createdAt: '2026-03-14T12:00:00.000Z',
-        description: 'Comissão automática recebida de aposta no jogo do bicho de membro.',
+        description: 'Comissão automática recebida de boca.',
         entryType: 'business_commission',
         grossAmount: 1000,
         id: 'ledger-1',
-        netAmount: 930,
-        originType: 'bicho',
+        netAmount: 880,
+        originType: 'boca',
         playerId: 'player-1',
         playerNickname: 'Radar',
-        propertyId: null,
+        propertyId: 'property-1',
       }),
-    ).toContain('bicho');
+    ).toContain('boca');
 
     expect(
       resolveFactionLedgerDisplayedAmount({
         balanceAfter: 7000,
-        commissionAmount: 70,
+        commissionAmount: 120,
         createdAt: '2026-03-14T12:00:00.000Z',
-        description: 'Comissão automática recebida de aposta no jogo do bicho de membro.',
+        description: 'Comissão automática recebida de boca.',
         entryType: 'business_commission',
         grossAmount: 1000,
         id: 'ledger-1',
-        netAmount: 930,
-        originType: 'bicho',
+        netAmount: 880,
+        originType: 'boca',
         playerId: 'player-1',
         playerNickname: 'Radar',
-        propertyId: null,
+        propertyId: 'property-1',
       }),
-    ).toBe(70);
+    ).toBe(120);
 
     expect(
       summarizeFactionLedger([

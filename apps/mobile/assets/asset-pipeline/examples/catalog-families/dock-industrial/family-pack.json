@@ -1,0 +1,64 @@
+{
+  "family": "dock-industrial",
+  "title": "Infraestrutura industrial e de docas",
+  "category": "factory",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "docas"
+  ],
+  "assetTypes": [
+    "docas"
+  ],
+  "planCategories": [
+    "factory"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/factory/fabrica_1.jpg",
+    "assets/examples/factory/fabrica_7.png"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_7.png"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_1.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "massa industrial horizontal com elementos de pátio, carga e cobertura ampla",
+  "mustCapture": [
+    "galpao largo",
+    "elemento de carga ou doca",
+    "telhado industrial"
+  ],
+  "avoid": [
+    "predio administrativo",
+    "fabrica vertical genérica",
+    "cais vazio demais"
+  ],
+  "notes": [
+    "Mesmo sem referencia portuaria pura, estas imagens cobrem a linguagem de base industrial necessaria."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/dock-industrial",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/dock-industrial/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_7.png",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/factory/fabrica_7.png",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/dock-industrial/references/01-factory-fabrica_7.png"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/factory/fabrica_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/factory/fabrica_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/dock-industrial/references/02-factory-fabrica_1.jpg"
+    }
+  ]
+}

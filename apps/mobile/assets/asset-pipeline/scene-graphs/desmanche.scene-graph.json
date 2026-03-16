@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "assetType": "junkyard desmanche",
+  "category": "junkyard",
+  "density": "medium-low",
+  "dominantHeight": "low-rise-horizontal",
+  "silhouette": {
+    "primaryMassing": "industrial-complex",
+    "roofProfile": "shed-and-flat-mix",
+    "heightProfile": "low-bulk-with-utility-elements",
+    "skyline": "chimney-crane-or-piles",
+    "footprintProfile": "wide-industrial",
+    "detailPriority": [
+      "galpao",
+      "doca",
+      "sucata ou equipamento",
+      "portao",
+      "anexo tecnico"
+    ]
+  },
+  "materials": [
+    "sucata metalica",
+    "telha",
+    "container",
+    "pilha de material",
+    "sucata",
+    "metal oxidado"
+  ],
+  "requiredModules": [
+    "anchor-shadow",
+    "junkyard-shed",
+    "scrap-pile"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "hospital-entry",
+    "tower-modern-core"
+  ],
+  "composition": {
+    "layout": "industrial-complex",
+    "primaryAxis": "front-left",
+    "stacking": "balanced",
+    "streetPresence": "medium",
+    "edgeNoise": "medium",
+    "anchorMass": "center-left",
+    "layering": [
+      "main-volume",
+      "secondary-volume",
+      "roof",
+      "detail"
+    ],
+    "variationPriority": [
+      "height",
+      "roof",
+      "attachments"
+    ]
+  },
+  "styleGuide": {
+    "profile": "cs-rio-semirealista",
+    "resolvedProfile": "simcity-urban",
+    "family": "junkyard",
+    "perspective": "isometric-2:1",
+    "paletteIntent": null,
+    "compositionPolicy": {
+      "layout": "open-yard",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 14,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 4,
+      "primaryModules": [
+        "junkyard-shed"
+      ],
+      "secondaryModules": [
+        "scrap-pile"
+      ],
+      "detailModules": [],
+      "forbiddenModules": [
+        "stage",
+        "hospital-entry",
+        "tower-modern-core"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 4,
+        "y": 3
+      },
+      "scale": {
+        "min": 0.98,
+        "max": 1.05
+      },
+      "roofVariation": "medium",
+      "materialVariation": "medium-high",
+      "attachmentVariation": "medium"
+    },
+    "visualRules": [
+      "a pilha de sucata precisa aparecer",
+      "nao pode virar fabrica limpa"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "junkyard-shed-1",
+      "module": "junkyard-shed",
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "heightTier": "primary",
+      "variationSeed": 1,
+      "children": []
+    },
+    {
+      "id": "scrap-pile-2",
+      "module": "scrap-pile",
+      "layer": "midground",
+      "anchor": {
+        "x": 106,
+        "y": 122
+      },
+      "heightTier": "primary",
+      "variationSeed": 2,
+      "children": []
+    },
+    {
+      "id": "anchor-shadow-3",
+      "module": "anchor-shadow",
+      "layer": "background",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "heightTier": "secondary",
+      "variationSeed": 3,
+      "children": []
+    },
+    {
+      "id": "junkyard-shed-4",
+      "module": "junkyard-shed",
+      "layer": "overlay",
+      "anchor": {
+        "x": 106,
+        "y": 114
+      },
+      "heightTier": "secondary",
+      "variationSeed": 4,
+      "children": []
+    }
+  ]
+}

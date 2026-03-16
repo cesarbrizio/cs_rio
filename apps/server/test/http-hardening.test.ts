@@ -271,6 +271,93 @@ describe('HTTP hardening', () => {
       category: 'rate_limited',
     });
   });
+
+  it('isolates shared rate limiting across vitest workers in test mode', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalPoolId = process.env.VITEST_POOL_ID;
+    const sharedStore = new InMemoryKeyValueStore();
+
+    try {
+      process.env.NODE_ENV = 'test';
+      process.env.VITEST_POOL_ID = 'worker-a';
+
+      const appA = await createHardeningApp(async (instance) => {
+        instance.addHook('preHandler', createHttpRateLimitHook({ keyValueStore: sharedStore }));
+        instance.post(
+          '/auth/login',
+          {
+            schema: {
+              body: loginBodySchema,
+              response: buildStandardResponseSchema(200),
+            },
+          },
+          async () => ({
+            ok: true,
+          }),
+        );
+      });
+
+      for (let index = 0; index < 40; index += 1) {
+        const response = await appA.inject({
+          method: 'POST',
+          payload: {
+            email: 'test@example.com',
+            password: 'correct-horse-battery-staple',
+          },
+          url: '/auth/login',
+        });
+
+        expect(response.statusCode).toBe(200);
+      }
+
+      const rateLimitedResponse = await appA.inject({
+        method: 'POST',
+        payload: {
+          email: 'test@example.com',
+          password: 'correct-horse-battery-staple',
+        },
+        url: '/auth/login',
+      });
+
+      expect(rateLimitedResponse.statusCode).toBe(429);
+
+      process.env.VITEST_POOL_ID = 'worker-b';
+
+      const appB = await createHardeningApp(async (instance) => {
+        instance.addHook('preHandler', createHttpRateLimitHook({ keyValueStore: sharedStore }));
+        instance.post(
+          '/auth/login',
+          {
+            schema: {
+              body: loginBodySchema,
+              response: buildStandardResponseSchema(200),
+            },
+          },
+          async () => ({
+            ok: true,
+          }),
+        );
+      });
+
+      const response = await appB.inject({
+        method: 'POST',
+        payload: {
+          email: 'test@example.com',
+          password: 'correct-horse-battery-staple',
+        },
+        url: '/auth/login',
+      });
+
+      expect(response.statusCode).toBe(200);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalPoolId === undefined) {
+        delete process.env.VITEST_POOL_ID;
+      } else {
+        process.env.VITEST_POOL_ID = originalPoolId;
+      }
+    }
+  });
 });
 
 async function createHardeningApp(

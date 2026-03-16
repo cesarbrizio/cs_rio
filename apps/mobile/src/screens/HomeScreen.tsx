@@ -486,7 +486,7 @@ export function HomeScreen(): JSX.Element {
         compactLabel: 'Hospital',
         description: player?.hospitalization.isHospitalized
           ? 'Acompanhe a internação e os serviços liberados.'
-          : 'Cure HP, trate vício, DST, plano e cirurgia.',
+          : 'Cure HP, trate vício, plano e cirurgia.',
         group: 'Meu corre',
         id: 'hospital',
         label: 'Ir ao hospital',
@@ -535,6 +535,14 @@ export function HomeScreen(): JSX.Element {
         label: 'Jogo do Bicho',
       },
       {
+        badge: 0,
+        compactLabel: 'Eventos',
+        description: 'Veja eventos ativos e o histórico recente dos resultados do mapa.',
+        group: 'Na rua',
+        id: 'events',
+        label: 'Ver eventos',
+      },
+      {
         badge: player?.inventory.length ?? 0,
         compactLabel: 'Equipar',
         description: 'Equipe armas, coletes e consumíveis.',
@@ -544,21 +552,11 @@ export function HomeScreen(): JSX.Element {
       },
       {
         badge: player?.properties.length ?? 0,
-        compactLabel: 'Negócios',
-        description: 'Gerencie negócios, patrimônio e soldados.',
+        compactLabel: 'Ativos',
+        description: 'Gerencie operações que giram caixa e a sua base de imóveis, veículos e proteção.',
         group: 'Meu corre',
         id: 'ops',
-        label: 'Tocar negócios',
-      },
-      {
-        badge:
-          player?.properties.filter((property) => property.type === 'slot_machine').length ?? 0,
-        compactLabel: 'Maquininha',
-        description:
-          'Negócio passivo do patrimônio: instale, configure aposta e colete o caixa.',
-        group: 'Meu corre',
-        id: 'slot_machine',
-        label: 'Maquininha',
+        label: 'Gerir ativos',
       },
       {
         badge: 0,
@@ -578,20 +576,44 @@ export function HomeScreen(): JSX.Element {
         label: 'Julgar caso',
       },
       {
+        badge: 0,
+        compactLabel: 'Sabotar',
+        description: 'Escolha um alvo rival, veja cooldown e recupere sua base se ela tomar dano.',
+        group: 'Na rua',
+        id: 'sabotage',
+        label: 'Sabotar rival',
+      },
+      {
         badge: player?.faction ? 1 : 0,
         compactLabel: 'Facção',
-        description: 'Membros, banco, upgrades e liderança.',
+        description: 'Membros, banco, upgrades, liderança e o chat interno da facção.',
         group: 'Rede',
         id: 'faction',
         label: 'Falar com a facção',
       },
       {
         badge: 0,
+        compactLabel: 'Contatos',
+        description: 'Gerencie parceiros, conhecidos e DMs; global, local e comércio ficam fora do recorte atual.',
+        group: 'Rede',
+        id: 'contacts',
+        label: 'Abrir contatos',
+      },
+      {
+        badge: 0,
         compactLabel: 'Estudar',
-        description: 'Cursos para bônus passivos e progressão.',
+        description: 'Cursos, perks exclusivos e timers da sua trilha.',
         group: 'Meu corre',
         id: 'university',
         label: 'Estudar',
+      },
+      {
+        badge: 0,
+        compactLabel: 'Vocação',
+        description: 'Troque a build, veja cooldown e acompanhe o impacto real da sua trilha.',
+        group: 'Meu corre',
+        id: 'vocation',
+        label: 'Gerir vocação',
       },
       {
         badge: 0,
@@ -897,29 +919,25 @@ export function HomeScreen(): JSX.Element {
       return;
     }
 
-    if (buttonId === 'ops') {
+    if (buttonId === 'events') {
       runCriticalUiAction({
         accent: colors.info,
-        bootstrapMessage: 'Abrindo negócios e patrimônio.',
-        feedbackMessage: 'Patrimônio selecionado.',
+        bootstrapMessage: 'Abrindo a central de eventos com ativos e resultados recentes.',
+        feedbackMessage: 'Eventos selecionados.',
         navigate: () => {
-          navigateNow('Operations');
+          navigateNow('Events');
         },
       });
       return;
     }
 
-    if (buttonId === 'slot_machine') {
+    if (buttonId === 'ops') {
       runCriticalUiAction({
         accent: colors.info,
-        bootstrapMessage:
-          'Abrindo a operação da Maquininha. Ela é um negócio passivo, não uma aposta manual.',
-        feedbackMessage: 'Maquininha selecionada.',
+        bootstrapMessage: 'Abrindo operações e base logística do personagem.',
+        feedbackMessage: 'Ativos selecionados.',
         navigate: () => {
-          navigateNow('Operations', {
-            focusPropertyType: 'slot_machine',
-            initialTab: 'business',
-          });
+          navigateNow('Operations');
         },
       });
       return;
@@ -967,6 +985,18 @@ export function HomeScreen(): JSX.Element {
       return;
     }
 
+    if (buttonId === 'sabotage') {
+      runCriticalUiAction({
+        accent: colors.danger,
+        bootstrapMessage: 'Abrindo a central de sabotagem e resposta operacional.',
+        feedbackMessage: 'Sabotagem selecionada.',
+        navigate: () => {
+          navigateNow('Sabotage');
+        },
+      });
+      return;
+    }
+
     if (buttonId === 'faction') {
       runCriticalUiAction({
         accent: colors.accent,
@@ -979,6 +1009,18 @@ export function HomeScreen(): JSX.Element {
       return;
     }
 
+    if (buttonId === 'contacts') {
+      runCriticalUiAction({
+        accent: colors.info,
+        bootstrapMessage: 'Abrindo sua rede de contatos e mensagens privadas.',
+        feedbackMessage: 'Contatos selecionados.',
+        navigate: () => {
+          navigateNow('Contacts');
+        },
+      });
+      return;
+    }
+
     if (buttonId === 'university') {
       runCriticalUiAction({
         accent: colors.info,
@@ -986,6 +1028,18 @@ export function HomeScreen(): JSX.Element {
         feedbackMessage: 'Universidade selecionada.',
         navigate: () => {
           navigateNow('University');
+        },
+      });
+      return;
+    }
+
+    if (buttonId === 'vocation') {
+      runCriticalUiAction({
+        accent: colors.info,
+        bootstrapMessage: 'Abrindo a Central de Vocação.',
+        feedbackMessage: 'Vocação selecionada.',
+        navigate: () => {
+          navigateNow('Vocation');
         },
       });
       return;

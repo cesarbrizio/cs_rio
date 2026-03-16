@@ -46,8 +46,8 @@ export function WarResultModal({
                   value={`${cue.personalImpact.conceitoDelta >= 0 ? '+' : ''}${cue.personalImpact.conceitoDelta}`}
                 />
                 <MetricCard label="HP" value={`-${cue.personalImpact.hpLoss}`} />
-                <MetricCard label="NRV" value={`-${cue.personalImpact.nerveLoss}`} />
-                <MetricCard label="STA" value={`-${cue.personalImpact.staminaLoss}`} />
+                <MetricCard label="DIS" value={`-${cue.personalImpact.disposicaoLoss}`} />
+                <MetricCard label="CAN" value={`-${cue.personalImpact.cansacoLoss}`} />
               </View>
             ) : null}
           </View>

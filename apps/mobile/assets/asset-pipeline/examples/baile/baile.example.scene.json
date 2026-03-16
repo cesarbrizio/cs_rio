@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "stage": "composition",
+  "generatedAt": "2026-03-15T17:36:36.470Z",
+  "assetType": "baile",
+  "category": "nightlife",
+  "sceneViewBox": "0 0 160 160",
+  "sceneMetrics": {
+    "requiredElementsCount": 8,
+    "materialsCount": 8,
+    "referenceCount": 2
+  },
+  "appliedStyleGuide": {
+    "selected": "simcity-urban",
+    "resolvedProfile": "simcity-urban",
+    "visual": {
+      "shadowAlpha": 0.14,
+      "baseStrokeWidth": 1.75,
+      "maxAccentColors": 2,
+      "contrastBias": "clean-urban",
+      "silhouettePriority": "high",
+      "materialNoise": "low",
+      "lightingReadability": "required",
+      "frontagePriority": "high"
+    }
+  },
+  "scenePath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/baile.example.scene.svg"
+}

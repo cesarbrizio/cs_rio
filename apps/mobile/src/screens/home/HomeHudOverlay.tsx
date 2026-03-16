@@ -190,12 +190,12 @@ export function HomeHudOverlay({
             <Text style={styles.resourceValue}>{Math.round(player?.resources.hp ?? 0)}</Text>
           </View>
           <View style={[styles.resourcePill, { borderColor: 'rgba(63,163,77,0.3)' }]}>
-            <Text style={[styles.resourceLabel, { color: colors.success }]}>STA</Text>
-            <Text style={styles.resourceValue}>{Math.round(player?.resources.stamina ?? 0)}</Text>
+            <Text style={[styles.resourceLabel, { color: colors.success }]}>CAN</Text>
+            <Text style={styles.resourceValue}>{Math.round(player?.resources.cansaco ?? 0)}</Text>
           </View>
           <View style={[styles.resourcePill, { borderColor: 'rgba(79,142,232,0.3)' }]}>
-            <Text style={[styles.resourceLabel, { color: '#4f8ee8' }]}>NRV</Text>
-            <Text style={styles.resourceValue}>{Math.round(player?.resources.nerve ?? 0)}</Text>
+            <Text style={[styles.resourceLabel, { color: '#4f8ee8' }]}>DIS</Text>
+            <Text style={styles.resourceValue}>{Math.round(player?.resources.disposicao ?? 0)}</Text>
           </View>
         </View>
 

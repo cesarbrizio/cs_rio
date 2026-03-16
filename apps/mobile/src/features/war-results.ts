@@ -21,8 +21,8 @@ export interface WarResultPersonalImpact {
   directParticipation: boolean;
   hpLoss: number;
   label: string;
-  nerveLoss: number;
-  staminaLoss: number;
+  disposicaoLoss: number;
+  cansacoLoss: number;
 }
 
 export interface WarResultCue {
@@ -207,8 +207,8 @@ function resolvePersonalImpact(input: {
       directParticipation: false,
       hpLoss: 0,
       label: 'Sem impacto pessoal registrado.',
-      nerveLoss: 0,
-      staminaLoss: 0,
+      disposicaoLoss: 0,
+      cansacoLoss: 0,
     };
   }
 
@@ -220,8 +220,8 @@ function resolvePersonalImpact(input: {
       directParticipation: false,
       hpLoss: 0,
       label: 'Sua facção entrou no conflito, mas você estava fora da região no fechamento da guerra.',
-      nerveLoss: 0,
-      staminaLoss: 0,
+      disposicaoLoss: 0,
+      cansacoLoss: 0,
     };
   }
 
@@ -229,17 +229,17 @@ function resolvePersonalImpact(input: {
     (accumulator, round) => {
       if (input.side === 'attacker') {
         accumulator.hpLoss += round.attackerHpLoss;
-        accumulator.nerveLoss += round.attackerNerveLoss;
-        accumulator.staminaLoss += round.attackerStaminaLoss;
+        accumulator.disposicaoLoss += round.attackerDisposicaoLoss;
+        accumulator.cansacoLoss += round.attackerCansacoLoss;
         return accumulator;
       }
 
       accumulator.hpLoss += round.defenderHpLoss;
-      accumulator.nerveLoss += round.defenderNerveLoss;
-      accumulator.staminaLoss += round.defenderStaminaLoss;
+      accumulator.disposicaoLoss += round.defenderDisposicaoLoss;
+      accumulator.cansacoLoss += round.defenderCansacoLoss;
       return accumulator;
     },
-    { hpLoss: 0, nerveLoss: 0, staminaLoss: 0 },
+    { hpLoss: 0, disposicaoLoss: 0, cansacoLoss: 0 },
   );
 
   return {
@@ -247,8 +247,8 @@ function resolvePersonalImpact(input: {
     directParticipation: true,
     hpLoss: aggregatedLosses.hpLoss,
     label: 'Você estava na região da guerra e entrou diretamente no conflito.',
-    nerveLoss: aggregatedLosses.nerveLoss,
-    staminaLoss: aggregatedLosses.staminaLoss,
+    disposicaoLoss: aggregatedLosses.disposicaoLoss,
+    cansacoLoss: aggregatedLosses.cansacoLoss,
   };
 }
 

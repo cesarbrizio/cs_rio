@@ -54,11 +54,11 @@ const DRUG_DEFINITIONS = {
     addictionRate: 1,
     code: 'drug-1',
     drugId: 'drug-1',
-    moralBoost: 2,
+    brisaBoost: 2,
     name: 'Maconha',
-    nerveBoost: 3,
+    disposicaoBoost: 3,
     productionLevel: 2,
-    staminaRecovery: 4,
+    cansacoRecovery: 4,
     type: DrugType.Maconha,
   },
 } as const;
@@ -188,7 +188,7 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
 
     player.addiction = input.addiction;
     player.conceito = input.conceito;
-    player.morale = input.morale;
+    player.brisa = input.brisa;
 
     return {
       knownContactsLost: 0,
@@ -308,9 +308,9 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
     }
 
     player.addiction = input.addiction;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
     this.inventoryByPlayerId.set(playerId, inventory);
     return true;
   }
@@ -339,12 +339,12 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
     player.hp = 100;
     player.inteligencia = attributes.inteligencia;
     player.level = 4;
-    player.morale = 100;
-    player.nerve = 100;
+    player.brisa = 100;
+    player.disposicao = 100;
     player.positionX = spawnPoint.positionX;
     player.positionY = spawnPoint.positionY;
     player.resistencia = attributes.resistencia;
-    player.stamina = 100;
+    player.cansaco = 100;
     player.vocation = input.vocation;
 
     return this.getPlayerProfile(playerId);
@@ -480,16 +480,16 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 1,
-      morale: 100,
+      brisa: 100,
       money: '10000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 0,
       positionY: 0,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -869,9 +869,9 @@ class InMemoryGameRepository implements AuthRepository, PlayerRepository, Market
 
     player.addiction = input.addiction;
     player.level = input.level;
-    player.morale = input.morale;
-    player.nerve = input.nerve;
-    player.stamina = input.stamina;
+    player.brisa = input.brisa;
+    player.disposicao = input.disposicao;
+    player.cansaco = input.cansaco;
   }
 
   async withTransaction<T>(run: (repository: InMemoryGameRepository) => Promise<T>): Promise<T> {

@@ -1,0 +1,307 @@
+{
+  "version": 2,
+  "stage": "stage-1-structure",
+  "status": "ready-for-stage-2",
+  "assetType": "hospital hospital",
+  "styleGuide": "simcity-urban",
+  "keepIntermediate": false,
+  "referenceFiles": [
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/hospital/hospital_1.jpg",
+    "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/hospital/hospital_4.jpg"
+  ],
+  "outputFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/map-structures/hospital.svg",
+  "generatedAt": "2026-03-16T04:16:33.344Z",
+  "architecture": {
+    "moduleLibraryFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "moduleCount": 61,
+    "outputs": {
+      "analysisPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/hospital.analysis.json",
+      "sceneGraphPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/scene-graphs/hospital.scene-graph.json",
+      "moduleManifestPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/analysis/hospital.module-library.json"
+    },
+    "pendingStages": [
+      "module-library-base",
+      "scene-graph-enrichment",
+      "modular-composer",
+      "svg-renderer",
+      "preview-renderer"
+    ]
+  },
+  "compositionBlueprint": {
+    "stage": "compose-from-modules",
+    "assetType": "hospital hospital",
+    "category": "hospital",
+    "styleGuide": {
+      "resolvedProfile": "simcity-urban",
+      "family": "hospital",
+      "variationPolicy": {
+        "jitter": {
+          "x": 2,
+          "y": 2
+        },
+        "scale": {
+          "min": 0.99,
+          "max": 1.03
+        },
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low"
+      },
+      "compositionPolicy": {
+        "layout": "institutional-block",
+        "baseAnchor": {
+          "x": 92,
+          "y": 126
+        },
+        "columns": 2,
+        "xStep": 12,
+        "yStep": 4,
+        "rowLift": 8,
+        "layerPattern": [
+          "foreground",
+          "midground",
+          "background",
+          "overlay"
+        ]
+      }
+    },
+    "moduleFamilies": [
+      "shared",
+      "favela",
+      "favela-cluster",
+      "barraco",
+      "baile",
+      "boca",
+      "market-clandestino",
+      "gym",
+      "hospital",
+      "prison",
+      "university",
+      "factory",
+      "dock-industrial",
+      "junkyard",
+      "residential-tower-simple",
+      "residential-tower-modern",
+      "commercial-block-simple",
+      "commercial-block-modern",
+      "house-simple",
+      "house-wealthy"
+    ],
+    "resolvedModules": [
+      {
+        "id": "anchor-shadow-3",
+        "module": "anchor-shadow",
+        "resolved": {
+          "id": "anchor-shadow",
+          "family": "shared",
+          "footprint": {
+            "width": 26,
+            "depth": 10
+          },
+          "slots": [
+            "grounding"
+          ]
+        },
+        "layer": "background",
+        "anchor": {
+          "x": 92,
+          "y": 118
+        },
+        "placement": {
+          "x": -3,
+          "y": -6,
+          "scale": 0.998
+        },
+        "variants": {
+          "materialHint": "vidro",
+          "slotHint": "grounding",
+          "profile": "simcity-urban",
+          "family": "hospital",
+          "density": "low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "o símbolo médico deve ajudar a leitura mas não substituir a arquitetura",
+            "a entrada frontal precisa aparecer claramente"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "hospital-entry-2",
+        "module": "hospital-entry",
+        "resolved": {
+          "id": "hospital-entry",
+          "family": "hospital",
+          "footprint": {
+            "width": 26,
+            "depth": 12
+          },
+          "slots": [
+            "entry"
+          ]
+        },
+        "layer": "midground",
+        "anchor": {
+          "x": 104,
+          "y": 122
+        },
+        "placement": {
+          "x": 10,
+          "y": 0,
+          "scale": 0.991
+        },
+        "variants": {
+          "materialHint": "sinalizacao medica",
+          "slotHint": "entry",
+          "profile": "simcity-urban",
+          "family": "hospital",
+          "density": "low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "o símbolo médico deve ajudar a leitura mas não substituir a arquitetura",
+            "a entrada frontal precisa aparecer claramente"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "hospital-core-1",
+        "module": "hospital-core",
+        "resolved": {
+          "id": "hospital-core",
+          "family": "hospital",
+          "footprint": {
+            "width": 62,
+            "depth": 24
+          },
+          "slots": [
+            "core"
+          ]
+        },
+        "layer": "foreground",
+        "anchor": {
+          "x": 92,
+          "y": 126
+        },
+        "placement": {
+          "x": 0,
+          "y": 4,
+          "scale": 0.995
+        },
+        "variants": {
+          "materialHint": "vidro",
+          "slotHint": "core",
+          "profile": "simcity-urban",
+          "family": "hospital",
+          "density": "low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "o símbolo médico deve ajudar a leitura mas não substituir a arquitetura",
+            "a entrada frontal precisa aparecer claramente"
+          ]
+        },
+        "skipped": false
+      },
+      {
+        "id": "hospital-core-4",
+        "module": "hospital-core",
+        "resolved": {
+          "id": "hospital-core",
+          "family": "hospital",
+          "footprint": {
+            "width": 62,
+            "depth": 24
+          },
+          "slots": [
+            "core"
+          ]
+        },
+        "layer": "overlay",
+        "anchor": {
+          "x": 104,
+          "y": 114
+        },
+        "placement": {
+          "x": 12,
+          "y": -10,
+          "scale": 0.997
+        },
+        "variants": {
+          "materialHint": "vidro",
+          "slotHint": "core",
+          "profile": "simcity-urban",
+          "family": "hospital",
+          "density": "low",
+          "roofVariation": "low",
+          "materialVariation": "low",
+          "attachmentVariation": "low",
+          "visualRules": [
+            "o símbolo médico deve ajudar a leitura mas não substituir a arquitetura",
+            "a entrada frontal precisa aparecer claramente"
+          ]
+        },
+        "skipped": false
+      }
+    ],
+    "compositionViewBox": "0 0 192 160",
+    "compositionSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 192 160\" fill=\"none\"><g id=\"placement-anchor-shadow-3\" transform=\"translate(-3 -6) scale(0.998)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-3\" data-layer=\"background\"></g><g id=\"placement-hospital-entry-2\" transform=\"translate(10 0) scale(0.991)\" data-module-id=\"hospital-entry\" data-node-id=\"hospital-entry-2\" data-layer=\"midground\"><g><polygon points=\"82,104 106,108 103,116 79,112\" fill=\"#d8e4eb\" stroke=\"#2f241f\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><line x1=\"85\" y1=\"106\" x2=\"82\" y2=\"113\" stroke=\"#3f5144\" stroke-width=\"1\"/><line x1=\"94\" y1=\"108\" x2=\"92\" y2=\"115\" stroke=\"#3f5144\" stroke-width=\"1\"/></g><rect x=\"89\" y=\"108\" width=\"10\" height=\"14\" fill=\"#d8edf8\" rx=\"1\"/><line x1=\"94\" y1=\"108\" x2=\"94\" y2=\"122\" stroke=\"#87a8bb\" stroke-width=\"1.2\"/><rect x=\"116\" y=\"91\" width=\"10\" height=\"10\" fill=\"#ffffff\" rx=\"1\"/><rect x=\"119\" y=\"88\" width=\"4\" height=\"16\" fill=\"#ffffff\" rx=\"1\"/></g><g id=\"placement-hospital-core-1\" transform=\"translate(0 4) scale(0.995)\" data-module-id=\"hospital-core\" data-node-id=\"hospital-core-1\" data-layer=\"foreground\"><g><polygon points=\"92,90 123,102 92,114 61,102\" fill=\"#d7dde3\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"61,102 92,114 92,142 61,130\" fill=\"#81909d\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,90 123,102 123,130 92,118\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><g><polygon points=\"116,88 129,95 116,102 103,95\" fill=\"#e4eaef\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"103,95 116,102 116,120 103,113\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"116,88 129,95 129,113 116,106\" fill=\"#abb8c2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"70,94 80,98 80,106 70,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,94 96,98 96,106 86,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,94 112,98 112,106 102,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"70,108 80,112 80,120 70,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,108 96,112 96,120 86,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,108 112,112 112,120 102,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"86\" y=\"102\" width=\"14\" height=\"20\" fill=\"#f3f5f7\" rx=\"1.5\"/><rect x=\"80\" y=\"109\" width=\"26\" height=\"8\" fill=\"#f3f5f7\" rx=\"1.5\"/></g><g id=\"placement-hospital-core-4\" transform=\"translate(12 -10) scale(0.997)\" data-module-id=\"hospital-core\" data-node-id=\"hospital-core-4\" data-layer=\"overlay\"><g><polygon points=\"92,90 123,102 92,114 61,102\" fill=\"#d7dde3\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"61,102 92,114 92,142 61,130\" fill=\"#81909d\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,90 123,102 123,130 92,118\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><g><polygon points=\"116,88 129,95 116,102 103,95\" fill=\"#e4eaef\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"103,95 116,102 116,120 103,113\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"116,88 129,95 129,113 116,106\" fill=\"#abb8c2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"70,94 80,98 80,106 70,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,94 96,98 96,106 86,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,94 112,98 112,106 102,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"70,108 80,112 80,120 70,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,108 96,112 96,120 86,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,108 112,112 112,120 102,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"86\" y=\"102\" width=\"14\" height=\"20\" fill=\"#f3f5f7\" rx=\"1.5\"/><rect x=\"80\" y=\"109\" width=\"26\" height=\"8\" fill=\"#f3f5f7\" rx=\"1.5\"/></g></svg>",
+    "skippedModules": [],
+    "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca."
+  },
+  "renderBlueprint": {
+    "stage": "render-svg",
+    "assetType": "hospital hospital",
+    "category": "hospital",
+    "status": "rendered",
+    "targetViewBox": "0 0 160 160",
+    "sourceViewBox": "0 0 192 160",
+    "fit": {
+      "scale": 0.7292,
+      "translateX": 10,
+      "translateY": 21.67,
+      "padding": 10
+    },
+    "finalSvg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 160 160\" fill=\"none\"><g id=\"hospital hospital-asset\" data-asset-type=\"hospital hospital\" data-category=\"hospital\" data-density=\"low\"><g transform=\"translate(10 21.67) scale(0.7292)\" id=\"hospital hospital-render-root\"><g id=\"placement-anchor-shadow-3\" transform=\"translate(-3 -6) scale(0.998)\" data-module-id=\"anchor-shadow\" data-node-id=\"anchor-shadow-3\" data-layer=\"background\"></g><g id=\"placement-hospital-entry-2\" transform=\"translate(10 0) scale(0.991)\" data-module-id=\"hospital-entry\" data-node-id=\"hospital-entry-2\" data-layer=\"midground\"><g><polygon points=\"82,104 106,108 103,116 79,112\" fill=\"#d8e4eb\" stroke=\"#2f241f\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><line x1=\"85\" y1=\"106\" x2=\"82\" y2=\"113\" stroke=\"#3f5144\" stroke-width=\"1\"/><line x1=\"94\" y1=\"108\" x2=\"92\" y2=\"115\" stroke=\"#3f5144\" stroke-width=\"1\"/></g><rect x=\"89\" y=\"108\" width=\"10\" height=\"14\" fill=\"#d8edf8\" rx=\"1\"/><line x1=\"94\" y1=\"108\" x2=\"94\" y2=\"122\" stroke=\"#87a8bb\" stroke-width=\"1.2\"/><rect x=\"116\" y=\"91\" width=\"10\" height=\"10\" fill=\"#ffffff\" rx=\"1\"/><rect x=\"119\" y=\"88\" width=\"4\" height=\"16\" fill=\"#ffffff\" rx=\"1\"/></g><g id=\"placement-hospital-core-1\" transform=\"translate(0 4) scale(0.995)\" data-module-id=\"hospital-core\" data-node-id=\"hospital-core-1\" data-layer=\"foreground\"><g><polygon points=\"92,90 123,102 92,114 61,102\" fill=\"#d7dde3\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"61,102 92,114 92,142 61,130\" fill=\"#81909d\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,90 123,102 123,130 92,118\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><g><polygon points=\"116,88 129,95 116,102 103,95\" fill=\"#e4eaef\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"103,95 116,102 116,120 103,113\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"116,88 129,95 129,113 116,106\" fill=\"#abb8c2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"70,94 80,98 80,106 70,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,94 96,98 96,106 86,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,94 112,98 112,106 102,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"70,108 80,112 80,120 70,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,108 96,112 96,120 86,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,108 112,112 112,120 102,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"86\" y=\"102\" width=\"14\" height=\"20\" fill=\"#f3f5f7\" rx=\"1.5\"/><rect x=\"80\" y=\"109\" width=\"26\" height=\"8\" fill=\"#f3f5f7\" rx=\"1.5\"/></g><g id=\"placement-hospital-core-4\" transform=\"translate(12 -10) scale(0.997)\" data-module-id=\"hospital-core\" data-node-id=\"hospital-core-4\" data-layer=\"overlay\"><g><polygon points=\"92,90 123,102 92,114 61,102\" fill=\"#d7dde3\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"61,102 92,114 92,142 61,130\" fill=\"#81909d\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"92,90 123,102 123,130 92,118\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><g><polygon points=\"116,88 129,95 116,102 103,95\" fill=\"#e4eaef\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"103,95 116,102 116,120 103,113\" fill=\"#97a5b2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/><polygon points=\"116,88 129,95 129,113 116,106\" fill=\"#abb8c2\" stroke=\"#2f241f\" stroke-width=\"1.8\" stroke-linejoin=\"round\"/></g><polygon points=\"70,94 80,98 80,106 70,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,94 96,98 96,106 86,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,94 112,98 112,106 102,102\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"70,108 80,112 80,120 70,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"86,108 96,112 96,120 86,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><polygon points=\"102,108 112,112 112,120 102,116\" fill=\"#98cde3\" stroke=\"#2f241f\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/><rect x=\"86\" y=\"102\" width=\"14\" height=\"20\" fill=\"#f3f5f7\" rx=\"1.5\"/><rect x=\"80\" y=\"109\" width=\"26\" height=\"8\" fill=\"#f3f5f7\" rx=\"1.5\"/></g></g></g></svg>",
+    "note": "Etapa 5 concluida: o renderer final agora materializa um SVG final a partir da composicao modular.",
+    "compositionSummary": {
+      "nodeCount": 4,
+      "resolvedModules": 4,
+      "skippedModules": 0
+    }
+  },
+  "previewBlueprint": {
+    "stage": "render-preview",
+    "assetType": "hospital hospital",
+    "category": "hospital",
+    "status": "pending-stage-6",
+    "ok": false,
+    "message": "Preview PNG agora e gerado apenas na Etapa 6, a partir do SVG final."
+  }
+}

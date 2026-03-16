@@ -37,12 +37,12 @@ export class ActionIdempotency {
       throw createDuplicateActionError();
     }
 
-    const lockCount = await this.keyValueStore.increment(
-      inFlightKey,
-      options.inFlightTtlSeconds ?? DEFAULT_IN_FLIGHT_TTL_SECONDS,
-    );
+    const inFlightTtlSeconds = options.inFlightTtlSeconds ?? DEFAULT_IN_FLIGHT_TTL_SECONDS;
+    const acquiredLock = this.keyValueStore.setIfAbsent
+      ? await this.keyValueStore.setIfAbsent(inFlightKey, request.id, inFlightTtlSeconds)
+      : (await this.keyValueStore.increment(inFlightKey, inFlightTtlSeconds)) === 1;
 
-    if (lockCount > 1) {
+    if (!acquiredLock) {
       throw createDuplicateActionError();
     }
 

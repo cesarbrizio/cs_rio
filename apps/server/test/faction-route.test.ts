@@ -272,16 +272,16 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
       inteligencia: 10,
       lastLogin: input.lastLogin,
       level: 5,
-      morale: 100,
+      brisa: 100,
       money: '10000.00',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 100,
       positionY: 100,
       regionId: RegionId.Centro,
       resistencia: 10,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Cria,
     };
 
@@ -396,7 +396,7 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
       money: Number.parseFloat(player.money),
       nickname: player.nickname,
       resistencia: player.resistencia,
-      stamina: player.stamina,
+      cansaco: player.cansaco,
       vocation: player.vocation,
     };
   }
@@ -601,7 +601,7 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
     defenderWasNpc: boolean;
     factionId: string;
     resolvedAt: Date;
-    staminaCost: number;
+    cansacoCost: number;
     successChancePercent: number;
   }) {
     const challenger = this.state.players.get(input.challengerPlayerId);
@@ -612,7 +612,7 @@ class InMemoryAuthFactionRepository implements AuthRepository, FactionRepository
 
     challenger.conceito = Math.max(0, challenger.conceito + input.challengerConceitoDelta);
     challenger.hp = Math.max(1, challenger.hp + input.challengerHpDelta);
-    challenger.stamina = Math.max(0, challenger.stamina - input.staminaCost);
+    challenger.cansaco = Math.max(0, challenger.cansaco - input.cansacoCost);
 
     if (input.defenderPlayerId) {
       const defender = this.state.players.get(input.defenderPlayerId);
@@ -2056,7 +2056,7 @@ describe('faction routes', () => {
     expect(state.factions.get(factionId)?.leaderId).toBe(challenger.player.id);
     expect(findStoredMemberRank(state.factionMembers, challenger.player.id)).toBe('patrao');
     expect(findStoredMemberRank(state.factionMembers, leader.player.id)).toBe('general');
-    expect(state.players.get(challenger.player.id)?.stamina).toBe(70);
+    expect(state.players.get(challenger.player.id)?.cansaco).toBe(70);
   });
 
   it('blocks leadership challenges from members below level 9', async () => {

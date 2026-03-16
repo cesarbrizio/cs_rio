@@ -1,5 +1,16 @@
-import { VOCATION_BASE_ATTRIBUTES, type DrugType, type InventoryEquipSlot, type InventoryGrantInput, type InventoryItemType, type PlayerCreationInput, type PlayerInventoryItem, type RegionId } from '@cs-rio/shared';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import {
+  VOCATION_BASE_ATTRIBUTES,
+  type DrugType,
+  type InventoryEquipSlot,
+  type InventoryGrantInput,
+  type InventoryItemType,
+  type PlayerCreationInput,
+  type PlayerInventoryEquipmentSummary,
+  type PlayerInventoryItem,
+  type RegionId,
+  type VocationType,
+} from '@cs-rio/shared';
+import { and, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 
 import { db } from '../../db/client.js';
 import {
@@ -21,6 +32,7 @@ import type {
   PlayerDrugConsumptionInput,
   PlayerOverdosePenaltyInput,
   PlayerOverdosePenaltyResult,
+  PlayerPublicProfileRecord,
   PlayerProfileRecord,
   PlayerRepository,
   PlayerRuntimeStateInput,
@@ -74,7 +86,7 @@ export class DatabasePlayerRepository implements PlayerRepository {
         .set({
           addiction: input.addiction,
           conceito: input.conceito,
-          morale: input.morale,
+          brisa: input.brisa,
         })
         .where(eq(players.id, playerId))
         .returning({
@@ -157,9 +169,9 @@ export class DatabasePlayerRepository implements PlayerRepository {
         .update(players)
         .set({
           addiction: input.addiction,
-          morale: input.morale,
-          nerve: input.nerve,
-          stamina: input.stamina,
+          brisa: input.brisa,
+          disposicao: input.disposicao,
+          cansaco: input.cansaco,
         })
         .where(eq(players.id, playerId))
         .returning({
@@ -199,15 +211,71 @@ export class DatabasePlayerRepository implements PlayerRepository {
         hp: 100,
         inteligencia: attributes.inteligencia,
         level: 1,
-        morale: 100,
-        nerve: 100,
+        brisa: 100,
+        disposicao: 100,
         positionX: spawnPoint.positionX,
         positionY: spawnPoint.positionY,
         resistencia: attributes.resistencia,
-        stamina: 100,
+        cansaco: 100,
         vocation: input.vocation,
       })
       .where(eq(players.id, playerId));
+
+    return this.getPlayerProfile(playerId);
+  }
+
+  async changeVocation(
+    playerId: string,
+    input: {
+      changedAt: Date;
+      creditsCost: number;
+      nextVocation: VocationType;
+    },
+  ): Promise<PlayerProfileRecord | null> {
+    const changed = await db.transaction(async (tx) => {
+      const [player] = await tx
+        .select({
+          credits: players.credits,
+          id: players.id,
+        })
+        .from(players)
+        .where(eq(players.id, playerId))
+        .limit(1);
+
+      if (!player) {
+        return null;
+      }
+
+      const nextCredits = player.credits - input.creditsCost;
+
+      if (nextCredits < 0) {
+        return null;
+      }
+
+      const [updatedPlayer] = await tx
+        .update(players)
+        .set({
+          credits: nextCredits,
+          vocation: input.nextVocation,
+          vocationChangedAt: input.changedAt,
+          vocationTarget: null,
+          vocationTransitionEndsAt: null,
+        })
+        .where(eq(players.id, playerId))
+        .returning({
+          id: players.id,
+        });
+
+      if (!updatedPlayer) {
+        return null;
+      }
+
+      return updatedPlayer.id;
+    });
+
+    if (!changed) {
+      return null;
+    }
 
     return this.getPlayerProfile(playerId);
   }
@@ -239,6 +307,7 @@ export class DatabasePlayerRepository implements PlayerRepository {
           id: weapons.id,
           levelRequired: weapons.levelRequired,
           name: weapons.name,
+          power: weapons.power,
           weight: weapons.weight,
         })
         .from(weapons)
@@ -248,6 +317,11 @@ export class DatabasePlayerRepository implements PlayerRepository {
       return weapon
         ? {
             durabilityMax: weapon.durabilityMax,
+            equipment: {
+              defense: null,
+              power: weapon.power,
+              slot: 'weapon',
+            },
             itemId: weapon.id,
             itemName: weapon.name,
             itemType,
@@ -261,6 +335,7 @@ export class DatabasePlayerRepository implements PlayerRepository {
     if (itemType === 'vest') {
       const [vest] = await db
         .select({
+          defense: vests.defense,
           durabilityMax: vests.durabilityMax,
           id: vests.id,
           levelRequired: vests.levelRequired,
@@ -274,6 +349,11 @@ export class DatabasePlayerRepository implements PlayerRepository {
       return vest
         ? {
             durabilityMax: vest.durabilityMax,
+            equipment: {
+              defense: vest.defense,
+              power: null,
+              slot: 'vest',
+            },
             itemId: vest.id,
             itemName: vest.name,
             itemType,
@@ -299,6 +379,7 @@ export class DatabasePlayerRepository implements PlayerRepository {
       return drug
         ? {
             durabilityMax: null,
+            equipment: null,
             itemId: drug.id,
             itemName: drug.name,
             itemType,
@@ -323,6 +404,7 @@ export class DatabasePlayerRepository implements PlayerRepository {
       return component
         ? {
             durabilityMax: null,
+            equipment: null,
             itemId: component.id,
             itemName: component.name,
             itemType,
@@ -342,11 +424,11 @@ export class DatabasePlayerRepository implements PlayerRepository {
         addictionRate: drugs.addictionRate,
         code: drugs.code,
         id: drugs.id,
-        moralBoost: drugs.moralBoost,
+        brisaBoost: drugs.brisaBoost,
         name: drugs.name,
-        nerveBoost: drugs.nerveBoost,
+        disposicaoBoost: drugs.disposicaoBoost,
         productionLevel: drugs.productionLevel,
-        staminaRecovery: drugs.staminaRecovery,
+        cansacoRecovery: drugs.cansacoRecovery,
         type: drugs.type,
       })
       .from(drugs)
@@ -358,11 +440,11 @@ export class DatabasePlayerRepository implements PlayerRepository {
           addictionRate: Number.parseFloat(String(drug.addictionRate)),
           code: drug.code,
           drugId: drug.id,
-          moralBoost: drug.moralBoost,
+          brisaBoost: drug.brisaBoost,
           name: drug.name,
-          nerveBoost: drug.nerveBoost,
+          disposicaoBoost: drug.disposicaoBoost,
           productionLevel: drug.productionLevel,
-          staminaRecovery: drug.staminaRecovery,
+          cansacoRecovery: drug.cansacoRecovery,
           type: drug.type as DrugType,
         }
       : null;
@@ -440,6 +522,103 @@ export class DatabasePlayerRepository implements PlayerRepository {
         soldiersCount: entry.soldiersCount,
         type: entry.type,
       })),
+    };
+  }
+
+  async getPublicProfileByNickname(nickname: string): Promise<PlayerPublicProfileRecord | null> {
+    const [player] = await db
+      .select()
+      .from(players)
+      .where(and(eq(players.nickname, nickname), isNotNull(players.characterCreatedAt)))
+      .limit(1);
+
+    if (!player) {
+      return null;
+    }
+
+    const [membership] = await db
+      .select({
+        factionId: factionMembers.factionId,
+        rank: factionMembers.rank,
+      })
+      .from(factionMembers)
+      .where(eq(factionMembers.playerId, player.id))
+      .limit(1);
+    const factionId = membership?.factionId ?? player.factionId ?? null;
+    const [factionRow] = factionId
+      ? await db
+          .select({
+            abbreviation: factions.abbreviation,
+            id: factions.id,
+            name: factions.name,
+          })
+          .from(factions)
+          .where(eq(factions.id, factionId))
+          .limit(1)
+      : [];
+
+    const [[inventoryCountRow], [propertyCountRow], [totalPlayersRow], [higherRankedRow]] = await Promise.all([
+      db
+        .select({
+          total: sql<number>`count(*)`,
+        })
+        .from(playerInventory)
+        .where(eq(playerInventory.playerId, player.id)),
+      db
+        .select({
+          total: sql<number>`count(*)`,
+        })
+        .from(properties)
+        .where(eq(properties.playerId, player.id)),
+      db
+        .select({
+          total: sql<number>`count(*)`,
+        })
+        .from(players)
+        .where(isNotNull(players.characterCreatedAt)),
+      db
+        .select({
+          total: sql<number>`count(*)`,
+        })
+        .from(players)
+        .where(
+          and(
+            isNotNull(players.characterCreatedAt),
+            or(
+              gt(players.conceito, player.conceito),
+              and(eq(players.conceito, player.conceito), gt(players.level, player.level)),
+              and(
+                eq(players.conceito, player.conceito),
+                eq(players.level, player.level),
+                lt(players.createdAt, player.createdAt),
+              ),
+              and(
+                eq(players.conceito, player.conceito),
+                eq(players.level, player.level),
+                eq(players.createdAt, player.createdAt),
+                lt(players.nickname, player.nickname),
+              ),
+            ),
+          ),
+        ),
+    ]);
+
+    return {
+      faction: factionRow
+        ? {
+            abbreviation: factionRow.abbreviation,
+            id: factionRow.id,
+            name: factionRow.name,
+            rank: membership?.rank ?? null,
+          }
+        : null,
+      inventoryItemCount: Number(inventoryCountRow?.total ?? 0),
+      player,
+      propertiesCount: Number(propertyCountRow?.total ?? 0),
+      ranking: {
+        currentRank: Number(higherRankedRow?.total ?? 0) + 1,
+        totalPlayers: Number(totalPlayersRow?.total ?? 0),
+      },
     };
   }
 
@@ -612,9 +791,9 @@ export class DatabasePlayerRepository implements PlayerRepository {
       .set({
         addiction: input.addiction,
         level: input.level,
-        morale: input.morale,
-        nerve: input.nerve,
-        stamina: input.stamina,
+        brisa: input.brisa,
+        disposicao: input.disposicao,
+        cansaco: input.cansaco,
       })
       .where(eq(players.id, playerId));
   }
@@ -655,6 +834,7 @@ async function hydrateInventoryRows(
             id: weapons.id,
             levelRequired: weapons.levelRequired,
             name: weapons.name,
+            power: weapons.power,
             weight: weapons.weight,
           })
           .from(weapons)
@@ -663,6 +843,7 @@ async function hydrateInventoryRows(
     vestIds.length > 0
       ? db
           .select({
+            defense: vests.defense,
             durabilityMax: vests.durabilityMax,
             id: vests.id,
             levelRequired: vests.levelRequired,
@@ -697,6 +878,7 @@ async function hydrateInventoryRows(
   const itemMetadata = new Map<
     string,
     {
+      equipment: PlayerInventoryEquipmentSummary | null;
       durabilityMax: number | null;
       levelRequired: number | null;
       name: string;
@@ -707,6 +889,11 @@ async function hydrateInventoryRows(
   for (const item of weaponRows) {
     itemMetadata.set(`weapon:${item.id}`, {
       durabilityMax: item.durabilityMax,
+      equipment: {
+        defense: null,
+        power: item.power,
+        slot: 'weapon',
+      },
       levelRequired: item.levelRequired,
       name: item.name,
       unitWeight: item.weight,
@@ -716,6 +903,11 @@ async function hydrateInventoryRows(
   for (const item of vestRows) {
     itemMetadata.set(`vest:${item.id}`, {
       durabilityMax: item.durabilityMax,
+      equipment: {
+        defense: item.defense,
+        power: null,
+        slot: 'vest',
+      },
       levelRequired: item.levelRequired,
       name: item.name,
       unitWeight: item.weight,
@@ -725,6 +917,7 @@ async function hydrateInventoryRows(
   for (const item of drugRows) {
     itemMetadata.set(`drug:${item.id}`, {
       durabilityMax: null,
+      equipment: null,
       levelRequired: item.levelRequired,
       name: item.name,
       unitWeight: item.weight,
@@ -734,6 +927,7 @@ async function hydrateInventoryRows(
   for (const item of componentRows) {
     itemMetadata.set(`component:${item.id}`, {
       durabilityMax: null,
+      equipment: null,
       levelRequired: null,
       name: item.name,
       unitWeight: item.weight,
@@ -748,6 +942,7 @@ async function hydrateInventoryRows(
     return {
       durability: item.durability,
       equipSlot,
+      equipment: metadata?.equipment ?? null,
       id: item.id,
       isEquipped: equipSlot !== null,
       itemId: item.itemId,

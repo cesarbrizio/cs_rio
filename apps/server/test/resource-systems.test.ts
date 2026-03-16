@@ -25,9 +25,9 @@ import {
 import { AddictionSystem } from '../src/systems/AddictionSystem.js';
 import { DrugToleranceSystem } from '../src/systems/DrugToleranceSystem.js';
 import { LevelSystem } from '../src/systems/LevelSystem.js';
-import { NerveSystem } from '../src/systems/NerveSystem.js';
+import { DisposicaoSystem } from '../src/systems/DisposicaoSystem.js';
 import { OverdoseSystem } from '../src/systems/OverdoseSystem.js';
-import { StaminaSystem } from '../src/systems/StaminaSystem.js';
+import { CansacoSystem } from '../src/systems/CansacoSystem.js';
 
 class ClockKeyValueStore implements KeyValueStore {
   private readonly values = new Map<
@@ -89,7 +89,7 @@ class InMemoryPlayerRepository implements PlayerRepository {
     this.knownContacts = 0;
     this.record.player.addiction = input.addiction;
     this.record.player.conceito = input.conceito;
-    this.record.player.morale = input.morale;
+    this.record.player.brisa = input.brisa;
 
     return {
       knownContactsLost: lostContacts,
@@ -134,9 +134,9 @@ class InMemoryPlayerRepository implements PlayerRepository {
     }
 
     this.record.player.addiction = input.addiction;
-    this.record.player.morale = input.morale;
-    this.record.player.nerve = input.nerve;
-    this.record.player.stamina = input.stamina;
+    this.record.player.brisa = input.brisa;
+    this.record.player.disposicao = input.disposicao;
+    this.record.player.cansaco = input.cansaco;
     return true;
   }
 
@@ -165,11 +165,11 @@ class InMemoryPlayerRepository implements PlayerRepository {
       addictionRate: 1,
       code: drugId,
       drugId,
-      moralBoost: 2,
+      brisaBoost: 2,
       name: `mock-${drugId}`,
-      nerveBoost: 3,
+      disposicaoBoost: 3,
       productionLevel: 1,
-      staminaRecovery: 4,
+      cansacoRecovery: 4,
       type: DrugType.Maconha,
     };
   }
@@ -217,9 +217,9 @@ class InMemoryPlayerRepository implements PlayerRepository {
 
     this.record.player.addiction = input.addiction;
     this.record.player.level = input.level;
-    this.record.player.morale = input.morale;
-    this.record.player.nerve = input.nerve;
-    this.record.player.stamina = input.stamina;
+    this.record.player.brisa = input.brisa;
+    this.record.player.disposicao = input.disposicao;
+    this.record.player.cansaco = input.cansaco;
   }
 
   getKnownContactsCount(): number {
@@ -244,16 +244,16 @@ function createPlayerRecord(): PlayerProfileRecord {
     inteligencia: 18,
     lastLogin: new Date('2026-03-10T12:00:00.000Z'),
     level: 1,
-    morale: 100,
+    brisa: 100,
     money: '1000',
-    nerve: 60,
+    disposicao: 60,
     nickname: 'runtime_tester',
     passwordHash: 'hash',
     positionX: 10,
     positionY: 10,
     regionId: RegionId.Centro,
     resistencia: 15,
-    stamina: 70,
+    cansaco: 70,
     vocation: VocationType.Cria,
   };
 
@@ -266,10 +266,10 @@ function createPlayerRecord(): PlayerProfileRecord {
 }
 
 describe('resource systems', () => {
-  it('recovers stamina from elapsed time', async () => {
+  it('recovers cansaco from elapsed time', async () => {
     const now = Date.parse('2026-03-10T12:00:00.000Z');
     const store = new ClockKeyValueStore(() => now);
-    const system = new StaminaSystem({
+    const system = new CansacoSystem({
       keyValueStore: store,
       now: () => now,
     });
@@ -283,10 +283,10 @@ describe('resource systems', () => {
     expect(result.recoveredPoints).toBe(6);
   });
 
-  it('recovers nerve one point every five minutes', async () => {
+  it('recovers disposicao one point every five minutes', async () => {
     const now = Date.parse('2026-03-10T12:00:00.000Z');
     const store = new ClockKeyValueStore(() => now);
-    const system = new NerveSystem({
+    const system = new DisposicaoSystem({
       keyValueStore: store,
       now: () => now,
     });
@@ -402,24 +402,24 @@ describe('player runtime sync', () => {
       addictionSystem: new AddictionSystem({ keyValueStore: store, now: () => now }),
       keyValueStore: store,
       levelSystem: new LevelSystem(),
-      nerveSystem: new NerveSystem({ keyValueStore: store, now: () => now }),
+      disposicaoSystem: new DisposicaoSystem({ keyValueStore: store, now: () => now }),
       repository,
-      staminaSystem: new StaminaSystem({ keyValueStore: store, now: () => now }),
+      cansacoSystem: new CansacoSystem({ keyValueStore: store, now: () => now }),
     });
 
     const firstProfile = await service.getPlayerProfile(playerId);
 
     expect(firstProfile.level).toBe(4);
-    expect(firstProfile.resources.stamina).toBe(70);
-    expect(firstProfile.resources.nerve).toBe(60);
+    expect(firstProfile.resources.cansaco).toBe(70);
+    expect(firstProfile.resources.disposicao).toBe(60);
 
     now += 10 * 60 * 1000;
 
     const secondProfile = await service.getPlayerProfile(playerId);
 
     expect(secondProfile.level).toBe(4);
-    expect(secondProfile.resources.stamina).toBe(72);
-    expect(secondProfile.resources.nerve).toBe(62);
+    expect(secondProfile.resources.cansaco).toBe(72);
+    expect(secondProfile.resources.disposicao).toBe(62);
     expect(secondProfile.resources.addiction).toBe(5);
 
     await service.close();
@@ -430,9 +430,9 @@ describe('player runtime sync', () => {
     const store = new ClockKeyValueStore(() => now);
     const playerRecord = createPlayerRecord();
     playerRecord.player.addiction = 4;
-    playerRecord.player.morale = 70;
-    playerRecord.player.nerve = 60;
-    playerRecord.player.stamina = 50;
+    playerRecord.player.brisa = 70;
+    playerRecord.player.disposicao = 60;
+    playerRecord.player.cansaco = 50;
     playerRecord.inventory.push({
       durability: null,
       equipSlot: null,
@@ -457,9 +457,9 @@ describe('player runtime sync', () => {
       drugToleranceSystem: toleranceSystem,
       keyValueStore: store,
       levelSystem: new LevelSystem(),
-      nerveSystem: new NerveSystem({ keyValueStore: store, now: () => now }),
+      disposicaoSystem: new DisposicaoSystem({ keyValueStore: store, now: () => now }),
       repository,
-      staminaSystem: new StaminaSystem({ keyValueStore: store, now: () => now }),
+      cansacoSystem: new CansacoSystem({ keyValueStore: store, now: () => now }),
     });
 
     await toleranceSystem.recordUse(playerId, 'drug-1', 50);
@@ -468,9 +468,9 @@ describe('player runtime sync', () => {
 
     expect(result.effects).toMatchObject({
       addictionGained: 1,
-      moraleRecovered: 1,
-      nerveRecovered: 2,
-      staminaRecovered: 2,
+      brisaRecovered: 1,
+      disposicaoRecovered: 2,
+      cansacoRecovered: 2,
     });
     expect(result.tolerance).toMatchObject({
       current: 52,
@@ -482,9 +482,9 @@ describe('player runtime sync', () => {
     expect(result.tolerance.effectivenessMultiplier).toBeCloseTo(0.5111, 4);
     expect(result.player.resources).toMatchObject({
       addiction: 5,
-      morale: 71,
-      nerve: 62,
-      stamina: 52,
+      brisa: 71,
+      disposicao: 62,
+      cansaco: 52,
     });
     expect(result.player.inventory.find((item) => item.id === 'drug-stack-1')).toMatchObject({
       quantity: 1,
@@ -498,9 +498,9 @@ describe('player runtime sync', () => {
     const store = new ClockKeyValueStore(() => now);
     const playerRecord = createPlayerRecord();
     playerRecord.player.addiction = 99;
-    playerRecord.player.morale = 90;
-    playerRecord.player.nerve = 70;
-    playerRecord.player.stamina = 60;
+    playerRecord.player.brisa = 90;
+    playerRecord.player.disposicao = 70;
+    playerRecord.player.cansaco = 60;
     playerRecord.inventory.push({
       durability: null,
       equipSlot: null,
@@ -524,10 +524,10 @@ describe('player runtime sync', () => {
       drugToleranceSystem: new DrugToleranceSystem({ keyValueStore: store, now: () => now }),
       keyValueStore: store,
       levelSystem: new LevelSystem(),
-      nerveSystem: new NerveSystem({ keyValueStore: store, now: () => now }),
+      disposicaoSystem: new DisposicaoSystem({ keyValueStore: store, now: () => now }),
       overdoseSystem: new OverdoseSystem({ keyValueStore: store, now: () => now }),
       repository,
-      staminaSystem: new StaminaSystem({ keyValueStore: store, now: () => now }),
+      cansacoSystem: new CansacoSystem({ keyValueStore: store, now: () => now }),
     });
 
     const result = await service.consumeDrugInventoryItem(playerId, 'drug-stack-overdose');
@@ -537,7 +537,7 @@ describe('player runtime sync', () => {
       penalties: {
         addictionResetTo: 50,
         conceitoLost: 26,
-        moraleResetTo: 0,
+        brisaResetTo: 0,
       },
       recentDrugTypes: [DrugType.Maconha],
       trigger: 'max_addiction',
@@ -550,9 +550,9 @@ describe('player runtime sync', () => {
     expect(result.player.resources).toMatchObject({
       addiction: 50,
       conceito: 494,
-      morale: 0,
-      nerve: 73,
-      stamina: 64,
+      brisa: 0,
+      disposicao: 73,
+      cansaco: 64,
     });
     expect(repository.getKnownContactsCount()).toBe(0);
 

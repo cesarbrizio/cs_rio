@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "assetType": "commercial-block-simple predio-comercial-simples-2",
+  "category": "residential",
+  "density": "medium-low",
+  "dominantHeight": "mixed",
+  "silhouette": {
+    "primaryMassing": "readable-urban-structure",
+    "roofProfile": "mixed",
+    "heightProfile": "spread",
+    "skyline": "clear-and-readable",
+    "footprintProfile": "balanced",
+    "detailPriority": [
+      "entrada",
+      "janelas",
+      "volume principal",
+      "anexo secundario"
+    ]
+  },
+  "materials": [
+    "alvenaria",
+    "telhado",
+    "garagem",
+    "varanda"
+  ],
+  "requiredModules": [
+    "anchor-shadow",
+    "commercial-simple-core"
+  ],
+  "forbiddenModules": [
+    "stage",
+    "prison-wall",
+    "scrap-pile"
+  ],
+  "composition": {
+    "layout": "readable-urban-structure",
+    "primaryAxis": "front-left",
+    "stacking": "balanced",
+    "streetPresence": "medium",
+    "edgeNoise": "medium",
+    "anchorMass": "center-left",
+    "layering": [
+      "main-volume",
+      "secondary-volume",
+      "roof",
+      "detail"
+    ],
+    "variationPriority": [
+      "height",
+      "roof",
+      "attachments"
+    ]
+  },
+  "styleGuide": {
+    "profile": "cs-rio-semirealista",
+    "resolvedProfile": "default",
+    "family": "commercial-block-simple",
+    "perspective": "isometric-2:1",
+    "paletteIntent": null,
+    "compositionPolicy": {
+      "layout": "single-block",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 1,
+      "xStep": 0,
+      "yStep": 0,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "midground",
+        "overlay"
+      ]
+    },
+    "modulePolicy": {
+      "targetNodeCount": 3,
+      "primaryModules": [
+        "commercial-simple-core"
+      ],
+      "secondaryModules": [],
+      "detailModules": [],
+      "forbiddenModules": [
+        "stage",
+        "prison-wall",
+        "scrap-pile"
+      ]
+    },
+    "variationPolicy": {
+      "jitter": {
+        "x": 2,
+        "y": 2
+      },
+      "scale": {
+        "min": 0.99,
+        "max": 1.03
+      },
+      "roofVariation": "low",
+      "materialVariation": "medium",
+      "attachmentVariation": "low"
+    },
+    "visualRules": [
+      "precisa sugerir base ativa",
+      "nao deve parecer bloco residencial puro"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "commercial-simple-core-1",
+      "module": "commercial-simple-core",
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "heightTier": "primary",
+      "variationSeed": 1,
+      "children": []
+    },
+    {
+      "id": "anchor-shadow-2",
+      "module": "anchor-shadow",
+      "layer": "midground",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "heightTier": "primary",
+      "variationSeed": 2,
+      "children": []
+    },
+    {
+      "id": "commercial-simple-core-3",
+      "module": "commercial-simple-core",
+      "layer": "overlay",
+      "anchor": {
+        "x": 92,
+        "y": 110
+      },
+      "heightTier": "secondary",
+      "variationSeed": 3,
+      "children": []
+    }
+  ]
+}

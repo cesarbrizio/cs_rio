@@ -4,7 +4,12 @@ import {
   buildAttackNotificationDraft,
   buildAsyncActivityNotificationDraft,
   buildEventNotificationDraft,
+  buildEventResultNotificationDraft,
+  buildPrivateMessageNotificationDraft,
+  buildSabotageNotificationDraft,
+  buildTerritoryLossNotificationDraft,
   buildTimerNotificationDrafts,
+  buildTribunalCueNotificationDraft,
   buildWarResultNotificationDraft,
   formatNotificationPermissionStatus,
 } from '../src/features/notifications';
@@ -57,6 +62,66 @@ describe('notification helpers', () => {
       body: 'Mão Leve terminou e o passivo já foi aplicado.',
       key: 'university:mao_leve:2026-03-14T12:10:00.000Z',
       title: 'Mão Leve concluído',
+    });
+
+    expect(
+      buildTerritoryLossNotificationDraft({
+        body: 'CV perdeu o Morro da Coroa. Controle agora com Estado.',
+        key: 'territory-loss:war_defeat:favela-1:faction-cv:state:2026-03-11T13:00:00.000Z',
+        title: 'Morro da Coroa: tomada estatal',
+      } as never),
+    ).toEqual({
+      body: 'CV perdeu o Morro da Coroa. Controle agora com Estado.',
+      key: 'territory-loss:war_defeat:favela-1:faction-cv:state:2026-03-11T13:00:00.000Z',
+      title: 'Morro da Coroa: tomada estatal',
+    });
+
+    expect(
+      buildEventResultNotificationDraft({
+        body: 'A janela premium das docas fechou no Centro.',
+        key: 'event-result:dock-1:2026-03-11T17:00:00.000Z',
+        title: 'Navio nas Docas · Centro',
+      }),
+    ).toEqual({
+        body: 'A janela premium das docas fechou no Centro.',
+        key: 'event-result:dock-1:2026-03-11T17:00:00.000Z',
+        title: 'Navio nas Docas · Centro',
+      });
+
+    expect(
+      buildPrivateMessageNotificationDraft({
+        body: 'Chega no barraco agora.',
+        key: 'private-message:partner-1:msg-1',
+        title: 'Mensagem de Radar',
+      }),
+    ).toEqual({
+      body: 'Chega no barraco agora.',
+      key: 'private-message:partner-1:msg-1',
+      title: 'Mensagem de Radar',
+    });
+
+    expect(
+      buildSabotageNotificationDraft({
+        body: 'Sua boca foi destruída e travou até a reconstrução.',
+        key: 'sabotage:defense:log-1:2026-03-16T10:00:00.000Z',
+        title: 'Boca: alerta de sabotagem',
+      }),
+    ).toEqual({
+      body: 'Sua boca foi destruída e travou até a reconstrução.',
+      key: 'sabotage:defense:log-1:2026-03-16T10:00:00.000Z',
+      title: 'Boca: alerta de sabotagem',
+    });
+
+    expect(
+      buildTribunalCueNotificationDraft({
+        body: 'Você perdeu o prazo e o comando local decidiu o tribunal.',
+        key: 'tribunal:resolved:case-1:2026-03-11T13:30:00.000Z',
+        title: 'Tribunal decidido sem você · Morro da Coroa',
+      } as never),
+    ).toEqual({
+      body: 'Você perdeu o prazo e o comando local decidiu o tribunal.',
+      key: 'tribunal:resolved:case-1:2026-03-11T13:30:00.000Z',
+      title: 'Tribunal decidido sem você · Morro da Coroa',
     });
   });
 

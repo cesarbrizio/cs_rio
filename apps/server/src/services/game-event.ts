@@ -1,9 +1,11 @@
 import {
   RegionId,
-  type ResolvedGameConfigCatalog,
   type DocksEventStatusResponse,
+  type EventResultListResponse,
+  type GameEventResultSummary,
   type PoliceEventStatusResponse,
   type PoliceEventType,
+  type ResolvedGameConfigCatalog,
   type SeasonalEventStatusResponse,
   type SeasonalEventType,
 } from '@cs-rio/shared';
@@ -162,6 +164,7 @@ interface SeasonalEventDefinition {
 }
 
 interface DocksEventRecord {
+  dataJson: Record<string, unknown>;
   endsAt: Date;
   id: string;
   regionId: RegionId;
@@ -246,6 +249,18 @@ interface CreateSeasonalEventInput {
   endsAt: Date;
   eventType: SeasonalEventType;
   regionId: RegionId;
+  startedAt: Date;
+}
+
+interface ResolvedGameEventRecord {
+  dataJson: Record<string, unknown>;
+  endsAt: Date;
+  eventType: 'navio_docas' | 'saidinha_natal' | PoliceEventType | SeasonalEventType;
+  favelaId: string | null;
+  favelaName: string | null;
+  id: string;
+  regionId: RegionId | null;
+  regionName: string | null;
   startedAt: Date;
 }
 
@@ -437,7 +452,12 @@ export interface GameEventRepository {
   }): Promise<void>;
   countArrestedBandits(): Promise<number>;
   countActivePrisoners(now: Date): Promise<number>;
-  createDocksEvent(input: { endsAt: Date; regionId: RegionId; startedAt: Date }): Promise<void>;
+  createDocksEvent(input: {
+    dataJson: Record<string, unknown>;
+    endsAt: Date;
+    regionId: RegionId;
+    startedAt: Date;
+  }): Promise<void>;
   createGlobalEvent(input: CreateGlobalEventInput): Promise<void>;
   createPoliceEvent(input: CreatePoliceEventInput): Promise<void>;
   createSeasonalEvent(input: CreateSeasonalEventInput): Promise<void>;
@@ -454,6 +474,7 @@ export interface GameEventRepository {
     since: Date;
   }): Promise<boolean>;
   listActivePoliceEvents(now: Date): Promise<ActivePoliceEventRecord[]>;
+  listRecentResolvedEvents(now: Date, limit: number): Promise<ResolvedGameEventRecord[]>;
   listActiveSeasonalEvents(now: Date): Promise<ActiveSeasonalEventRecord[]>;
   listControlledFavelas(): Promise<ControlledFavelaSnapshot[]>;
   listRegions(): Promise<RegionSnapshot[]>;
@@ -611,12 +632,14 @@ class DatabaseGameEventRepository implements GameEventRepository {
     });
   }
 
-  async createDocksEvent(input: { endsAt: Date; regionId: RegionId; startedAt: Date }): Promise<void> {
+  async createDocksEvent(input: {
+    dataJson: Record<string, unknown>;
+    endsAt: Date;
+    regionId: RegionId;
+    startedAt: Date;
+  }): Promise<void> {
     await db.insert(gameEvents).values({
-      dataJson: {
-        phase: '14.2',
-        source: 'scheduled_docks_ship',
-      },
+      dataJson: input.dataJson,
       endsAt: input.endsAt,
       eventType: 'navio_docas',
       regionId: input.regionId,
@@ -886,6 +909,54 @@ class DatabaseGameEventRepository implements GameEventRepository {
     }));
   }
 
+  async listRecentResolvedEvents(now: Date, limit: number): Promise<ResolvedGameEventRecord[]> {
+    const rows = await db
+      .select({
+        dataJson: gameEvents.dataJson,
+        endsAt: gameEvents.endsAt,
+        eventType: gameEvents.eventType,
+        favelaId: gameEvents.favelaId,
+        favelaName: favelas.name,
+        id: gameEvents.id,
+        regionId: gameEvents.regionId,
+        regionName: regions.name,
+        startedAt: gameEvents.startedAt,
+      })
+      .from(gameEvents)
+      .leftJoin(regions, eq(gameEvents.regionId, regions.id))
+      .leftJoin(favelas, eq(gameEvents.favelaId, favelas.id))
+      .where(
+        and(
+          inArray(gameEvents.eventType, [
+            'navio_docas',
+            'saidinha_natal',
+            'operacao_policial',
+            'blitz_pm',
+            'faca_na_caveira',
+            'ano_novo_copa',
+            'carnaval',
+            'operacao_verao',
+          ]),
+          lte(gameEvents.startedAt, now),
+          lte(gameEvents.endsAt, now),
+        ),
+      )
+      .orderBy(desc(gameEvents.endsAt), desc(gameEvents.startedAt))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      dataJson: row.dataJson as Record<string, unknown>,
+      endsAt: row.endsAt,
+      eventType: row.eventType as ResolvedGameEventRecord['eventType'],
+      favelaId: row.favelaId,
+      favelaName: row.favelaName,
+      id: row.id,
+      regionId: row.regionId as RegionId | null,
+      regionName: row.regionName,
+      startedAt: row.startedAt,
+    }));
+  }
+
   async listControlledFavelas(): Promise<ControlledFavelaSnapshot[]> {
     const rows = await db
       .select({
@@ -940,6 +1011,7 @@ class DatabaseGameEventRepository implements GameEventRepository {
   async listUpcomingOrActiveDocksEvents(now: Date): Promise<DocksEventRecord[]> {
     const rows = await db
       .select({
+        dataJson: gameEvents.dataJson,
         endsAt: gameEvents.endsAt,
         id: gameEvents.id,
         regionId: gameEvents.regionId,
@@ -956,6 +1028,7 @@ class DatabaseGameEventRepository implements GameEventRepository {
       .limit(2);
 
     return rows.map((row) => ({
+      dataJson: row.dataJson as Record<string, unknown>,
       endsAt: row.endsAt,
       id: row.id,
       regionId: row.regionId as RegionId,
@@ -1046,6 +1119,7 @@ class DatabaseGameEventRepository implements GameEventRepository {
 export interface GameEventServiceContract {
   getDocksStatus(now?: Date): Promise<DocksEventStatusResponse>;
   getPoliceStatus(now?: Date): Promise<PoliceEventStatusResponse>;
+  getRecentResults(now?: Date, limit?: number): Promise<EventResultListResponse>;
   getSeasonalStatus(now?: Date): Promise<SeasonalEventStatusResponse>;
   syncScheduledEvents(now?: Date): Promise<void>;
 }
@@ -1081,6 +1155,387 @@ interface PoliceOperationCandidate {
   score: number;
 }
 
+function buildGameEventResultSummary(
+  event: ResolvedGameEventRecord,
+  configCatalog: ResolvedGameConfigCatalog,
+): GameEventResultSummary {
+  switch (event.eventType) {
+    case 'navio_docas':
+      return buildDocksEventResultSummary(event, configCatalog);
+    case 'saidinha_natal':
+      return buildSaidinhaNatalResultSummary(event);
+    case 'operacao_policial':
+      return buildOperacaoPolicialResultSummary(event);
+    case 'blitz_pm':
+      return buildBlitzPmResultSummary(event);
+    case 'faca_na_caveira':
+      return buildFacaNaCaveiraResultSummary(event);
+    case 'carnaval':
+    case 'ano_novo_copa':
+    case 'operacao_verao':
+      return buildSeasonalResultSummary(
+        event as ResolvedGameEventRecord & { eventType: SeasonalEventType },
+        configCatalog,
+      );
+  }
+}
+
+function buildDocksEventResultSummary(
+  event: ResolvedGameEventRecord,
+  configCatalog: ResolvedGameConfigCatalog,
+): GameEventResultSummary {
+  const definition = resolveDocksEventDefinition(configCatalog);
+  const regionName = event.regionName ?? resolveRegionLabel(event.regionId);
+  const premiumMultiplier =
+    coerceNumberOrNull(event.dataJson.premiumMultiplier) ?? definition.premiumMultiplier;
+  const unlimitedDemand =
+    coerceBooleanOrNull(event.dataJson.unlimitedDemand) ?? definition.unlimitedDemand;
+  const headline =
+    typeof event.dataJson.headline === 'string' ? event.dataJson.headline : definition.headline;
+
+  return {
+    body: `A janela premium das docas fechou em ${regionName}.`,
+    destination: 'market',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline,
+    id: event.id,
+    impactSummary: unlimitedDemand
+      ? 'O multiplicador extra saiu do porto e a demanda livre voltou ao fluxo normal do mercado.'
+      : 'A rodada premium acabou e as vendas nas docas voltaram ao ritmo normal.',
+    metrics: compactEventResultMetrics([
+      buildEventResultMetric('Multiplicador', `${premiumMultiplier.toFixed(1)}x`),
+      buildEventResultMetric('Demanda', unlimitedDemand ? 'Livre' : 'Limitada'),
+      buildEventResultMetric('Região', regionName),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: 'info',
+    startedAt: event.startedAt.toISOString(),
+    title: `Navio nas Docas · ${regionName}`,
+  };
+}
+
+function buildOperacaoPolicialResultSummary(
+  event: ResolvedGameEventRecord,
+): GameEventResultSummary {
+  const locationLabel = resolveEventLocationLabel(event);
+  const arrests = coerceNumberOrNull(event.dataJson.banditsArrested) ?? 0;
+  const policePressureBefore = coerceNumberOrNull(event.dataJson.policePressureBefore);
+  const policePressureAfter = coerceNumberOrNull(event.dataJson.policePressureAfter);
+  const satisfactionBefore = coerceNumberOrNull(event.dataJson.satisfactionBefore);
+  const satisfactionAfter = coerceNumberOrNull(event.dataJson.satisfactionAfter);
+
+  return {
+    body: joinSentenceParts([
+      arrests > 0
+        ? `${arrests} ${pluralize(arrests, 'bandido foi preso', 'bandidos foram presos')} na operação.`
+        : 'A operação fechou sem prisão relevante de bandidos.',
+      policePressureBefore !== null && policePressureAfter !== null
+        ? `Pressão policial ${formatMetricShift(policePressureBefore, policePressureAfter)}.`
+        : null,
+      satisfactionBefore !== null && satisfactionAfter !== null
+        ? `Satisfação local ${formatMetricShift(satisfactionBefore, satisfactionAfter)}.`
+        : null,
+    ]),
+    destination: 'territory',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline: resolveStringOrFallback(
+      event.dataJson.headline,
+      'Operação Policial: a pressão subiu e a rua ficou mais quente.',
+    ),
+    id: event.id,
+    impactSummary:
+      'A favela terminou o ciclo com mais pressão policial e desgaste direto na rotina do território.',
+    metrics: compactEventResultMetrics([
+      buildShiftMetric('Pressão', policePressureBefore, policePressureAfter),
+      buildShiftMetric('Satisfação', satisfactionBefore, satisfactionAfter),
+      buildCountMetric('Bandidos presos', arrests),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: 'warning',
+    startedAt: event.startedAt.toISOString(),
+    title: `Operação policial · ${locationLabel}`,
+  };
+}
+
+function buildBlitzPmResultSummary(event: ResolvedGameEventRecord): GameEventResultSummary {
+  const locationLabel = resolveEventLocationLabel(event);
+  const policePressureBefore = coerceNumberOrNull(event.dataJson.policePressureBefore);
+  const policePressureAfter = coerceNumberOrNull(event.dataJson.policePressureAfter);
+  const satisfactionBefore = coerceNumberOrNull(event.dataJson.satisfactionBefore);
+  const satisfactionAfter = coerceNumberOrNull(event.dataJson.satisfactionAfter);
+  const affectedFavelas = coerceNumberOrNull(event.dataJson.affectedFavelas) ?? 0;
+
+  return {
+    body: joinSentenceParts([
+      affectedFavelas > 0
+        ? `A blitz fechou com ${affectedFavelas} ${pluralize(affectedFavelas, 'favela afetada', 'favelas afetadas')}.`
+        : 'A blitz fechou sem favela listada no impacto final.',
+      policePressureBefore !== null && policePressureAfter !== null
+        ? `Pressão regional ${formatMetricShift(policePressureBefore, policePressureAfter)}.`
+        : null,
+      satisfactionBefore !== null && satisfactionAfter !== null
+        ? `Satisfação média ${formatMetricShift(satisfactionBefore, satisfactionAfter)}.`
+        : null,
+    ]),
+    destination: 'map',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline: resolveStringOrFallback(
+      event.dataJson.headline,
+      'Blitz da PM: o cerco apertou e a circulação ficou mais arriscada.',
+    ),
+    id: event.id,
+    impactSummary:
+      'A circulação na região ficou mais sensível e o calor policial subiu durante a blitz.',
+    metrics: compactEventResultMetrics([
+      buildShiftMetric('Pressão', policePressureBefore, policePressureAfter),
+      buildShiftMetric('Satisfação', satisfactionBefore, satisfactionAfter),
+      buildCountMetric('Favelas afetadas', affectedFavelas),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: 'warning',
+    startedAt: event.startedAt.toISOString(),
+    title: `Blitz da PM · ${locationLabel}`,
+  };
+}
+
+function buildFacaNaCaveiraResultSummary(
+  event: ResolvedGameEventRecord,
+): GameEventResultSummary {
+  const locationLabel = resolveEventLocationLabel(event);
+  const policePressureBefore = coerceNumberOrNull(event.dataJson.policePressureBefore);
+  const policePressureAfter = coerceNumberOrNull(event.dataJson.policePressureAfter);
+  const satisfactionBefore = coerceNumberOrNull(event.dataJson.satisfactionBefore);
+  const satisfactionAfter = coerceNumberOrNull(event.dataJson.satisfactionAfter);
+  const banditsKilled = coerceNumberOrNull(event.dataJson.banditsKilledEstimate) ?? 0;
+  const drugsLost = coerceNumberOrNull(event.dataJson.drugsLost) ?? 0;
+  const soldiersLost = coerceNumberOrNull(event.dataJson.soldiersLost) ?? 0;
+  const weaponsLost = coerceNumberOrNull(event.dataJson.weaponsLost) ?? 0;
+
+  return {
+    body: joinSentenceParts([
+      banditsKilled > 0
+        ? `${banditsKilled} ${pluralize(banditsKilled, 'bandido caiu', 'bandidos caíram')} no choque.`
+        : 'O BOPE entrou sem registrar baixa estimada de bandidos.',
+      drugsLost > 0
+        ? `${drugsLost} unidades de droga foram levadas na operação.`
+        : null,
+      soldiersLost > 0
+        ? `${soldiersLost} ${pluralize(soldiersLost, 'soldado caiu', 'soldados caíram')} no território.`
+        : null,
+      weaponsLost > 0
+        ? `${weaponsLost} ${pluralize(weaponsLost, 'arma foi tomada', 'armas foram tomadas')}.`
+        : null,
+    ]),
+    destination: 'territory',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline: resolveStringOrFallback(
+      event.dataJson.headline,
+      'As operações do BOPE não fazem prisioneiros, não tem desenrolo, é faca na caveira! Eles entram, tomam armas, drogas e matam!',
+    ),
+    id: event.id,
+    impactSummary:
+      'O território fechou a operação com perdas materiais, baixas locais e desgaste forte na moral da facção.',
+    metrics: compactEventResultMetrics([
+      buildShiftMetric('Pressão', policePressureBefore, policePressureAfter),
+      buildShiftMetric('Satisfação', satisfactionBefore, satisfactionAfter),
+      buildCountMetric('Drogas perdidas', drugsLost),
+      buildCountMetric('Soldados perdidos', soldiersLost),
+      buildCountMetric('Armas perdidas', weaponsLost),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: 'danger',
+    startedAt: event.startedAt.toISOString(),
+    title: `Faca na Caveira · ${locationLabel}`,
+  };
+}
+
+function buildSaidinhaNatalResultSummary(
+  event: ResolvedGameEventRecord,
+): GameEventResultSummary {
+  const releasedPlayers = coerceNumberOrNull(event.dataJson.releasedPlayers) ?? 0;
+  const releasedBandits = coerceNumberOrNull(event.dataJson.releasedBanditsEstimate) ?? 0;
+
+  return {
+    body: joinSentenceParts([
+      releasedPlayers > 0
+        ? `${releasedPlayers} ${pluralize(releasedPlayers, 'preso ganhou a rua', 'presos ganharam a rua')}.`
+        : 'Nenhum preso elegível foi solto antes do prazo.',
+      releasedBandits > 0
+        ? `${releasedBandits} ${pluralize(releasedBandits, 'bandido voltou para a favela', 'bandidos voltaram para as favelas')}.`
+        : null,
+    ]),
+    destination: 'prison',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline: resolveStringOrFallback(
+      event.dataJson.headline,
+      'Saidinha de Natal! Os presos elegíveis ganharam a rua de novo e os bandidos voltaram para as favelas.',
+    ),
+    id: event.id,
+    impactSummary:
+      'Os cronômetros elegíveis foram encerrados mais cedo e parte da força presa voltou ao mapa.',
+    metrics: compactEventResultMetrics([
+      buildCountMetric('Presos soltos', releasedPlayers),
+      buildCountMetric('Bandidos soltos', releasedBandits),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: 'warning',
+    startedAt: event.startedAt.toISOString(),
+    title: 'Saidinha de Natal',
+  };
+}
+
+function buildSeasonalResultSummary(
+  event: ResolvedGameEventRecord & { eventType: SeasonalEventType },
+  configCatalog: ResolvedGameConfigCatalog,
+): GameEventResultSummary {
+  const definition = resolveSeasonalEventDefinition(configCatalog, event.eventType);
+  const regionName = event.regionName ?? resolveRegionLabel(event.regionId);
+  const bonusSummary =
+    Array.isArray(event.dataJson.bonusSummary) &&
+    event.dataJson.bonusSummary.every((entry) => typeof entry === 'string')
+      ? [...event.dataJson.bonusSummary]
+      : definition.bonusSummary;
+  const headline =
+    typeof event.dataJson.headline === 'string' ? event.dataJson.headline : definition.headline;
+  const title =
+    event.eventType === 'carnaval'
+      ? `Carnaval · ${regionName}`
+      : event.eventType === 'ano_novo_copa'
+        ? `Ano Novo em Copa · ${regionName}`
+        : `Operação Verão · ${regionName}`;
+
+  return {
+    body: `O ciclo sazonal fechou em ${regionName}. ${bonusSummary[0] ?? headline}`,
+    destination: event.eventType === 'operacao_verao' ? 'territory' : 'map',
+    eventType: event.eventType,
+    favelaId: event.favelaId,
+    favelaName: event.favelaName,
+    headline,
+    id: event.id,
+    impactSummary:
+      bonusSummary.length > 1 ? bonusSummary.slice(0, 2).join(' ') : bonusSummary[0] ?? headline,
+    metrics: compactEventResultMetrics([
+      buildEventResultMetric('Região', regionName),
+      buildEventResultMetric('Polícia', resolveSeasonalPoliceMoodLabel(definition.policeMood)),
+    ]),
+    regionId: event.regionId,
+    regionName: event.regionName,
+    resolvedAt: event.endsAt.toISOString(),
+    severity: event.eventType === 'operacao_verao' ? 'warning' : 'info',
+    startedAt: event.startedAt.toISOString(),
+    title,
+  };
+}
+
+function buildShiftMetric(
+  label: string,
+  before: number | null,
+  after: number | null,
+): GameEventResultSummary['metrics'][number] | null {
+  if (before === null || after === null) {
+    return null;
+  }
+
+  return buildEventResultMetric(label, `${before} -> ${after}`);
+}
+
+function buildCountMetric(
+  label: string,
+  value: number,
+): GameEventResultSummary['metrics'][number] | null {
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return buildEventResultMetric(label, String(value));
+}
+
+function buildEventResultMetric(
+  label: string,
+  value: string,
+): GameEventResultSummary['metrics'][number] {
+  return { label, value };
+}
+
+function compactEventResultMetrics(
+  metrics: Array<GameEventResultSummary['metrics'][number] | null>,
+): GameEventResultSummary['metrics'] {
+  return metrics.filter((metric): metric is GameEventResultSummary['metrics'][number] => metric !== null);
+}
+
+function resolveEventLocationLabel(event: ResolvedGameEventRecord): string {
+  if (event.favelaName && event.regionName) {
+    return `${event.favelaName} · ${event.regionName}`;
+  }
+
+  if (event.favelaName) {
+    return event.favelaName;
+  }
+
+  return event.regionName ?? resolveRegionLabel(event.regionId);
+}
+
+function resolveRegionLabel(regionId: RegionId | null): string {
+  switch (regionId) {
+    case RegionId.ZonaSul:
+      return 'Zona Sul';
+    case RegionId.ZonaNorte:
+      return 'Zona Norte';
+    case RegionId.Centro:
+      return 'Centro';
+    case RegionId.ZonaOeste:
+      return 'Zona Oeste';
+    case RegionId.ZonaSudoeste:
+      return 'Zona Sudoeste';
+    case RegionId.Baixada:
+      return 'Baixada';
+    default:
+      return 'Rio';
+  }
+}
+
+function resolveSeasonalPoliceMoodLabel(
+  mood: ReturnType<typeof resolveSeasonalEventDefinition>['policeMood'],
+): string {
+  return mood === 'distracted' ? 'Distraída' : 'Reforçada';
+}
+
+function resolveStringOrFallback(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+function formatMetricShift(before: number, after: number): string {
+  return `${before} -> ${after}`;
+}
+
+function joinSentenceParts(parts: Array<string | null | undefined>): string {
+  return parts.filter((part): part is string => typeof part === 'string' && part.length > 0).join(' ');
+}
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
@@ -1091,6 +1546,10 @@ function clamp01(value: number): number {
 
 function coerceNumberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function coerceBooleanOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
 }
 
 function pickWeighted<T>(items: T[], getWeight: (item: T) => number, random: () => number): T | null {
@@ -1459,6 +1918,22 @@ export class GameEventService implements GameEventServiceContract {
     };
   }
 
+  async getRecentResults(
+    now: Date = new Date(),
+    limit = 24,
+  ): Promise<EventResultListResponse> {
+    const configCatalog = await this.gameConfigService.getResolvedCatalog({ now });
+    const events = await this.repository.listRecentResolvedEvents(
+      now,
+      Math.max(1, Math.min(40, Math.trunc(limit) || 24)),
+    );
+
+    return {
+      generatedAt: now.toISOString(),
+      results: events.map((event) => buildGameEventResultSummary(event, configCatalog)),
+    };
+  }
+
   async syncScheduledEvents(now: Date = new Date()): Promise<void> {
     const configCatalog = await this.gameConfigService.getResolvedCatalog({ now });
     await this.syncDocks(now, configCatalog);
@@ -1619,6 +2094,13 @@ export class GameEventService implements GameEventServiceContract {
     const endsAt = new Date(startedAt.getTime() + docksDefinition.durationMs);
 
     await this.repository.createDocksEvent({
+      dataJson: {
+        headline: docksDefinition.headline,
+        phase: '14.2',
+        premiumMultiplier: docksDefinition.premiumMultiplier,
+        source: docksDefinition.source,
+        unlimitedDemand: docksDefinition.unlimitedDemand,
+      },
       endsAt,
       regionId: targetRegionId,
       startedAt,

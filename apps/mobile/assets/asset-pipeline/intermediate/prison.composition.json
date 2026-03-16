@@ -1,0 +1,268 @@
+{
+  "stage": "compose-from-modules",
+  "assetType": "prison prison",
+  "category": "prison",
+  "styleGuide": {
+    "resolvedProfile": "simcity-urban",
+    "family": "prison",
+    "variationPolicy": {
+      "jitter": {
+        "x": 2,
+        "y": 2
+      },
+      "scale": {
+        "min": 0.99,
+        "max": 1.03
+      },
+      "roofVariation": "low",
+      "materialVariation": "low",
+      "attachmentVariation": "low"
+    },
+    "compositionPolicy": {
+      "layout": "perimeter-block",
+      "baseAnchor": {
+        "x": 92,
+        "y": 126
+      },
+      "columns": 2,
+      "xStep": 12,
+      "yStep": 4,
+      "rowLift": 8,
+      "layerPattern": [
+        "foreground",
+        "foreground",
+        "midground",
+        "background",
+        "overlay"
+      ]
+    }
+  },
+  "moduleFamilies": [
+    "shared",
+    "favela",
+    "favela-cluster",
+    "barraco",
+    "baile",
+    "boca",
+    "market-clandestino",
+    "gym",
+    "hospital",
+    "prison",
+    "university",
+    "factory",
+    "dock-industrial",
+    "junkyard",
+    "residential-tower-simple",
+    "residential-tower-modern",
+    "commercial-block-simple",
+    "commercial-block-modern",
+    "house-simple",
+    "house-wealthy"
+  ],
+  "resolvedModules": [
+    {
+      "id": "anchor-shadow-4",
+      "module": "anchor-shadow",
+      "resolved": {
+        "id": "anchor-shadow",
+        "family": "shared",
+        "footprint": {
+          "width": 26,
+          "depth": 10
+        },
+        "slots": [
+          "grounding"
+        ]
+      },
+      "layer": "background",
+      "anchor": {
+        "x": 104,
+        "y": 114
+      },
+      "placement": {
+        "x": 9,
+        "y": -8,
+        "scale": 0.993
+      },
+      "variants": {
+        "materialHint": "portao reforcado",
+        "slotHint": "grounding",
+        "profile": "simcity-urban",
+        "family": "prison",
+        "density": "medium-low",
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low",
+        "visualRules": [
+          "precisa ler como fechado e hostil",
+          "muro e massa principal devem dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "guard-tower-3",
+      "module": "guard-tower",
+      "resolved": {
+        "id": "guard-tower",
+        "family": "prison",
+        "footprint": {
+          "width": 16,
+          "depth": 10
+        },
+        "slots": [
+          "detail"
+        ]
+      },
+      "layer": "midground",
+      "anchor": {
+        "x": 92,
+        "y": 118
+      },
+      "placement": {
+        "x": -28,
+        "y": -3,
+        "scale": 0.996
+      },
+      "variants": {
+        "materialHint": "concreto",
+        "slotHint": "detail",
+        "profile": "simcity-urban",
+        "family": "prison",
+        "density": "medium-low",
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low",
+        "visualRules": [
+          "precisa ler como fechado e hostil",
+          "muro e massa principal devem dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "prison-wall-2",
+      "module": "prison-wall",
+      "resolved": {
+        "id": "prison-wall",
+        "family": "prison",
+        "footprint": {
+          "width": 62,
+          "depth": 18
+        },
+        "slots": [
+          "detail"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 104,
+        "y": 122
+      },
+      "placement": {
+        "x": 12,
+        "y": 0,
+        "scale": 1.025
+      },
+      "variants": {
+        "materialHint": "concreto",
+        "slotHint": "detail",
+        "profile": "simcity-urban",
+        "family": "prison",
+        "density": "medium-low",
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low",
+        "visualRules": [
+          "precisa ler como fechado e hostil",
+          "muro e massa principal devem dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "prison-core-1",
+      "module": "prison-core",
+      "resolved": {
+        "id": "prison-core",
+        "family": "prison",
+        "footprint": {
+          "width": 58,
+          "depth": 24
+        },
+        "slots": [
+          "core"
+        ]
+      },
+      "layer": "foreground",
+      "anchor": {
+        "x": 92,
+        "y": 126
+      },
+      "placement": {
+        "x": -1,
+        "y": 6,
+        "scale": 1.022
+      },
+      "variants": {
+        "materialHint": "torre",
+        "slotHint": "core",
+        "profile": "simcity-urban",
+        "family": "prison",
+        "density": "medium-low",
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low",
+        "visualRules": [
+          "precisa ler como fechado e hostil",
+          "muro e massa principal devem dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    },
+    {
+      "id": "prison-core-5",
+      "module": "prison-core",
+      "resolved": {
+        "id": "prison-core",
+        "family": "prison",
+        "footprint": {
+          "width": 58,
+          "depth": 24
+        },
+        "slots": [
+          "core"
+        ]
+      },
+      "layer": "overlay",
+      "anchor": {
+        "x": 92,
+        "y": 110
+      },
+      "placement": {
+        "x": -3,
+        "y": -11,
+        "scale": 1.028
+      },
+      "variants": {
+        "materialHint": "torre tecnica",
+        "slotHint": "core",
+        "profile": "simcity-urban",
+        "family": "prison",
+        "density": "medium-low",
+        "roofVariation": "low",
+        "materialVariation": "low",
+        "attachmentVariation": "low",
+        "visualRules": [
+          "precisa ler como fechado e hostil",
+          "muro e massa principal devem dominar a silhueta"
+        ]
+      },
+      "skipped": false
+    }
+  ],
+  "compositionViewBox": "0 0 192 160",
+  "skippedModules": [],
+  "note": "Etapa 4 concluida: compositor modular agora monta uma cena intermediaria real a partir do scene graph e da biblioteca.",
+  "compositionPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/prison.composition.svg"
+}

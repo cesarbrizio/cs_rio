@@ -1,0 +1,64 @@
+{
+  "family": "prison",
+  "title": "Prisao / complexo carcerario",
+  "category": "institucional",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "prison"
+  ],
+  "assetTypes": [
+    "prison"
+  ],
+  "planCategories": [
+    "institucional"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/prison/prsiao_1.jpg",
+    "assets/examples/prison/prsiao_4.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/prison/prsiao_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/prison/prsiao_4.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "massa pesada, fechada, com pátio ou muralha sugeridos e leitura hostil",
+  "mustCapture": [
+    "muro ou perimetro",
+    "corpo principal pesado",
+    "aberturas controladas"
+  ],
+  "avoid": [
+    "hospital",
+    "predio administrativo comum",
+    "fortaleza medieval"
+  ],
+  "notes": [
+    "Familia institucional de leitura opressiva."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/prison",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/prison/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/prison/prsiao_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/prison/prsiao_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/prison/references/01-prison-prsiao_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/prison/prsiao_4.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/prison/prsiao_4.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/prison/references/02-prison-prsiao_4.jpg"
+    }
+  ]
+}

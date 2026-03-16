@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   InvalidEnvironmentError,
   ensureValidJwtSecrets,
+  resolveTrustedProxyList,
 } from '../src/config/env.js';
 
 describe('env jwt secret validation', () => {
@@ -34,5 +35,17 @@ describe('env jwt secret validation', () => {
         jwtSecret: 'change-me-too',
       }),
     ).toThrow(InvalidEnvironmentError);
+  });
+
+  it('parses trust proxy configuration into an explicit proxy allowlist', () => {
+    expect(resolveTrustedProxyList(undefined)).toBe(false);
+    expect(resolveTrustedProxyList('false')).toBe(false);
+    expect(resolveTrustedProxyList('true')).toBe(true);
+    expect(resolveTrustedProxyList(' loopback ')).toBe('loopback');
+    expect(resolveTrustedProxyList('loopback, 10.0.0.5, 10.0.0.6/32')).toEqual([
+      'loopback',
+      '10.0.0.5',
+      '10.0.0.6/32',
+    ]);
   });
 });

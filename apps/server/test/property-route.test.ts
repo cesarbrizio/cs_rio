@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import {
   DEFAULT_CHARACTER_APPEARANCE,
+  PROPERTY_SABOTAGE_CANSACO_COST,
+  PROPERTY_SABOTAGE_DISPOSICAO_COST,
   type PropertyPurchaseInput,
   PROPERTY_DEFINITIONS,
   RegionId,
@@ -11,6 +13,7 @@ import {
 import Fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { ActionIdempotency } from '../src/api/action-idempotency.js';
 import { createAuthMiddleware } from '../src/api/middleware/auth.js';
 import { createAuthRoutes } from '../src/api/routes/auth.js';
 import { createPropertyRoutes } from '../src/api/routes/properties.js';
@@ -28,6 +31,9 @@ interface InMemoryPropertyRecord {
   lastMaintenanceAt: Date;
   level: number;
   regionId: RegionId;
+  sabotageRecoveryReadyAt: Date | null;
+  sabotageResolvedAt: Date | null;
+  sabotageState: 'normal' | 'damaged' | 'destroyed';
   soldierRoster: Array<{
     count: number;
     dailyCost: number;
@@ -36,6 +42,26 @@ interface InMemoryPropertyRecord {
     type: (typeof SOLDIER_TEMPLATES)[number]['type'];
   }>;
   suspended: boolean;
+  type: (typeof PROPERTY_DEFINITIONS)[number]['type'];
+}
+
+interface InMemorySabotageLogRecord {
+  attackRatio: number;
+  attackScore: number;
+  attackerFactionId: string | null;
+  attackerPlayerId: string;
+  createdAt: Date;
+  defenseScore: number;
+  favelaId: string | null;
+  heatDelta: number;
+  id: string;
+  outcome: 'damaged' | 'destroyed' | 'failure_clean' | 'failure_hard';
+  ownerAlertMode: 'anonymous' | 'identified';
+  ownerFactionId: string | null;
+  ownerPlayerId: string;
+  prisonMinutes: number | null;
+  propertyId: string;
+  regionId: RegionId;
   type: (typeof PROPERTY_DEFINITIONS)[number]['type'];
 }
 
@@ -49,6 +75,7 @@ interface TestState {
   }>;
   players: Map<string, AuthPlayerRecord>;
   propertiesByPlayerId: Map<string, InMemoryPropertyRecord[]>;
+  sabotageLogs: InMemorySabotageLogRecord[];
   regions: Array<{
     id: RegionId;
     operationCostMultiplier: number;
@@ -102,16 +129,16 @@ class InMemoryAuthPropertyRepository implements AuthRepository, PropertyReposito
       inteligencia: 28,
       lastLogin: input.lastLogin,
       level: 7,
-      morale: 100,
+      brisa: 100,
       money: this.state.defaultFactionId ? '150000' : '6000',
-      nerve: 100,
+      disposicao: 100,
       nickname: input.nickname,
       passwordHash: input.passwordHash,
       positionX: 100,
       positionY: 100,
       regionId: RegionId.Centro,
       resistencia: 22,
-      stamina: 100,
+      cansaco: 100,
       vocation: VocationType.Gerente,
     };
 
@@ -142,6 +169,9 @@ class InMemoryAuthPropertyRepository implements AuthRepository, PropertyReposito
       lastMaintenanceAt: input.startedAt,
       level: 1,
       regionId: input.regionId,
+      sabotageRecoveryReadyAt: null,
+      sabotageResolvedAt: null,
+      sabotageState: 'normal',
       soldierRoster: [],
       suspended: false,
       type: input.type,
@@ -185,17 +215,48 @@ class InMemoryAuthPropertyRepository implements AuthRepository, PropertyReposito
     }
 
     return {
+      cansaco: player.cansaco,
+      carisma: player.carisma,
       characterCreatedAt: player.characterCreatedAt,
+      disposicao: player.disposicao,
       factionId: player.factionId,
+      forca: player.forca,
       id: player.id,
+      inteligencia: player.inteligencia,
       level: player.level,
       money: Number.parseFloat(player.money),
+      nickname: player.nickname,
+      regionId: player.regionId,
+      resistencia: player.resistencia,
+      vocation: player.vocation,
     };
   }
 
   async getProperty(playerId: string, propertyId: string): Promise<InMemoryPropertyRecord | null> {
     const properties = this.state.propertiesByPlayerId.get(playerId) ?? [];
     return properties.find((property) => property.id === propertyId) ?? null;
+  }
+
+  async getSabotageTarget(propertyId: string) {
+    for (const [ownerPlayerId, properties] of this.state.propertiesByPlayerId.entries()) {
+      const property = properties.find((entry) => entry.id === propertyId);
+      const owner = this.state.players.get(ownerPlayerId);
+
+      if (!property || !owner) {
+        continue;
+      }
+
+      return {
+        ...property,
+        ownerCharacterCreatedAt: owner.characterCreatedAt,
+        ownerFactionId: owner.factionId,
+        ownerNickname: owner.nickname,
+        ownerPlayerId,
+        soldierRoster: property.soldierRoster.map((entry) => ({ ...entry })),
+      };
+    }
+
+    return null;
   }
 
   async getFavelaForceState(favelaId: string) {
@@ -219,6 +280,14 @@ class InMemoryAuthPropertyRepository implements AuthRepository, PropertyReposito
       maxSoldiers: favela.maxSoldiers,
       soldiersCount,
     };
+  }
+
+  async getLatestSabotageLogForProperty(propertyId: string) {
+    const log = [...this.state.sabotageLogs]
+      .filter((entry) => entry.propertyId === propertyId)
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0];
+
+    return log ? { ...log } : null;
   }
 
   async hireSoldiers(
@@ -273,8 +342,108 @@ class InMemoryAuthPropertyRepository implements AuthRepository, PropertyReposito
     return this.state.regions;
   }
 
+  async listRecentSabotageLogs(playerId: string, limit: number) {
+    return [...this.state.sabotageLogs]
+      .filter(
+        (entry) => entry.attackerPlayerId === playerId || entry.ownerPlayerId === playerId,
+      )
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, limit)
+      .map((entry) => ({ ...entry }));
+  }
+
+  async listSabotageTargets(regionId: RegionId, propertyTypes: Array<(typeof PROPERTY_DEFINITIONS)[number]['type']>) {
+    const targets: Awaited<ReturnType<InMemoryAuthPropertyRepository['getSabotageTarget']>>[] = [];
+
+    for (const properties of this.state.propertiesByPlayerId.values()) {
+      for (const property of properties) {
+        if (property.regionId !== regionId || !propertyTypes.includes(property.type)) {
+          continue;
+        }
+
+        targets.push(await this.getSabotageTarget(property.id));
+      }
+    }
+
+    return targets
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .map((entry) => ({
+        ...entry,
+        soldierRoster: entry.soldierRoster.map((rosterEntry) => ({ ...rosterEntry })),
+      }));
+  }
+
   async listSoldierTemplates() {
     return [...SOLDIER_TEMPLATES];
+  }
+
+  async recoverSabotage(playerId: string, propertyId: string, recoveryCost: number): Promise<boolean> {
+    const player = this.state.players.get(playerId);
+    const property = await this.getProperty(playerId, propertyId);
+
+    if (!player || !property) {
+      return false;
+    }
+
+    player.money = String(Number.parseFloat(player.money) - recoveryCost);
+    property.sabotageRecoveryReadyAt = null;
+    property.sabotageResolvedAt = null;
+    property.sabotageState = 'normal';
+    return true;
+  }
+
+  async recordSabotageAttempt(input: {
+    attackerFactionId: string | null;
+    attackerPlayerId: string;
+    attackRatio: number;
+    attackScore: number;
+    createdAt: Date;
+    defenseScore: number;
+    heatDelta: number;
+    nextAttackerCansaco: number;
+    nextAttackerDisposicao: number;
+    outcome: 'damaged' | 'destroyed' | 'failure_clean' | 'failure_hard';
+    ownerAlertMode: 'anonymous' | 'identified';
+    ownerFactionId: string | null;
+    ownerPlayerId: string;
+    prisonMinutes: number | null;
+    propertyId: string;
+    sabotageRecoveryReadyAt: Date | null;
+    sabotageResolvedAt: Date | null;
+    sabotageState: 'normal' | 'damaged' | 'destroyed';
+  }): Promise<boolean> {
+    const attacker = this.state.players.get(input.attackerPlayerId);
+    const property = await this.getProperty(input.ownerPlayerId, input.propertyId);
+
+    if (!attacker || !property) {
+      return false;
+    }
+
+    attacker.cansaco = input.nextAttackerCansaco;
+    attacker.disposicao = input.nextAttackerDisposicao;
+    property.sabotageRecoveryReadyAt = input.sabotageRecoveryReadyAt;
+    property.sabotageResolvedAt = input.sabotageResolvedAt;
+    property.sabotageState = input.sabotageState;
+    this.state.sabotageLogs.push({
+      attackRatio: input.attackRatio,
+      attackScore: input.attackScore,
+      attackerFactionId: input.attackerFactionId,
+      attackerPlayerId: input.attackerPlayerId,
+      createdAt: input.createdAt,
+      defenseScore: input.defenseScore,
+      favelaId: property.favelaId,
+      heatDelta: input.heatDelta,
+      id: randomUUID(),
+      outcome: input.outcome,
+      ownerAlertMode: input.ownerAlertMode,
+      ownerFactionId: input.ownerFactionId,
+      ownerPlayerId: input.ownerPlayerId,
+      prisonMinutes: input.prisonMinutes,
+      propertyId: input.propertyId,
+      regionId: property.regionId,
+      type: property.type,
+    });
+    return true;
   }
 
   async updateLastLogin(playerId: string, date: Date): Promise<void> {
@@ -311,13 +480,15 @@ class InMemoryKeyValueStore implements KeyValueStore {
     return this.values.get(key) ?? null;
   }
 
-  async increment(key: string): Promise<number> {
+  async increment(key: string, ttlSeconds: number): Promise<number> {
+    void ttlSeconds;
     const nextValue = Number.parseInt(this.values.get(key) ?? '0', 10) + 1;
     this.values.set(key, String(nextValue));
     return nextValue;
   }
 
-  async set(key: string, value: string): Promise<void> {
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    void ttlSeconds;
     this.values.set(key, value);
   }
 
@@ -445,7 +616,7 @@ describe('property routes', () => {
     expect(listResponse.json().ownedProperties[0].status).toBe('maintenance_blocked');
   });
 
-  it('buys patrimonial assets with prestige and utility while blocking guards on unsecured vehicles', async () => {
+  it('buys patrimonial assets with utility and protection while blocking guards on unsecured vehicles', async () => {
     const accessToken = await registerAndExtractToken(app.server);
 
     const beachHousePurchase = await app.server.inject({
@@ -464,9 +635,8 @@ describe('property routes', () => {
     expect(beachHousePurchase.json().property.definition.assetClass).toBe('real_estate');
     expect(beachHousePurchase.json().property.economics.profitable).toBe(false);
     expect(beachHousePurchase.json().property.economics.effectiveFactionCommissionRate).toBe(0);
-    expect(beachHousePurchase.json().property.economics.effectivePrestigeScore).toBeGreaterThanOrEqual(95);
     expect(beachHousePurchase.json().property.definition.utility.inventorySlotsBonus).toBe(8);
-    expect(beachHousePurchase.json().property.definition.utility.staminaRecoveryPerHourBonus).toBe(3);
+    expect(beachHousePurchase.json().property.definition.utility.cansacoRecoveryPerHourBonus).toBe(3);
     expect(beachHousePurchase.json().property.protection.takeoverRisk).toBe(0);
 
     const carPurchase = await app.server.inject({
@@ -604,6 +774,171 @@ describe('property routes', () => {
     expect(secondHire.statusCode).toBe(409);
     expect(secondHire.json().message).toContain('Teto maximo de soldados desta favela');
   });
+
+  it('lists eligible sabotage targets in the same region for rival operators', async () => {
+    state.defaultFactionId = null;
+    await app.close();
+    app = await buildTestApp({
+      now: () => now,
+      state,
+    });
+
+    const attacker = await registerPlayer(app.server, state, {
+      nicknamePrefix: 'atk',
+    });
+    const defender = await registerPlayer(app.server, state, {
+      nicknamePrefix: 'def',
+    });
+    const attackerPlayer = state.players.get(attacker.playerId)!;
+    const defenderPlayer = state.players.get(defender.playerId)!;
+    attackerPlayer.characterCreatedAt = new Date('2026-03-01T10:00:00.000Z');
+    defenderPlayer.characterCreatedAt = new Date('2026-03-01T10:00:00.000Z');
+    attackerPlayer.money = '100000';
+    defenderPlayer.money = '100000';
+
+    const purchaseResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${defender.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        favelaId: 'favela-centro-1',
+        regionId: RegionId.Centro,
+        type: 'boca',
+      } satisfies PropertyPurchaseInput,
+      url: '/api/properties',
+    });
+
+    expect(purchaseResponse.statusCode).toBe(201);
+
+    const sabotageCenterResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${attacker.accessToken}`,
+      },
+      method: 'GET',
+      url: '/api/properties/sabotage',
+    });
+
+    expect(sabotageCenterResponse.statusCode).toBe(200);
+    expect(sabotageCenterResponse.json().availability).toMatchObject({
+      available: true,
+      cansacoCost: PROPERTY_SABOTAGE_CANSACO_COST,
+      disposicaoCost: PROPERTY_SABOTAGE_DISPOSICAO_COST,
+    });
+    expect(sabotageCenterResponse.json().targets).toHaveLength(1);
+    expect(sabotageCenterResponse.json().targets[0]).toMatchObject({
+      ownerPlayerId: defender.playerId,
+      regionId: RegionId.Centro,
+      status: 'eligible',
+      type: 'boca',
+    });
+  });
+
+  it('applies sabotage, enforces cooldown and allows recovery after the timer', async () => {
+    state.defaultFactionId = null;
+    await app.close();
+    app = await buildTestApp({
+      now: () => now,
+      state,
+    });
+
+    const attacker = await registerPlayer(app.server, state, {
+      nicknamePrefix: 'atk2',
+    });
+    const defender = await registerPlayer(app.server, state, {
+      nicknamePrefix: 'def2',
+    });
+    const attackerPlayer = state.players.get(attacker.playerId)!;
+    const defenderPlayer = state.players.get(defender.playerId)!;
+    attackerPlayer.characterCreatedAt = new Date('2026-03-01T10:00:00.000Z');
+    defenderPlayer.characterCreatedAt = new Date('2026-03-01T10:00:00.000Z');
+    attackerPlayer.money = '100000';
+    defenderPlayer.money = '100000';
+
+    const purchaseResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${defender.accessToken}`,
+      },
+      method: 'POST',
+      payload: {
+        favelaId: 'favela-centro-1',
+        regionId: RegionId.Centro,
+        type: 'boca',
+      } satisfies PropertyPurchaseInput,
+      url: '/api/properties',
+    });
+
+    expect(purchaseResponse.statusCode).toBe(201);
+    const propertyId = purchaseResponse.json().property.id as string;
+
+    const sabotageResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${attacker.accessToken}`,
+        'idempotency-key': 'sabotage-attempt-1',
+      },
+      method: 'POST',
+      url: `/api/properties/${propertyId}/sabotage`,
+    });
+
+    expect(sabotageResponse.statusCode).toBe(200);
+    expect(sabotageResponse.json().result).toMatchObject({
+      outcome: 'destroyed',
+      ownerPlayerId: defender.playerId,
+      ownerAlertMode: 'anonymous',
+      propertyId,
+    });
+    expect(sabotageResponse.json().target.sabotageStatus.state).toBe('destroyed');
+    expect(sabotageResponse.json().message).toContain('destruiu');
+    expect(attackerPlayer.cansaco).toBe(100 - PROPERTY_SABOTAGE_CANSACO_COST);
+    expect(attackerPlayer.disposicao).toBe(100 - PROPERTY_SABOTAGE_DISPOSICAO_COST);
+    expect(state.sabotageLogs).toHaveLength(1);
+
+    const cooldownResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${attacker.accessToken}`,
+        'idempotency-key': 'sabotage-attempt-2',
+      },
+      method: 'POST',
+      url: `/api/properties/${propertyId}/sabotage`,
+    });
+
+    expect(cooldownResponse.statusCode).toBe(409);
+    expect(cooldownResponse.json().message).toContain('cooldown');
+
+    const prematureRecoveryResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${defender.accessToken}`,
+        'idempotency-key': 'sabotage-recovery-1',
+      },
+      method: 'POST',
+      url: `/api/properties/${propertyId}/sabotage/recover`,
+    });
+
+    expect(prematureRecoveryResponse.statusCode).toBe(409);
+    expect(prematureRecoveryResponse.json().message).toContain('ainda nao pode');
+
+    now = new Date('2026-03-11T04:00:00.000Z');
+    const recoveryResponse = await app.server.inject({
+      headers: {
+        authorization: `Bearer ${defender.accessToken}`,
+        'idempotency-key': 'sabotage-recovery-2',
+      },
+      method: 'POST',
+      url: `/api/properties/${propertyId}/sabotage/recover`,
+    });
+
+    expect(recoveryResponse.statusCode).toBe(200);
+    expect(recoveryResponse.json()).toMatchObject({
+      message: 'Reconstrucao concluida e a propriedade voltou a operar.',
+      property: {
+        id: propertyId,
+        sabotageStatus: {
+          state: 'normal',
+        },
+      },
+      recoveryCost: 12500,
+    });
+  });
 });
 
 async function buildTestApp(input: {
@@ -617,6 +952,7 @@ async function buildTestApp(input: {
     keyValueStore,
     repository,
   });
+  const actionIdempotency = new ActionIdempotency(keyValueStore);
   const propertyService = new PropertyService({
     factionUpgradeReader: input.factionUpgradeReader,
     keyValueStore,
@@ -630,7 +966,7 @@ async function buildTestApp(input: {
       await api.register(createAuthRoutes({ authService }));
       await api.register(async (protectedRoutes) => {
         protectedRoutes.addHook('preHandler', createAuthMiddleware(authService));
-        await protectedRoutes.register(createPropertyRoutes({ propertyService }));
+        await protectedRoutes.register(createPropertyRoutes({ actionIdempotency, propertyService }));
       });
     },
     {
@@ -667,6 +1003,7 @@ function buildState(): TestState {
     ],
     players: new Map(),
     propertiesByPlayerId: new Map(),
+    sabotageLogs: [],
     regions: [
       {
         id: RegionId.Centro,
@@ -685,16 +1022,39 @@ function buildState(): TestState {
 }
 
 async function registerAndExtractToken(server: Awaited<ReturnType<typeof Fastify>>) {
+  return (await registerPlayer(server)).accessToken;
+}
+
+async function registerPlayer(
+  server: Awaited<ReturnType<typeof Fastify>>,
+  state?: TestState,
+  options?: {
+    nicknamePrefix?: string;
+  },
+) {
+  const email = `player-${randomUUID()}@csrio.test`;
+  const nickname = `${options?.nicknamePrefix ?? 'player'}_${Math.floor(Math.random() * 100000)}`;
   const response = await server.inject({
     method: 'POST',
     payload: {
-      email: `player-${randomUUID()}@csrio.test`,
-      nickname: `player_${Math.floor(Math.random() * 100000)}`,
+      email,
+      nickname,
       password: '12345678',
     },
     url: '/api/auth/register',
   });
 
   expect(response.statusCode).toBe(201);
-  return response.json().accessToken as string;
+  const accessToken = response.json().accessToken as string;
+  const playerId =
+    [...(state?.players.values() ?? [])].find(
+      (entry) => entry.email === email && entry.nickname === nickname,
+    )?.id ?? null;
+
+  return {
+    accessToken,
+    email,
+    nickname,
+    playerId: playerId ?? response.json().player.id ?? '',
+  };
 }

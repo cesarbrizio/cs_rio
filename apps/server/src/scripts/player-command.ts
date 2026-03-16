@@ -23,9 +23,9 @@ type PlayerCommandValues = CliGuardValues & {
   'set-bank-money'?: string;
   'add-bank-money'?: string;
   'set-hp'?: string;
-  'set-stamina'?: string;
-  'set-nerve'?: string;
-  'set-morale'?: string;
+  'set-cansaco'?: string;
+  'set-disposicao'?: string;
+  'set-brisa'?: string;
   'set-addiction'?: string;
   'full-resources'?: boolean;
   'set-conceito'?: string;
@@ -65,9 +65,9 @@ async function main(): Promise<void> {
       'add-bank-money': { type: 'string' },
 
       'set-hp': { type: 'string' },
-      'set-stamina': { type: 'string' },
-      'set-nerve': { type: 'string' },
-      'set-morale': { type: 'string' },
+      'set-cansaco': { type: 'string' },
+      'set-disposicao': { type: 'string' },
+      'set-brisa': { type: 'string' },
       'set-addiction': { type: 'string' },
       'full-resources': { type: 'boolean' },
 
@@ -174,9 +174,9 @@ function buildCommands(values: PlayerCommandValues, actor: string, origin: strin
   if (values['add-bank-money']) push({ type: 'add-bank-money', value: parseNumber(values['add-bank-money'], 'add-bank-money') });
 
   if (values['set-hp']) push({ type: 'set-hp', value: parseIntFlag(values['set-hp'], 'set-hp') });
-  if (values['set-stamina']) push({ type: 'set-stamina', value: parseIntFlag(values['set-stamina'], 'set-stamina') });
-  if (values['set-nerve']) push({ type: 'set-nerve', value: parseIntFlag(values['set-nerve'], 'set-nerve') });
-  if (values['set-morale']) push({ type: 'set-morale', value: parseIntFlag(values['set-morale'], 'set-morale') });
+  if (values['set-cansaco']) push({ type: 'set-cansaco', value: parseIntFlag(values['set-cansaco'], 'set-cansaco') });
+  if (values['set-disposicao']) push({ type: 'set-disposicao', value: parseIntFlag(values['set-disposicao'], 'set-disposicao') });
+  if (values['set-brisa']) push({ type: 'set-brisa', value: parseIntFlag(values['set-brisa'], 'set-brisa') });
   if (values['set-addiction']) push({ type: 'set-addiction', value: parseIntFlag(values['set-addiction'], 'set-addiction') });
   if (values['full-resources']) push({ type: 'full-resources' });
 
@@ -345,9 +345,9 @@ Operações comuns:
   --add-money <valor>
   --add-bank-money <valor>
   --set-hp <0-100>
-  --set-stamina <0-100>
-  --set-nerve <0-100>
-  --set-morale <0-100>
+  --set-cansaco <0-100>
+  --set-disposicao <0-100>
+  --set-brisa <0-100>
   --set-addiction <0-100>
   --full-resources
   --set-conceito <inteiro>

@@ -1,0 +1,64 @@
+{
+  "family": "hospital",
+  "title": "Hospital e equipamento de saude",
+  "category": "hospital",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "hospital"
+  ],
+  "assetTypes": [
+    "hospital"
+  ],
+  "planCategories": [
+    "hospital"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/hospital/hospital_1.jpg",
+    "assets/examples/hospital/hospital_4.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/hospital/hospital_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/hospital/hospital_4.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "equipamento institucional limpo, com sinalizacao medica discreta e massa reconhecivel",
+  "mustCapture": [
+    "fachada institucional",
+    "entrada principal clara",
+    "ritmo regular de vãos"
+  ],
+  "avoid": [
+    "predio genérico sem identidade",
+    "neon de farmácia",
+    "hotel"
+  ],
+  "notes": [
+    "Hospital precisa ler rápido em jogo sem virar cruz enorme e abstrata."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/hospital",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/hospital/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/hospital/hospital_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/hospital/hospital_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/hospital/references/01-hospital-hospital_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/hospital/hospital_4.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/hospital/hospital_4.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/hospital/references/02-hospital-hospital_4.jpg"
+    }
+  ]
+}

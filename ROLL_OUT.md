@@ -16,9 +16,10 @@ npm run build
 ```
 
 Critério:
-- tudo verde
+- todos os comandos obrigatórios devem passar na revisão atual
 - sem pular workspace
 - qualquer flake conhecido precisa ser registrado antes do deploy
+- contagens históricas de `HARDENING.md` não substituem esta checagem ao vivo
 
 ## 2. Variáveis e infra mínimas
 
@@ -30,6 +31,7 @@ Validar no ambiente alvo:
 - `COLYSEUS_PORT`
 - `JWT_SECRET`
 - `JWT_REFRESH_SECRET`
+- `TRUST_PROXY`
 - `CORS_ALLOWED_ORIGINS`
 
 Regras:
@@ -38,6 +40,8 @@ Regras:
 - não podem ser iguais
 - placeholders legados são inválidos
 - em `staging` e `production`, `CORS_ALLOWED_ORIGINS` é obrigatório
+- se houver proxy reverso na frente do Fastify, `TRUST_PROXY` deve listar apenas proxies/sub-redes confiáveis
+- não usar `X-Forwarded-For` aberto sem configurar `TRUST_PROXY`
 
 Confirmar:
 - PostgreSQL acessível
@@ -99,6 +103,7 @@ Validar pelo menos:
 10. prisão abre
 11. jogo do bicho abre e permite apostar
 12. operações expõem maquininha de forma legível
+13. logout e login com outra conta não herdam tutorial, DMs, eventos ou estado contextual do jogador anterior
 
 ## 5. Observabilidade mínima
 

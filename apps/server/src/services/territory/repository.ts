@@ -315,7 +315,7 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         organizedByPlayerId: favelaBailes.organizedByPlayerId,
         resultTier: favelaBailes.resultTier,
         satisfactionDelta: favelaBailes.satisfactionDelta,
-        staminaBoostPercent: favelaBailes.staminaBoostPercent,
+        cansacoBoostPercent: favelaBailes.cansacoBoostPercent,
       })
       .from(favelaBailes)
       .where(inArray(favelaBailes.favelaId, favelaIds));
@@ -336,7 +336,7 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
       organizedByPlayerId: row.organizedByPlayerId,
       resultTier: row.resultTier as FavelaBaileResultTier,
       satisfactionDelta: row.satisfactionDelta,
-      staminaBoostPercent: row.staminaBoostPercent,
+      cansacoBoostPercent: row.cansacoBoostPercent,
     }));
   }
 
@@ -609,12 +609,12 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         id: players.id,
         inteligencia: players.inteligencia,
         level: players.level,
-        nerve: players.nerve,
+        disposicao: players.disposicao,
         nickname: players.nickname,
         rank: factionMembers.rank,
         regionId: players.regionId,
         resistencia: players.resistencia,
-        stamina: players.stamina,
+        cansaco: players.cansaco,
         vocation: players.vocation,
       })
       .from(factionMembers)
@@ -704,8 +704,8 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         resources: {
           conceito: member.conceito,
           hp: member.hp,
-          nerve: member.nerve,
-          stamina: member.stamina,
+          disposicao: member.disposicao,
+          cansaco: member.cansaco,
         },
         vocation: member.vocation as VocationType,
       },
@@ -1092,11 +1092,11 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         })
         .where(eq(favelas.id, input.favelaId));
 
-      if (input.staminaBoostPercent > 0) {
+      if (input.cansacoBoostPercent > 0) {
         await tx
           .update(players)
           .set({
-            stamina: sql`least(100, ${players.stamina} + ${input.staminaBoostPercent})`,
+            cansaco: sql`least(100, ${players.cansaco} + ${input.cansacoBoostPercent})`,
           })
           .where(and(eq(players.factionId, input.factionId), eq(players.regionId, input.regionId)));
       }
@@ -1118,7 +1118,7 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
           organizedByPlayerId: input.organizedByPlayerId,
           resultTier: input.resultTier,
           satisfactionDelta: input.satisfactionDelta,
-          staminaBoostPercent: input.staminaBoostPercent,
+          cansacoBoostPercent: input.cansacoBoostPercent,
         })
         .returning({
           activeEndsAt: favelaBailes.baileEndsAt,
@@ -1136,7 +1136,7 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
           organizedByPlayerId: favelaBailes.organizedByPlayerId,
           resultTier: favelaBailes.resultTier,
           satisfactionDelta: favelaBailes.satisfactionDelta,
-          staminaBoostPercent: favelaBailes.staminaBoostPercent,
+          cansacoBoostPercent: favelaBailes.cansacoBoostPercent,
         });
 
       if (!inserted) {
@@ -1190,7 +1190,7 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
         organizedByPlayerId: inserted.organizedByPlayerId,
         resultTier: inserted.resultTier as FavelaBaileResultTier,
         satisfactionDelta: inserted.satisfactionDelta,
-        staminaBoostPercent: inserted.staminaBoostPercent,
+        cansacoBoostPercent: inserted.cansacoBoostPercent,
       };
     });
   }
@@ -1302,8 +1302,8 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
             conceito: update.nextResources.conceito,
             hp: update.nextResources.hp,
             level: update.nextLevel,
-            nerve: update.nextResources.nerve,
-            stamina: update.nextResources.stamina,
+            disposicao: update.nextResources.disposicao,
+            cansaco: update.nextResources.cansaco,
           })
           .where(eq(players.id, update.playerId));
 
@@ -2006,8 +2006,8 @@ export class DatabaseTerritoryRepository implements TerritoryRepository {
             conceito: participant.nextResources.conceito,
             hp: participant.nextResources.hp,
             level: participant.nextLevel,
-            nerve: participant.nextResources.nerve,
-            stamina: participant.nextResources.stamina,
+            disposicao: participant.nextResources.disposicao,
+            cansaco: participant.nextResources.cansaco,
           })
           .where(eq(players.id, participant.playerId));
       }

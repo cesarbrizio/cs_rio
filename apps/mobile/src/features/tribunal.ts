@@ -3,11 +3,13 @@ import {
   TRIBUNAL_PUNISHMENT_LABELS,
   type TerritoryFavelaSummary,
   type TerritoryOverviewResponse,
+  type TribunalCaseStatus,
   type TribunalCaseSeverity,
   type TribunalCaseSide,
   type TribunalJudgmentRead,
   type TribunalPunishment,
   type TribunalPunishmentRead,
+  type TribunalResolutionSource,
 } from '@cs-rio/shared';
 
 export function buildControlledTribunalFavelas(
@@ -42,6 +44,35 @@ export function formatTribunalTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
+export function formatTribunalDeadlineLabel(deadlineAt: string, nowMs = Date.now()): string {
+  const deadlineMs = new Date(deadlineAt).getTime();
+
+  if (Number.isNaN(deadlineMs)) {
+    return '--';
+  }
+
+  const remainingMs = deadlineMs - nowMs;
+
+  if (remainingMs <= 0) {
+    return 'prazo encerrado';
+  }
+
+  const totalMinutes = Math.ceil(remainingMs / 60_000);
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes} min restantes`;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours} h restantes`;
+  }
+
+  return `${hours} h ${minutes} min restantes`;
+}
+
 export function pickInitialTribunalFavelaId(
   favelas: TerritoryFavelaSummary[],
   preferredFavelaId?: string | null,
@@ -68,6 +99,17 @@ export function resolveTribunalJudgmentReadLabel(read: TribunalJudgmentRead): st
   }
 }
 
+export function resolveTribunalCaseStatusLabel(status: TribunalCaseStatus): string {
+  switch (status) {
+    case 'open':
+      return 'Em pauta';
+    case 'resolved_by_player':
+      return 'Resolvido por você';
+    case 'resolved_by_npc':
+      return 'Resolvido pelo comando';
+  }
+}
+
 export function resolveTribunalPunishmentLabel(punishment: TribunalPunishment): string {
   return TRIBUNAL_PUNISHMENT_LABELS[punishment];
 }
@@ -89,6 +131,10 @@ export function resolveTribunalPunishmentReadLabel(read: TribunalPunishmentRead)
   }
 }
 
+export function resolveTribunalResolutionSourceLabel(source: TribunalResolutionSource): string {
+  return source === 'npc' ? 'Comando local' : 'Você';
+}
+
 export function resolveTribunalRegionLabel(regionId: string): string {
   return REGIONS.find((region) => region.id === regionId)?.label ?? regionId;
 }
@@ -108,4 +154,8 @@ export function resolveTribunalSeverityLabel(severity: TribunalCaseSeverity): st
 
 export function resolveTribunalSideLabel(side: TribunalCaseSide): string {
   return side === 'accuser' ? 'Acusador' : 'Acusado';
+}
+
+export function canPlayerLeadTribunal(rank: string | null | undefined): boolean {
+  return rank === 'general' || rank === 'patrao';
 }

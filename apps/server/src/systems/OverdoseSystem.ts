@@ -250,7 +250,7 @@ function isOverdoseTrigger(value: unknown): value is OverdoseTrigger {
   return (
     value === 'max_addiction' ||
     value === 'poly_drug_mix' ||
-    value === 'stamina_overflow'
+    value === 'cansaco_overflow'
   );
 }
 

@@ -29,6 +29,7 @@ import type {
 } from '@cs-rio/shared';
 
 import type { KeyValueStore } from '../auth.js';
+import type { FactionContactSyncContract } from '../contact.js';
 import type { FactionRobberyPolicy, FactionRobberyPolicyMode } from '../faction-internal-satisfaction.js';
 
 export interface FactionPlayerRecord {
@@ -138,7 +139,7 @@ export interface FactionLeadershipPlayerRecord extends FactionPlayerRecord {
   inteligencia: number;
   level: number;
   resistencia: number;
-  stamina: number;
+  cansaco: number;
   vocation: VocationType;
 }
 
@@ -252,7 +253,7 @@ export interface FactionRepository {
     defenderWasNpc: boolean;
     factionId: string;
     resolvedAt: Date;
-    staminaCost: number;
+    cansacoCost: number;
     successChancePercent: number;
   }): Promise<FactionLeadershipChallengeRecord>;
   recordFactionLeadershipVote(
@@ -306,6 +307,7 @@ export interface FactionRepository {
 }
 
 export interface FactionServiceOptions {
+  contactSync?: FactionContactSyncContract;
   keyValueStore?: KeyValueStore;
   now?: () => Date;
   random?: () => number;

@@ -15,6 +15,7 @@ import {
 } from '../src/db/schema.js';
 import { insertFactionBankLedgerEntry } from '../src/services/faction.js';
 import { DatabaseMarketRepository } from '../src/services/market.js';
+import type { MarketError } from '../src/services/market.js';
 
 const createdFactionIds: string[] = [];
 const createdInventoryIds: string[] = [];
@@ -104,6 +105,38 @@ describe('composite financial transactions', () => {
 
     const ledgerRows = await db.select().from(transactions).where(eq(transactions.playerId, playerId));
     expect(ledgerRows).toHaveLength(0);
+  });
+
+  it('blocks overdraft on guarded market balance adjustment', async () => {
+    const repository = new DatabaseMarketRepository();
+    const playerId = await createTestPlayer({
+      money: '200.00',
+    });
+
+    await expect(
+      repository.withTransaction(async (marketRepository) => {
+        await marketRepository.adjustPlayerMoney(playerId, -250);
+      }),
+    ).rejects.toMatchObject<Partial<MarketError>>({
+      code: 'insufficient_funds',
+      message: 'Saldo insuficiente para concluir a operacao.',
+    });
+
+    const [player] = await db.select().from(players).where(eq(players.id, playerId)).limit(1);
+    expect(player?.money).toBe('200.00');
+  });
+
+  it('reports not_found when guarded market balance adjustment targets an unknown player', async () => {
+    const repository = new DatabaseMarketRepository();
+
+    await expect(
+      repository.withTransaction(async (marketRepository) => {
+        await marketRepository.adjustPlayerMoney(randomUUID(), -100);
+      }),
+    ).rejects.toMatchObject<Partial<MarketError>>({
+      code: 'not_found',
+      message: 'Jogador nao encontrado para ajuste financeiro.',
+    });
   });
 
   it('rolls back market inventory removal when auction creation fails after the item is removed', async () => {
@@ -207,15 +240,15 @@ async function createTestPlayer(
     inteligencia: 10,
     lastLogin: new Date('2026-03-14T12:00:00.000Z'),
     money: overrides.money ?? '10000.00',
-    morale: 100,
-    nerve: 100,
+    brisa: 100,
+    disposicao: 100,
     nickname: `ctx_${id.slice(0, 10)}`,
     passwordHash: 'test-hash',
     positionX: 0,
     positionY: 0,
     regionId: RegionId.Centro,
     resistencia: 10,
-    stamina: 100,
+    cansaco: 100,
     vocation: VocationType.Cria,
   });
 

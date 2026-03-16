@@ -29,7 +29,6 @@ import { invalidatePlayerProfileCache } from './player-cache.js';
 import { DrugToleranceSystem } from '../systems/DrugToleranceSystem.js';
 import { OverdoseSystem } from '../systems/OverdoseSystem.js';
 
-const DST_TREATMENT_COST = 5_000;
 const HEALTH_PLAN_CREDITS_COST = 10;
 const HOSPITAL_STAT_LIMIT_PER_CYCLE = 5;
 const SURGERY_CREDITS_COST = 5;
@@ -42,9 +41,7 @@ interface HospitalPlayerRecord {
   characterCreatedAt: Date | null;
   conceito: number;
   credits: number;
-  dstRecoversAt: Date | null;
   forca: number;
-  hasDst: boolean;
   healthPlanCycleKey: string | null;
   hp: number;
   id: string;
@@ -63,7 +60,6 @@ interface HospitalServiceOptions {
 }
 
 export interface HospitalServiceContract {
-  applyDstTreatment(playerId: string): Promise<HospitalActionResponse>;
   applyTreatment(playerId: string): Promise<HospitalActionResponse>;
   close?(): Promise<void>;
   detox(playerId: string): Promise<HospitalActionResponse>;
@@ -186,7 +182,6 @@ export class HospitalService implements HospitalServiceContract {
 
   async getCenter(playerId: string): Promise<HospitalCenterResponse> {
     const player = await this.requireReadyPlayer(playerId);
-    const syncedPlayer = await this.syncDstState(player);
     const cycleKey = resolveHospitalCycleKey(this.now());
     const [hospitalization, inflationProfile, drugIds, purchaseRows] = await Promise.all([
       this.overdoseSystem.getHospitalizationStatus(playerId),
@@ -210,81 +205,68 @@ export class HospitalService implements HospitalServiceContract {
     const purchases = new Map(
       purchaseRows.map((row) => [row.itemCode as HospitalStatItemCode, row.quantity]),
     );
-    const treatmentCost = inflateNpcMoney(resolveTreatmentCost(syncedPlayer.hp), inflationProfile);
-    const detoxCost = inflateNpcMoney(resolveDetoxCost(syncedPlayer.conceito), inflationProfile);
-    const dstTreatmentCost = inflateNpcMoney(DST_TREATMENT_COST, inflationProfile);
-    const healthPlanActive = syncedPlayer.healthPlanCycleKey === cycleKey;
+    const treatmentCost = inflateNpcMoney(resolveTreatmentCost(player.hp), inflationProfile);
+    const detoxCost = inflateNpcMoney(resolveDetoxCost(player.conceito), inflationProfile);
+    const healthPlanActive = player.healthPlanCycleKey === cycleKey;
 
     return {
       currentCycleKey: cycleKey,
       hospitalization,
       npcInflation: buildNpcInflationSummary(inflationProfile),
       player: {
-        addiction: syncedPlayer.addiction,
-        appearance: syncedPlayer.appearanceJson ?? DEFAULT_CHARACTER_APPEARANCE,
-        credits: syncedPlayer.credits,
-        dstRecoversAt: syncedPlayer.dstRecoversAt ? syncedPlayer.dstRecoversAt.toISOString() : null,
-        hasDst: syncedPlayer.hasDst,
+        addiction: player.addiction,
+        appearance: player.appearanceJson ?? DEFAULT_CHARACTER_APPEARANCE,
+        credits: player.credits,
         healthPlanActive,
         healthPlanCycleKey: healthPlanActive ? cycleKey : null,
-        hp: syncedPlayer.hp,
-        money: syncedPlayer.money,
-        nickname: syncedPlayer.nickname,
+        hp: player.hp,
+        money: player.money,
+        nickname: player.nickname,
       },
       services: {
         detox:
-          syncedPlayer.addiction > 0 || toleranceInfo.hasTolerance
+          player.addiction > 0 || toleranceInfo.hasTolerance
             ? serviceAvailability({
-                available: syncedPlayer.money >= detoxCost,
+                available: player.money >= detoxCost,
                 moneyCost: detoxCost,
                 reason:
-                  syncedPlayer.money >= detoxCost
+                  player.money >= detoxCost
                     ? null
                     : 'Dinheiro insuficiente para desintoxicação.',
               })
             : unavailableService('Nenhum vício ou tolerância relevante para tratar.'),
-        dstTreatment: syncedPlayer.hasDst
-          ? serviceAvailability({
-              available: syncedPlayer.money >= dstTreatmentCost,
-              moneyCost: dstTreatmentCost,
-              reason:
-                syncedPlayer.money >= dstTreatmentCost
-                  ? null
-                  : 'Dinheiro insuficiente para tratar DST.',
-            })
-          : unavailableService('Nenhuma DST ativa.'),
         healthPlan: healthPlanActive
           ? unavailableService('Plano de saúde já ativo neste ciclo.', HEALTH_PLAN_CREDITS_COST, null)
           : serviceAvailability({
-              available: syncedPlayer.credits >= HEALTH_PLAN_CREDITS_COST,
+              available: player.credits >= HEALTH_PLAN_CREDITS_COST,
               creditsCost: HEALTH_PLAN_CREDITS_COST,
               reason:
-                syncedPlayer.credits >= HEALTH_PLAN_CREDITS_COST
+                player.credits >= HEALTH_PLAN_CREDITS_COST
                   ? null
                   : 'Créditos insuficientes para o plano de saúde.',
             }),
         surgery: serviceAvailability({
-          available: syncedPlayer.credits >= SURGERY_CREDITS_COST,
+          available: player.credits >= SURGERY_CREDITS_COST,
           creditsCost: SURGERY_CREDITS_COST,
           reason:
-            syncedPlayer.credits >= SURGERY_CREDITS_COST
+            player.credits >= SURGERY_CREDITS_COST
               ? null
               : 'Créditos insuficientes para a cirurgia plástica.',
         }),
         treatment:
-          syncedPlayer.hp < 100
+          player.hp < 100
             ? serviceAvailability({
-                available: syncedPlayer.money >= treatmentCost,
+                available: player.money >= treatmentCost,
                 moneyCost: treatmentCost,
                 reason:
-                  syncedPlayer.money >= treatmentCost
+                  player.money >= treatmentCost
                     ? null
                     : 'Dinheiro insuficiente para tratamento.',
               })
             : unavailableService('Vida cheia, nenhum tratamento necessário.'),
       },
       statItems: buildStatOffers({
-        currentMoney: syncedPlayer.money,
+        currentMoney: player.money,
         inflationProfile,
         purchases,
       }),
@@ -397,37 +379,6 @@ export class HospitalService implements HospitalServiceContract {
     return this.buildActionResponse(playerId, {
       action: 'surgery',
       message: 'Cirurgia concluída. Seu visual foi atualizado.',
-    });
-  }
-
-  async applyDstTreatment(playerId: string): Promise<HospitalActionResponse> {
-    const player = await this.requireReadyPlayer(playerId);
-    const syncedPlayer = await this.syncDstState(player);
-
-    if (!syncedPlayer.hasDst) {
-      throw new HospitalError('conflict', 'Nenhuma DST ativa para tratar.');
-    }
-
-    const dstTreatmentCost = inflateNpcMoney(DST_TREATMENT_COST, await this.inflationReader.getProfile());
-
-    if (syncedPlayer.money < dstTreatmentCost) {
-      throw new HospitalError('insufficient_resources', 'Dinheiro insuficiente para tratar DST.');
-    }
-
-    await db.transaction(async (tx) => {
-      await tx
-        .update(players)
-        .set({
-          dstRecoversAt: null,
-          hasDst: false,
-          money: sql`${players.money} - ${dstTreatmentCost}`,
-        })
-        .where(eq(players.id, playerId));
-    });
-
-    return this.buildActionResponse(playerId, {
-      action: 'dst_treatment',
-      message: 'Tratamento concluído. A DST foi removida.',
     });
   }
 
@@ -565,9 +516,7 @@ export class HospitalService implements HospitalServiceContract {
         characterCreatedAt: players.characterCreatedAt,
         conceito: players.conceito,
         credits: players.credits,
-        dstRecoversAt: players.dstRecoversAt,
         forca: players.forca,
-        hasDst: players.hasDst,
         healthPlanCycleKey: players.healthPlanCycleKey,
         hp: players.hp,
         id: players.id,
@@ -619,29 +568,6 @@ export class HospitalService implements HospitalServiceContract {
     };
   }
 
-  private async syncDstState(player: HospitalPlayerRecord): Promise<HospitalPlayerRecord> {
-    if (
-      !player.hasDst ||
-      !player.dstRecoversAt ||
-      player.dstRecoversAt.getTime() > this.now().getTime()
-    ) {
-      return player;
-    }
-
-    await db
-      .update(players)
-      .set({
-        dstRecoversAt: null,
-        hasDst: false,
-      })
-      .where(eq(players.id, player.id));
-
-    return {
-      ...player,
-      dstRecoversAt: null,
-      hasDst: false,
-    };
-  }
 }
 
 function buildStatOffers(input: {

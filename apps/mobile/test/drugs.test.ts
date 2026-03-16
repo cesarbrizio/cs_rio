@@ -65,7 +65,7 @@ describe('drug helpers', () => {
     expect(filtered.map((item) => item.itemName)).toEqual(['Bala', 'Maconha']);
   });
 
-  it('resolves overdose warnings and high risk when stamina can overflow', () => {
+  it('resolves overdose warnings and high risk when cansaco can overflow', () => {
     const drug = resolveDrugCatalogEntry({
       itemId: 'ignored',
       itemName: 'Crack',
@@ -110,10 +110,10 @@ describe('drug helpers', () => {
         bankMoney: 0,
         conceito: 500,
         hp: 100,
-        morale: 90,
+        brisa: 90,
         money: 1000,
-        nerve: 80,
-        stamina: 97,
+        disposicao: 80,
+        cansaco: 97,
       },
       title: LevelTitle.Vapor,
       vocation: VocationType.Gerente,

@@ -1,0 +1,87 @@
+{
+  "family": "house-wealthy",
+  "title": "Casa residencial nobre",
+  "category": "wealthy",
+  "styleGuide": "simcity-urban",
+  "kinds": [
+    "casa-residencial-moderna-1",
+    "casa-residencial-moderna-2"
+  ],
+  "assetTypes": [
+    "casa-residencial-moderna"
+  ],
+  "planCategories": [
+    "wealthy"
+  ],
+  "implementationModes": [
+    "new-family-needed"
+  ],
+  "planReferenceFiles": [
+    "assets/examples/houses/casa_luxo_1.jpg",
+    "assets/examples/houses/casa_luxo_3.jpg",
+    "assets/examples/houses/casa_luxo_5.jpg",
+    "assets/examples/houses/casa_luxo_8.jpg"
+  ],
+  "selectedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_3.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_5.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_8.jpg"
+    }
+  ],
+  "unresolvedDuplicateReferenceFiles": [],
+  "uncoveredPlanReferences": [],
+  "compositionIntent": "casa ampla com volumes limpos, materiais nobres e paisagismo implícito",
+  "mustCapture": [
+    "volumes amplos",
+    "acabamento premium",
+    "abertura de fachada"
+  ],
+  "avoid": [
+    "prédio vertical",
+    "fachada comercial",
+    "densidade de favela"
+  ],
+  "notes": [
+    "Familia de suporte para entorno rico."
+  ],
+  "packDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy",
+  "referencesDir": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy/references",
+  "copiedReferences": [
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_1.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_1.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy/references/01-houses-casa_luxo_1.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_3.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_3.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy/references/02-houses-casa_luxo_3.jpg"
+    },
+    {
+      "tier": "primary",
+      "referenceFile": "assets/examples/houses/casa_luxo_5.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_5.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy/references/03-houses-casa_luxo_5.jpg"
+    },
+    {
+      "tier": "secondary",
+      "referenceFile": "assets/examples/houses/casa_luxo_8.jpg",
+      "absoluteReferenceFile": "/home/cesar/projects/cs_rio/apps/mobile/assets/examples/houses/casa_luxo_8.jpg",
+      "copiedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/examples/catalog-families/house-wealthy/references/04-houses-casa_luxo_8.jpg"
+    }
+  ]
+}
