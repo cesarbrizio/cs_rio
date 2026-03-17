@@ -12,6 +12,7 @@ Este documento consolida o plano de ação para corrigir os problemas técnicos 
 As contagens de arquivos, testes e suites registradas aqui são **snapshots históricos de validação por etapa**.
 Para validação operacional atual de deploy, smoke, rollback e critérios de liberação, a fonte de verdade é [ROLL_OUT.md](./ROLL_OUT.md).
 O fato de este plano constar como `Concluído` significa fechamento do pacote histórico de hardening, e **não ausência de backlog residual**; achados posteriores devem ser rastreados em `TODO.md` e `PRODUCT_STATUS.md`.
+Desde 2026-03-17, o backend operacional vive em [`../cs_rio_api`](/home/cesar/projects/cs_rio_api). Referências a `apps/server` e `@cs-rio/server` abaixo são snapshots históricos do estado do projeto no momento de cada etapa.
 
 Os riscos principais identificados foram:
 

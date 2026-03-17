@@ -1,5 +1,7 @@
 # CHEATS.md — Plano Técnico de Operações Internas / Cheats de Desenvolvimento
 
+> Nota: a execução ativa dos comandos internos do backend foi movida para [`../cs_rio_api`](/home/cesar/projects/cs_rio_api). Os exemplos com `apps/server` e `--workspace @cs-rio/server` abaixo devem ser lidos como sintaxe histórica anterior à separação.
+
 ## Objetivo
 
 Criar uma camada interna de operações para desenvolvimento e playtest que permita:

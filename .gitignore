@@ -9,7 +9,6 @@ coverage
 .env
 .env.local
 apps/mobile/.env
-apps/server/.env
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

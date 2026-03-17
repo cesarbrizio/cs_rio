@@ -45,6 +45,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Validate docker compose
-        run: docker compose -f docker-compose.dev.yml config -q

@@ -6,7 +6,11 @@
     "orientation": "default",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
-      "**/*"
+      "assets/audio/**/*",
+      "assets/maps/**/*.json",
+      "assets/maps/**/*.webp",
+      "assets/map-structures/**/*",
+      "assets/sprites/**/*"
     ],
     "ios": {
       "supportsTablet": true,

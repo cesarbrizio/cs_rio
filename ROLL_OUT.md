@@ -15,6 +15,15 @@ npm run test
 npm run build
 ```
 
+Rodar tambem na raiz de [cs_rio_api](/home/cesar/projects/cs_rio_api):
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
 Critério:
 - todos os comandos obrigatórios devem passar na revisão atual
 - sem pular workspace
@@ -23,7 +32,12 @@ Critério:
 
 ## 2. Variáveis e infra mínimas
 
-Validar no ambiente alvo:
+Validar no mobile (`cs_rio`):
+- `EXPO_PUBLIC_API_URL`
+- `EXPO_PUBLIC_WS_URL`
+- `EXPO_PUBLIC_APP_ENV`
+
+Validar no backend (`cs_rio_api`):
 - `NODE_ENV`
 - `DATABASE_URL`
 - `REDIS_URL`
@@ -55,7 +69,8 @@ Confirmar:
 ### Server
 
 ```bash
-npm run dev --workspace @cs-rio/server
+cd /home/cesar/projects/cs_rio_api
+npm run dev
 ```
 
 Validar:

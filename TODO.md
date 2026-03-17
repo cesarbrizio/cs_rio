@@ -4,6 +4,7 @@
 > Cada tarefa possui status, dependências e especificação técnica.
 > Última atualização: 2026-03-16
 > Contrato funcional vigente: consulte [PRODUCT_STATUS.md](./PRODUCT_STATUS.md) antes de abrir backlog de produto, promover escopo para "entregue" ou rebaixar divergências do `JOGO.md`.
+> Desde 2026-03-17, o backend foi extraído para [`../cs_rio_api`](/home/cesar/projects/cs_rio_api). Neste documento, referências futuras a `apps/server` ou `@cs-rio/server` devem ser lidas como arquivos/comandos do repositório backend; menções da fase de criação do monorepo permanecem como registro histórico.
 
 ## Estado Operacional Atual
 

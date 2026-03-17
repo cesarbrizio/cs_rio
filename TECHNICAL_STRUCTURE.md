@@ -3,6 +3,7 @@
 > Plano tecnico detalhado de melhorias estruturais, seguranca e qualidade de codigo.
 > Baseado em auditoria completa realizada em 2026-03-16.
 > Organizado em etapas sequenciais com dependencias explicitas.
+> Desde 2026-03-17, o backend ativo foi movido para [`../cs_rio_api`](/home/cesar/projects/cs_rio_api). As referencias a `apps/server` e `@cs-rio/server` preservam o contexto historico das entregas registradas aqui.
 
 ---
 

@@ -120150,9 +120150,6 @@
     {
       "columns": 4,
       "firstgid": 1,
-      "image": "../tilesets/city_base.png",
-      "imageheight": 128,
-      "imagewidth": 512,
       "margin": 0,
       "name": "city_base",
       "spacing": 0,

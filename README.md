@@ -8,14 +8,11 @@ RPG criminal multiplayer mobile (Android/iOS) ambientado no Rio de Janeiro, com 
 |---|---|
 | App | Expo (React Native) + TypeScript |
 | Game Rendering | @shopify/react-native-skia |
-| Game Loop | react-native-game-engine |
+| Game Loop | @cs-rio/game-engine |
 | State | Zustand |
-| Real-time | Colyseus |
-| API | Fastify |
-| Database | PostgreSQL + Redis |
-| ORM | Drizzle |
-| Auth | JWT + bcrypt |
-| Monorepo | Turborepo |
+| Shared packages | `packages/shared` + `packages/game-engine` |
+| Backend | Repositório irmão `../cs_rio_api` (Fastify + Colyseus + Drizzle + PostgreSQL + Redis) |
+| Monorepo | Turborepo (mobile + pacotes compartilhados) |
 | Build | EAS Build |
 
 ## Estrutura
@@ -23,8 +20,7 @@ RPG criminal multiplayer mobile (Android/iOS) ambientado no Rio de Janeiro, com 
 ```
 cs_rio/
 ├── apps/
-│   ├── mobile/          # Expo app (React Native)
-│   └── server/          # Game server (Node.js + Colyseus + Fastify)
+│   └── mobile/          # Expo app (React Native)
 ├── packages/
 │   ├── shared/          # Tipos e constantes compartilhados
 │   └── game-engine/     # Engine isométrica (Skia)
@@ -35,6 +31,8 @@ cs_rio/
 ├── CHEATS.md            # Operações internas / cheats de desenvolvimento
 └── README.md
 ```
+
+O backend foi extraído para o repositório irmão [`../cs_rio_api`](/home/cesar/projects/cs_rio_api).
 
 ## Status Atual
 
@@ -52,13 +50,7 @@ cs_rio/
   - território: conquista, serviços, satisfação, X9, propina, baile e guerra
   - tribunal do tráfico
   - prisão e hospital
-- Sistemas operacionais internos:
-  - `ops:list`
-  - `ops:player`
-  - `ops:world`
-  - `ops:scenario`
-  - `ops:round`
-  - `ops:audit`
+- Operações internas e infraestrutura do backend agora vivem em [`../cs_rio_api`](/home/cesar/projects/cs_rio_api).
 
 ## Prioridade Atual
 
@@ -85,7 +77,7 @@ O foco imediato não é mais abrir grandes features, e sim:
 - **[PRODUCT_STATUS.md](./PRODUCT_STATUS.md)** — Contrato funcional entre `JOGO.md`, produto real, roadmap e QA
 - **[TODO.md](./TODO.md)** — Roadmap técnico histórico e backlog ainda aberto
 - **[MAPA.md](./MAPA.md)** — Estado final aprovado do mapa para o escopo atual
-- **[CHEATS.md](./CHEATS.md)** — Catálogo e arquitetura dos comandos internos de operação
+- **[CHEATS.md](./CHEATS.md)** — Referência histórica das operações internas; a execução atual do backend fica em [`../cs_rio_api`](/home/cesar/projects/cs_rio_api)
 - **[HARDENING.md](./HARDENING.md)** — Plano técnico de hardening e estabilização estrutural
 - **[ROLL_OUT.md](./ROLL_OUT.md)** — Checklist operacional vivo de pre-deploy, smoke, observabilidade e rollback
 - **[CONTEXT.md](./CONTEXT.md)** — Histórico consolidado das decisões de produto e arquitetura
@@ -102,48 +94,20 @@ O foco imediato não é mais abrir grandes features, e sim:
 
 ### `.env`
 
-Exemplo de desenvolvimento local:
+Exemplo de desenvolvimento local para o app:
 
 ```env
-NODE_ENV=development
-
-DATABASE_URL=postgresql://cs_rio:cs_rio_dev@localhost:5433/cs_rio
-REDIS_URL=redis://localhost:6380
-
-PORT=9000
-COLYSEUS_PORT=2567
-JWT_SECRET=<gere_um_hex_com_ao_menos_32_chars>
-JWT_REFRESH_SECRET=<gere_outro_hex_com_ao_menos_32_chars>
-CORS_ALLOWED_ORIGINS=http://localhost:8081,http://192.168.1.20:8081
-
-EXPO_PUBLIC_API_URL=http://192.168.1.20:9000
+EXPO_PUBLIC_API_URL=http://192.168.1.20:3000
 EXPO_PUBLIC_WS_URL=ws://192.168.1.20:2567
+EXPO_PUBLIC_APP_ENV=development
 ```
 
 Notas:
 
-- Gere os secrets JWT com algo como:
-  `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`
-- O server nao sobe se `JWT_SECRET` ou `JWT_REFRESH_SECRET` estiverem ausentes, com menos de `32` caracteres, repetidos ou usando os placeholders legados.
-- Em `development`, o server tambem aceita automaticamente origens locais comuns (`localhost`, `127.0.0.1`, `10.0.2.2` e IPs de LAN privada). Ainda assim, `CORS_ALLOWED_ORIGINS` pode ser definido para explicitar o allowlist.
-- Em `staging` e `production`, `CORS_ALLOWED_ORIGINS` e obrigatorio e deve listar apenas as origens HTTP/HTTPS autorizadas, separadas por virgula.
+- As variaveis de infraestrutura e secrets do backend agora ficam em [`../cs_rio_api/.env.example`](/home/cesar/projects/cs_rio_api/.env.example).
 - Para **celular fisico na mesma rede**, `EXPO_PUBLIC_API_URL` e `EXPO_PUBLIC_WS_URL` devem usar o **IP local da maquina**, nao `localhost`.
 - Para **Android Emulator**, use `10.0.2.2` no lugar do IP da maquina.
-- O `PORT` controla a API Fastify; `COLYSEUS_PORT` controla o realtime.
 - O workspace mobile agora le o arquivo `.env` da **raiz do monorepo** automaticamente ao rodar `npm run dev --workspace @cs-rio/mobile` ou `npm run android --workspace @cs-rio/mobile`.
-
-Exemplos de `CORS_ALLOWED_ORIGINS`:
-
-```env
-# development
-CORS_ALLOWED_ORIGINS=http://localhost:8081,http://192.168.1.20:8081
-
-# staging
-CORS_ALLOWED_ORIGINS=https://staging.csrio.example
-
-# production
-CORS_ALLOWED_ORIGINS=https://app.csrio.example,https://admin.csrio.example
-```
 
 ### Infraestrutura e banco
 
@@ -152,15 +116,22 @@ Na raiz de [`cs_rio`](./):
 ```bash
 # Instalar dependencias
 npm install
+```
+
+No backend separado, em [`../cs_rio_api`](/home/cesar/projects/cs_rio_api):
+
+```bash
+cd ../cs_rio_api
+npm install
 
 # Subir servicos de dev (PostgreSQL + Redis)
 docker compose -f docker-compose.dev.yml up -d
 
 # Aplicar schema
-npm run db:push --workspace @cs-rio/server
+npm run db:push
 
 # Popular dados base
-npm run db:seed --workspace @cs-rio/server
+npm run db:seed
 ```
 
 ### Rodando server e mobile
@@ -169,7 +140,8 @@ Recomendado em terminais separados:
 
 ```bash
 # Terminal 1
-npm run dev --workspace @cs-rio/server
+cd ../cs_rio_api
+npm run dev
 ```
 
 ```bash
@@ -182,7 +154,7 @@ O Expo pode trocar de porta (`8081`, `8082`, `8083`) se alguma ja estiver ocupad
 Se o app mostrar erro de rede no login/registro, teste primeiro este endpoint no navegador do celular:
 
 ```text
-http://SEU_IP_LOCAL:9000/api/health
+http://SEU_IP_LOCAL:3000/api/health
 ```
 
 Se isso nao abrir no celular, o problema nao e o backend em si; e conectividade entre o aparelho e a maquina.
@@ -243,11 +215,14 @@ npm run lint
 npm run test
 npm run build
 
-# Workspaces
-npm run typecheck --workspace @cs-rio/server
-npm run test --workspace @cs-rio/server
+# Mobile e pacotes compartilhados
 npm run typecheck --workspace @cs-rio/mobile
 npm run test --workspace @cs-rio/mobile
+
+# Backend separado
+cd ../cs_rio_api
+npm run typecheck
+npm run test
 ```
 
 ## Smoke Test Manual

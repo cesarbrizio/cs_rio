@@ -2,6 +2,7 @@
 
 > Registro integral de todas as decisões, perguntas e respostas da sessão de concepção do projeto.
 > Data: 2026-03-10
+> Desde 2026-03-17, o backend implementado do projeto passou a residir em [`../cs_rio_api`](/home/cesar/projects/cs_rio_api). Menções a `apps/server` e `@cs-rio/server` neste arquivo devem ser lidas como contexto histórico da evolução original do monorepo.
 
 ---
 

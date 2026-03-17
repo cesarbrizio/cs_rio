@@ -1,1 +1,0 @@
-ALTER TABLE "factions" ADD COLUMN "description" text;

@@ -1,1 +1,0 @@
-ALTER TABLE "favelas" ADD COLUMN "satisfaction_synced_at" timestamp with time zone DEFAULT now() NOT NULL;

@@ -1,1 +1,0 @@
-ALTER TYPE "public"."game_event_type" ADD VALUE 'faca_na_caveira' BEFORE 'seca_drogas';

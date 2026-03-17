@@ -1,2 +1,0 @@
-ALTER TABLE "properties" ADD COLUMN "last_maintenance_at" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
-ALTER TABLE "properties" ADD COLUMN "suspended" boolean DEFAULT false NOT NULL;

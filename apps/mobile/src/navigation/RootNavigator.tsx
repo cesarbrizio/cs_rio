@@ -2,35 +2,13 @@ import { type PropertyType } from '@cs-rio/shared';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { type ComponentType } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { BichoScreen } from '../screens/BichoScreen';
 import { CharacterCreationScreen } from '../screens/CharacterCreationScreen';
-import { CombatScreen } from '../screens/CombatScreen';
-import { ContactsScreen } from '../screens/ContactsScreen';
-import { ContractsScreen } from '../screens/ContractsScreen';
-import { CrimesScreen } from '../screens/CrimesScreen';
-import { DrugUseScreen } from '../screens/DrugUseScreen';
-import { EventsScreen } from '../screens/EventsScreen';
-import { FactionScreen } from '../screens/FactionScreen';
-import { FactoriesScreen } from '../screens/FactoriesScreen';
 import { HomeScreen } from '../screens/HomeScreen';
-import { HospitalScreen } from '../screens/HospitalScreen';
-import { InventoryScreen } from '../screens/InventoryScreen';
 import { LoginScreen } from '../screens/LoginScreen';
-import { MapScreen } from '../screens/MapScreen';
-import { MarketScreen } from '../screens/MarketScreen';
-import { OperationsScreen } from '../screens/OperationsScreen';
-import { PrisonScreen } from '../screens/PrisonScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
-import { SabotageScreen } from '../screens/SabotageScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
-import { TerritoryScreen } from '../screens/TerritoryScreen';
-import { TrainingScreen } from '../screens/TrainingScreen';
-import { TribunalScreen } from '../screens/TribunalScreen';
-import { UniversityScreen } from '../screens/UniversityScreen';
-import { VocationScreen } from '../screens/VocationScreen';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme/colors';
 
@@ -100,6 +78,120 @@ export type RootStackParamList = {
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+type DeferredScreenName = Exclude<
+  keyof RootStackParamList,
+  'CharacterCreation' | 'Home' | 'Login' | 'Register'
+>;
+type DeferredScreenModule = Record<string, ComponentType<object>>;
+type DeferredScreenDefinition = {
+  getComponent: () => ComponentType<object>;
+  name: DeferredScreenName;
+};
+
+function loadDeferredScreen<TModule extends DeferredScreenModule, TExportName extends keyof TModule>(
+  loader: () => TModule,
+  exportName: TExportName,
+): () => TModule[TExportName] {
+  return () => loader()[exportName];
+}
+
+/* eslint-disable @typescript-eslint/no-require-imports */
+const inGameDeferredScreens: readonly DeferredScreenDefinition[] = [
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/BichoScreen'), 'BichoScreen'),
+    name: 'Bicho',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/EventsScreen'), 'EventsScreen'),
+    name: 'Events',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/HospitalScreen'), 'HospitalScreen'),
+    name: 'Hospital',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/CombatScreen'), 'CombatScreen'),
+    name: 'Combat',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/ContactsScreen'), 'ContactsScreen'),
+    name: 'Contacts',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/ContractsScreen'), 'ContractsScreen'),
+    name: 'Contracts',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/CrimesScreen'), 'CrimesScreen'),
+    name: 'Crimes',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/FactoriesScreen'), 'FactoriesScreen'),
+    name: 'Factories',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/FactionScreen'), 'FactionScreen'),
+    name: 'Faction',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/InventoryScreen'), 'InventoryScreen'),
+    name: 'Inventory',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/DrugUseScreen'), 'DrugUseScreen'),
+    name: 'DrugUse',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/ProfileScreen'), 'ProfileScreen'),
+    name: 'Profile',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/MapScreen'), 'MapScreen'),
+    name: 'Map',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/MarketScreen'), 'MarketScreen'),
+    name: 'Market',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/OperationsScreen'), 'OperationsScreen'),
+    name: 'Operations',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/PrisonScreen'), 'PrisonScreen'),
+    name: 'Prison',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/SabotageScreen'), 'SabotageScreen'),
+    name: 'Sabotage',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/SettingsScreen'), 'SettingsScreen'),
+    name: 'Settings',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/TrainingScreen'), 'TrainingScreen'),
+    name: 'Training',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/TribunalScreen'), 'TribunalScreen'),
+    name: 'Tribunal',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/TerritoryScreen'), 'TerritoryScreen'),
+    name: 'Territory',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/UniversityScreen'), 'UniversityScreen'),
+    name: 'University',
+  },
+  {
+    getComponent: loadDeferredScreen(() => require('../screens/VocationScreen'), 'VocationScreen'),
+    name: 'Vocation',
+  },
+] as const;
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 const inGameSheetOptions = {
   animation: 'fade_from_bottom' as const,
@@ -182,29 +274,14 @@ export function RootNavigator(): JSX.Element {
                   animation: 'fade',
                 }}
               />
-              <Stack.Screen component={BichoScreen} name="Bicho" options={inGameSheetOptions} />
-              <Stack.Screen component={EventsScreen} name="Events" options={inGameSheetOptions} />
-              <Stack.Screen component={HospitalScreen} name="Hospital" options={inGameSheetOptions} />
-              <Stack.Screen component={CombatScreen} name="Combat" options={inGameSheetOptions} />
-              <Stack.Screen component={ContactsScreen} name="Contacts" options={inGameSheetOptions} />
-              <Stack.Screen component={ContractsScreen} name="Contracts" options={inGameSheetOptions} />
-              <Stack.Screen component={CrimesScreen} name="Crimes" options={inGameSheetOptions} />
-              <Stack.Screen component={FactoriesScreen} name="Factories" options={inGameSheetOptions} />
-              <Stack.Screen component={FactionScreen} name="Faction" options={inGameSheetOptions} />
-              <Stack.Screen component={InventoryScreen} name="Inventory" options={inGameSheetOptions} />
-              <Stack.Screen component={DrugUseScreen} name="DrugUse" options={inGameSheetOptions} />
-              <Stack.Screen component={ProfileScreen} name="Profile" options={inGameSheetOptions} />
-              <Stack.Screen component={MapScreen} name="Map" options={inGameSheetOptions} />
-              <Stack.Screen component={MarketScreen} name="Market" options={inGameSheetOptions} />
-              <Stack.Screen component={OperationsScreen} name="Operations" options={inGameSheetOptions} />
-              <Stack.Screen component={PrisonScreen} name="Prison" options={inGameSheetOptions} />
-              <Stack.Screen component={SabotageScreen} name="Sabotage" options={inGameSheetOptions} />
-              <Stack.Screen component={SettingsScreen} name="Settings" options={inGameSheetOptions} />
-              <Stack.Screen component={TrainingScreen} name="Training" options={inGameSheetOptions} />
-              <Stack.Screen component={TribunalScreen} name="Tribunal" options={inGameSheetOptions} />
-              <Stack.Screen component={TerritoryScreen} name="Territory" options={inGameSheetOptions} />
-              <Stack.Screen component={UniversityScreen} name="University" options={inGameSheetOptions} />
-              <Stack.Screen component={VocationScreen} name="Vocation" options={inGameSheetOptions} />
+              {inGameDeferredScreens.map((screen) => (
+                <Stack.Screen
+                  getComponent={screen.getComponent}
+                  key={screen.name}
+                  name={screen.name}
+                  options={inGameSheetOptions}
+                />
+              ))}
             </>
           )}
         </Stack.Navigator>

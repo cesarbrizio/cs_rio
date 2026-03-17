@@ -1,1 +1,0 @@
-ALTER TABLE "favelas" ADD COLUMN "stabilization_ends_at" timestamp with time zone;
