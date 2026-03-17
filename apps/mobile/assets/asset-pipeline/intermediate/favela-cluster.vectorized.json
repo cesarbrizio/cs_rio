@@ -1,9 +1,0 @@
-{
-  "ok": false,
-  "stage": "vectorization",
-  "tool": "inkscape",
-  "status": "missing-dependency",
-  "scenePath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/favela-cluster.scene.svg",
-  "vectorizedPath": "/home/cesar/projects/cs_rio/apps/mobile/assets/asset-pipeline/intermediate/favela-cluster.vectorized.svg",
-  "message": "Inkscape CLI nao encontrado. Instale `inkscape` no Ubuntu para habilitar a vetorizacao automatizada da Etapa 4."
-}
