@@ -14,6 +14,24 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
+      "@cs-rio/domain/*": [
+        "packages/domain/src/*"
+      ],
+      "@cs-rio/platform/*": [
+        "packages/platform/src/*"
+      ],
+      "@cs-rio/ui/*": [
+        "packages/ui/src/*"
+      ],
+      "@domain/*": [
+        "packages/domain/src/*"
+      ],
+      "@platform/*": [
+        "packages/platform/src/*"
+      ],
+      "@ui/*": [
+        "packages/ui/src/*"
+      ],
       "@shared/*": [
         "packages/shared/src/*"
       ],

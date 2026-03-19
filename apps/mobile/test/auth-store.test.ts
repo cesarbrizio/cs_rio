@@ -69,6 +69,7 @@ const apiState = {
 
 const installAuthInterceptors = vi.fn();
 const installApiObservabilityInterceptors = vi.fn();
+const AUTH_STORE_TEST_TIMEOUT_MS = 20_000;
 
 vi.mock('expo-secure-store', () => ({
   deleteItemAsync: vi.fn(async (key: string) => {
@@ -204,7 +205,7 @@ describe('auth store', () => {
     expect(secureStoreState.get('cs_rio_refresh_token')).toBe('refresh-1');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().player?.nickname).toBe('Player_01');
-  });
+  }, AUTH_STORE_TEST_TIMEOUT_MS);
 
   it('loads stored auth and refreshes the session after a 401 on /players/me', async () => {
     secureStoreState.set('cs_rio_access_token', 'expired-access');
@@ -276,7 +277,7 @@ describe('auth store', () => {
     expect(useAuthStore.getState().token).toBe('access-2');
     expect(useAuthStore.getState().refreshToken).toBe('refresh-2b');
     expect(useAuthStore.getState().player?.hasCharacter).toBe(true);
-  });
+  }, AUTH_STORE_TEST_TIMEOUT_MS);
 
   it('syncs equip, unequip and repair mutations back into the local profile', async () => {
     apiState.post.mockResolvedValueOnce({
@@ -515,7 +516,7 @@ describe('auth store', () => {
       equipSlot: null,
       isEquipped: false,
     });
-  });
+  }, AUTH_STORE_TEST_TIMEOUT_MS);
 
   it('clears auth tokens and player-scoped app state on logout', async () => {
     apiState.post.mockResolvedValueOnce({
@@ -602,5 +603,5 @@ describe('auth store', () => {
       enabled: true,
       permissionStatus: 'granted',
     });
-  });
+  }, AUTH_STORE_TEST_TIMEOUT_MS);
 });

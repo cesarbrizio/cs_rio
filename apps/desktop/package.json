@@ -1,0 +1,36 @@
+{
+  "name": "@cs-rio/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop scaffold do CS Rio em Electron, Vite e React.",
+  "author": "CS Rio",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "package": "vite build && electron-builder",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"electron/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "clean": "node -e \"const fs=require('node:fs'); for (const dir of ['dist','dist-electron','release']) fs.rmSync(dir,{recursive:true,force:true});\""
+  },
+  "dependencies": {
+    "@cs-rio/domain": "file:../../packages/domain",
+    "@cs-rio/game-engine": "file:../../packages/game-engine",
+    "@cs-rio/platform": "file:../../packages/platform",
+    "@cs-rio/shared": "file:../../packages/shared",
+    "@cs-rio/ui": "file:../../packages/ui",
+    "electron-store": "^11.0.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "electron": "41.0.3",
+    "electron-builder": "^26.8.1",
+    "vite": "^6.2.2",
+    "vite-plugin-electron": "^0.29.1"
+  }
+}

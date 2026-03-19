@@ -1,0 +1,54 @@
+{
+  "name": "@cs-rio/platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/contracts/index.ts",
+      "default": "./src/contracts/index.ts"
+    },
+    "./desktop": {
+      "types": "./src/desktop/index.ts",
+      "default": "./src/desktop/index.ts"
+    },
+    "./mobile": {
+      "types": "./src/mobile/index.ts",
+      "default": "./src/mobile/index.ts"
+    },
+    "./mobile/expo-env": {
+      "types": "./src/mobile/expo-env.ts",
+      "default": "./src/mobile/expo-env.ts"
+    },
+    "./mobile/expo-haptics": {
+      "types": "./src/mobile/expo-haptics.ts",
+      "default": "./src/mobile/expo-haptics.ts"
+    },
+    "./mobile/expo-storage": {
+      "types": "./src/mobile/expo-storage.ts",
+      "default": "./src/mobile/expo-storage.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "expo-av": "~15.0.2",
+    "expo-constants": "~17.0.8",
+    "expo-haptics": "~14.0.1",
+    "expo-notifications": "~0.29.14",
+    "expo-secure-store": "~14.0.1",
+    "howler": "^2.2.4",
+    "react-native": "0.76.9"
+  },
+  "devDependencies": {
+    "@types/howler": "^2.2.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "node -e \"console.log('platform: nothing to clean yet')\""
+  }
+}

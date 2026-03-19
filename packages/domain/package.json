@@ -1,0 +1,53 @@
+{
+  "name": "@cs-rio/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    },
+    "./data": {
+      "types": "./src/data/index.ts",
+      "default": "./src/data/index.ts"
+    },
+    "./features": {
+      "types": "./src/features/index.ts",
+      "default": "./src/features/index.ts"
+    },
+    "./notify": {
+      "types": "./src/notify/index.ts",
+      "default": "./src/notify/index.ts"
+    },
+    "./realtime": {
+      "types": "./src/realtime/index.ts",
+      "default": "./src/realtime/index.ts"
+    },
+    "./stores": {
+      "types": "./src/stores/index.ts",
+      "default": "./src/stores/index.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@cs-rio/platform": "file:../platform",
+    "@cs-rio/shared": "file:../shared",
+    "axios": "^1.8.4",
+    "colyseus.js": "^0.16.22",
+    "zustand": "^5.0.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-data-assets.mjs",
+    "dev": "tsc -w -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "node -e \"console.log('domain: nothing to clean yet')\""
+  }
+}

@@ -7,12 +7,15 @@
     "node": ">=22.0.0"
   },
   "workspaces": [
+    "apps/editor",
     "apps/mobile",
+    "apps/desktop",
     "packages/*"
   ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
+    "generate": "turbo run generate",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

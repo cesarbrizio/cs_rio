@@ -1,0 +1,33 @@
+import type { MapStructureKind } from '../../types.js';
+
+export const AVAILABLE_SVG_KINDS = [
+  "baile",
+  "barraco-1",
+  "barraco-2",
+  "barraco-3",
+  "barraco-4",
+  "barraco-5",
+  "boca",
+  "casa-residencial-moderna-1",
+  "casa-residencial-moderna-2",
+  "casa-residencial-simples-1",
+  "casa-residencial-simples-2",
+  "desmanche",
+  "docas",
+  "factory",
+  "favela-cluster",
+  "hospital",
+  "mercado-negro",
+  "predio-comercial-moderno-1",
+  "predio-comercial-moderno-2",
+  "predio-comercial-simples-1",
+  "predio-comercial-simples-2",
+  "predio-residencial-moderno-1",
+  "predio-residencial-moderno-2",
+  "predio-residencial-simples-1",
+  "predio-residencial-simples-2",
+  "prison",
+  "rave",
+  "treino",
+  "universidade"
+] as const satisfies readonly MapStructureKind[];

@@ -1,0 +1,51 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@cs-rio/domain/*": [
+        "../../packages/domain/src/*"
+      ],
+      "@cs-rio/platform/*": [
+        "../../packages/platform/src/*"
+      ],
+      "@cs-rio/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@domain/*": [
+        "../../packages/domain/src/*"
+      ],
+      "@platform/*": [
+        "../../packages/platform/src/*"
+      ],
+      "@ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@shared/*": [
+        "../../packages/shared/src/*"
+      ],
+      "@engine/*": [
+        "../../packages/game-engine/src/*"
+      ]
+    },
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
+  ]
+}

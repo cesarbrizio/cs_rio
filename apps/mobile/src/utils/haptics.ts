@@ -1,25 +1,25 @@
-import * as Haptics from 'expo-haptics';
+import { expoHaptics } from '@cs-rio/platform/mobile/expo-haptics';
 
 export function hapticLight(): void {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  expoHaptics.light();
 }
 
 export function hapticMedium(): void {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  expoHaptics.medium();
 }
 
 export function hapticHeavy(): void {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  expoHaptics.heavy();
 }
 
 export function hapticSuccess(): void {
-  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  expoHaptics.success();
 }
 
 export function hapticWarning(): void {
-  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  expoHaptics.warning();
 }
 
 export function hapticError(): void {
-  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  expoHaptics.error();
 }

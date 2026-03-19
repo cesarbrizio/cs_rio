@@ -112,7 +112,13 @@ describe('sabotage helpers', () => {
       perspective: 'defense',
       propertyId: 'prop-2',
     });
-    expect(buildSabotageCue(center.recentLogs[0]!, 'player-attacker')?.recoveryHint).toContain('Reconstrução');
+    expect(
+      buildSabotageCue(
+        center.recentLogs[0]!,
+        'player-attacker',
+        new Date('2026-03-16T12:00:00.000Z').getTime(),
+      )?.recoveryHint,
+    ).toContain('Reconstrução');
     expect(formatSabotageAvailabilityCost(center.availability)).toBe('40 Cansaço · 20 Disposição');
     expect(formatSabotageCooldown(4_200)).toContain('1h');
   });

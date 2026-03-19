@@ -10,6 +10,8 @@ module.exports = function (api) {
           extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
           alias: {
             '@': './src',
+            '@domain': '../../packages/domain/src',
+            '@platform': '../../packages/platform/src',
             '@shared': '../../packages/shared/src',
             '@engine': '../../packages/game-engine/src',
           },

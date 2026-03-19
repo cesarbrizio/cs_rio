@@ -1,4 +1,4 @@
-import { type ParsedTilemap, type PathNode, type TilePropertyMap, type TilePropertyValue, type TilemapLayer, type TilemapLayerKind, type TilemapObject, type TilemapTile, type TilemapTileset } from './types';
+import { type ParsedMapStructure, type ParsedTilemap, type PathNode, type TilePropertyMap, type TilePropertyValue, type TilemapLayer, type TilemapLayerKind, type TilemapObject, type TilemapTile, type TilemapTileset } from './types';
 
 interface RawTileProperty {
   name?: string;
@@ -81,6 +81,10 @@ function detectLayerKind(name: string): TilemapLayerKind {
     return 'regions';
   }
 
+  if (normalizedName.includes('structure')) {
+    return 'structures';
+  }
+
   if (normalizedName.includes('ground') || normalizedName.includes('terrain')) {
     return 'ground';
   }
@@ -146,6 +150,77 @@ function normalizeObjects(rawObjects: RawObject[], tileWidth: number, tileHeight
   }));
 }
 
+function toPositiveInteger(value: TilePropertyValue | undefined): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.round(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsedValue = Number(value);
+
+    if (Number.isFinite(parsedValue) && parsedValue > 0) {
+      return Math.round(parsedValue);
+    }
+  }
+
+  return null;
+}
+
+function toOptionalString(value: TilePropertyValue | undefined): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue : undefined;
+}
+
+function normalizeStructures(
+  objects: TilemapObject[],
+  tileWidth: number,
+  tileHeight: number,
+): ParsedMapStructure[] {
+  return objects.flatMap((object) => {
+    const explicitKind = toOptionalString(object.properties.kind);
+    const kindCandidate = explicitKind ?? object.type.trim();
+
+    if (kindCandidate.length === 0) {
+      return [];
+    }
+
+    const footprintW =
+      toPositiveInteger(object.properties.footprintW) ??
+      Math.max(1, Math.round(object.width / Math.max(tileWidth, 1)));
+    const footprintH =
+      toPositiveInteger(object.properties.footprintH) ??
+      Math.max(1, Math.round(object.height / Math.max(tileHeight, 1)));
+
+    return [
+      {
+        footprint: {
+          h: footprintH,
+          w: footprintW,
+        },
+        gridX: object.gridX,
+        gridY: object.gridY,
+        height: object.height,
+        id: object.name.trim().length > 0 ? object.name : `structure:${object.id}`,
+        interactiveEntityId: toOptionalString(object.properties.interactiveEntityId),
+        kind: kindCandidate,
+        label: toOptionalString(object.properties.label),
+        name: object.name,
+        objectId: object.id,
+        properties: object.properties,
+        type: object.type,
+        width: object.width,
+        x: object.x,
+        y: object.y,
+      },
+    ];
+  });
+}
+
 function normalizeTileLayer(
   layer: RawLayer,
   tilesets: TilemapTileset[],
@@ -195,6 +270,7 @@ export function parseTilemap(input: Record<string, unknown>): ParsedTilemap {
   const collisionSet = new Set<string>();
   const spawnPoints: TilemapObject[] = [];
   const regionMarkers: TilemapObject[] = [];
+  const structures: ParsedMapStructure[] = [];
 
   const layers = rawLayers.map<TilemapLayer>((layer) => {
     const name = layer.name ?? '';
@@ -220,6 +296,10 @@ export function parseTilemap(input: Record<string, unknown>): ParsedTilemap {
 
     if (kind === 'regions') {
       regionMarkers.push(...objects);
+    }
+
+    if (kind === 'structures') {
+      structures.push(...normalizeStructures(objects, tileWidth, tileHeight));
     }
 
     return {
@@ -250,5 +330,6 @@ export function parseTilemap(input: Record<string, unknown>): ParsedTilemap {
     collisionSet,
     spawnPoints,
     regionMarkers,
+    structures,
   };
 }

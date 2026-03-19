@@ -1,0 +1,399 @@
+.desktop-screen {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.desktop-screen__hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.desktop-screen__hero-copy,
+.desktop-screen__hero-actions,
+.desktop-screen__section,
+.desktop-screen__list,
+.desktop-screen__stack,
+.desktop-screen__detail,
+.desktop-empty-state,
+.desktop-feedback {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.desktop-screen__hero-copy h2,
+.desktop-screen__hero-copy p,
+.desktop-screen__section h3,
+.desktop-screen__section p,
+.desktop-feedback p,
+.desktop-empty-state p {
+  margin: 0;
+}
+
+.desktop-screen__hero-copy p,
+.desktop-screen__section p,
+.desktop-feedback p,
+.desktop-empty-state p,
+.desktop-field__hint,
+.desktop-list-row small,
+.desktop-muted {
+  color: rgba(243, 239, 223, 0.68);
+}
+
+.desktop-screen__hero-actions {
+  min-width: 220px;
+  align-content: start;
+  justify-items: stretch;
+}
+
+.desktop-screen__badge-row,
+.desktop-inline-actions,
+.desktop-chip-row,
+.desktop-toolbar,
+.desktop-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.desktop-metric-grid,
+.desktop-grid-2,
+.desktop-grid-3,
+.desktop-grid-4 {
+  display: grid;
+  gap: 1rem;
+}
+
+.desktop-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.desktop-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.desktop-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.desktop-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.desktop-metric-card {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.desktop-metric-card span {
+  color: rgba(243, 239, 223, 0.56);
+  font-size: 0.8rem;
+}
+
+.desktop-metric-card strong {
+  font-size: 1.2rem;
+}
+
+.desktop-metric-card small {
+  font-size: 0.8rem;
+}
+
+.desktop-tone--success {
+  color: #8effbe;
+}
+
+.desktop-tone--warning {
+  color: #f4d06f;
+}
+
+.desktop-tone--danger {
+  color: #ffb0a0;
+}
+
+.desktop-tone--info {
+  color: #8ad4ff;
+}
+
+.desktop-feedback {
+  border: 1px solid rgba(243, 239, 223, 0.08);
+}
+
+.desktop-feedback--success {
+  box-shadow: inset 0 0 0 1px rgba(126, 220, 156, 0.22);
+}
+
+.desktop-feedback--warning {
+  box-shadow: inset 0 0 0 1px rgba(244, 208, 111, 0.22);
+}
+
+.desktop-feedback--danger {
+  box-shadow: inset 0 0 0 1px rgba(215, 86, 69, 0.22);
+}
+
+.desktop-feedback--info {
+  box-shadow: inset 0 0 0 1px rgba(138, 212, 255, 0.18);
+}
+
+.desktop-empty-state {
+  place-items: start;
+}
+
+.desktop-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.desktop-panel h3,
+.desktop-panel h4,
+.desktop-panel p {
+  margin: 0;
+}
+
+.desktop-panel h4 {
+  font-size: 0.95rem;
+}
+
+.desktop-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.desktop-scroll-list {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 28rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.desktop-list-row {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(243, 239, 223, 0.08);
+  border-radius: 20px;
+  color: inherit;
+  text-align: left;
+  background: rgba(243, 239, 223, 0.04);
+}
+
+.desktop-list-row--clickable {
+  cursor: pointer;
+}
+
+.desktop-list-row--active,
+.desktop-list-row:hover {
+  background: rgba(243, 239, 223, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(244, 208, 111, 0.18);
+}
+
+.desktop-list-row__headline,
+.desktop-detail-list li,
+.desktop-resource-row,
+.desktop-expand-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.desktop-list-row__meta,
+.desktop-resource-bars,
+.desktop-form-grid,
+.desktop-detail-list,
+.desktop-notes,
+.desktop-feed-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.desktop-detail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desktop-detail-list li {
+  padding: 0.8rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(243, 239, 223, 0.04);
+}
+
+.desktop-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.desktop-field__label {
+  font-size: 0.84rem;
+  color: rgba(243, 239, 223, 0.72);
+}
+
+.desktop-field input,
+.desktop-field select,
+.desktop-field textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(243, 239, 223, 0.1);
+  border-radius: 18px;
+  outline: 0;
+  color: #f3efdf;
+  background: rgba(10, 23, 29, 0.9);
+}
+
+.desktop-field textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+
+.desktop-expand-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.desktop-expand-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid rgba(243, 239, 223, 0.08);
+  border-radius: 22px;
+  background: rgba(243, 239, 223, 0.04);
+}
+
+.desktop-expand-card--active {
+  box-shadow: inset 0 0 0 1px rgba(244, 208, 111, 0.22);
+}
+
+.desktop-expand-card__top h4,
+.desktop-expand-card__top p,
+.desktop-home__floating-card p {
+  margin: 0;
+}
+
+.desktop-home {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  grid-template-columns: minmax(360px, 450px) minmax(0, 1fr);
+}
+
+.desktop-home--fullscreen {
+  grid-template-columns: 1fr;
+}
+
+.desktop-home__rail,
+.desktop-home__floating-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.desktop-home__stage,
+.desktop-home__stage .game-canvas-shell {
+  min-height: 0;
+}
+
+.desktop-home__stage .game-canvas-shell {
+  height: calc(100vh - 9.4rem);
+}
+
+.desktop-home__stage--expanded .game-canvas-shell {
+  height: calc(100vh - 7.4rem);
+}
+
+.desktop-home__stage--fullscreen .game-canvas-shell {
+  height: calc(100vh - 10rem);
+}
+
+.desktop-home__floating {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.desktop-home__floating > * {
+  pointer-events: auto;
+}
+
+.desktop-map-grid,
+.desktop-territory-grid,
+.desktop-market-grid,
+.desktop-faction-grid,
+.desktop-profile-grid,
+.desktop-crime-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+}
+
+.desktop-region-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.desktop-region-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+  border: 1px solid rgba(243, 239, 223, 0.08);
+  border-radius: 22px;
+  background: rgba(243, 239, 223, 0.04);
+  text-align: left;
+}
+
+.desktop-region-card--active {
+  box-shadow: inset 0 0 0 1px rgba(138, 212, 255, 0.22);
+}
+
+.desktop-region-card--current {
+  box-shadow: inset 0 0 0 1px rgba(126, 220, 156, 0.22);
+}
+
+.desktop-table {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.desktop-table__row {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  background: rgba(243, 239, 223, 0.04);
+}
+
+.desktop-table__row-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.desktop-divider {
+  height: 1px;
+  background: rgba(243, 239, 223, 0.08);
+}
+
+@media (max-width: 1180px) {
+  .desktop-home,
+  .desktop-map-grid,
+  .desktop-territory-grid,
+  .desktop-market-grid,
+  .desktop-faction-grid,
+  .desktop-profile-grid,
+  .desktop-crime-grid,
+  .desktop-grid-4,
+  .desktop-grid-3,
+  .desktop-grid-2,
+  .desktop-metric-grid {
+    grid-template-columns: 1fr;
+  }
+}

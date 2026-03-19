@@ -1,0 +1,19 @@
+appId: com.csrio.desktop
+productName: CS Rio Desktop
+electronVersion: 41.0.3
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+asar: true
+linux:
+  target:
+    - AppImage
+win:
+  target:
+    - nsis
+mac:
+  target:
+    - dmg

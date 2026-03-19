@@ -1,0 +1,26 @@
+{
+  "name": "@cs-rio/editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "node -e \"console.log('editor: nothing to clean yet')\""
+  },
+  "dependencies": {
+    "@cs-rio/game-engine": "file:../../packages/game-engine",
+    "@cs-rio/shared": "file:../../packages/shared",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite": "^6.2.2"
+  }
+}

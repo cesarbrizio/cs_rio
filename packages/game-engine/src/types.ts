@@ -105,12 +105,31 @@ export interface TilemapObject {
   properties: TilePropertyMap;
 }
 
+export interface ParsedMapStructure {
+  footprint: { h: number; w: number };
+  gridX: number;
+  gridY: number;
+  id: string;
+  interactiveEntityId?: string;
+  kind: string;
+  label?: string;
+  name: string;
+  objectId: number;
+  properties: TilePropertyMap;
+  type: string;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}
+
 export type TilemapLayerKind =
   | 'collision'
   | 'ground'
   | 'objects'
   | 'regions'
   | 'spawn_points'
+  | 'structures'
   | 'unknown';
 
 export interface TilemapLayer {
@@ -140,6 +159,7 @@ export interface ParsedTilemap {
   collisionSet: Set<string>;
   spawnPoints: TilemapObject[];
   regionMarkers: TilemapObject[];
+  structures: ParsedMapStructure[];
 }
 
 export interface VisibleTileBounds {

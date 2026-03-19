@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useHomeMapScene } from '@cs-rio/ui/hooks';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +14,6 @@ import { useAppStore } from '../stores/appStore';
 import { HomeHudPanel } from './home/HomeHudPanel';
 import { useHomeHudController } from './home/useHomeHudController';
 import { useHomeMapData } from './home/useHomeMapData';
-import { useHomeMapScene } from './home/useHomeMapScene';
 
 const PROPERTY_MARKER_MIN_X = 24;
 const PROPERTY_MARKER_MIN_Y = 32;

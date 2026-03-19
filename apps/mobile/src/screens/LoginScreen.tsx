@@ -36,11 +36,11 @@ export function LoginScreen({ navigation }: LoginScreenProps): JSX.Element {
       actionLabel="Entrar"
       footerCopy="Ainda não tem conta?"
       footerLabel="Criar agora"
-      helperText="Use o backend real da Fase 2 para autenticar e cair direto na criação do personagem."
+      helperText="Crie uma conta para começar sua jornada no CS Rio."
       isLoading={isLoading}
       onActionPress={handleSubmit}
       onFooterPress={() => navigation.navigate('Register')}
-      subtitle="Email, senha e refresh token persistido no dispositivo."
+      subtitle="Informe seu email e senha."
       title="Login"
     >
       <AuthField
@@ -65,7 +65,7 @@ export function LoginScreen({ navigation }: LoginScreenProps): JSX.Element {
       <View style={styles.hintRow}>
         <Text style={styles.hintLabel}>Fluxo atual</Text>
         <Text style={styles.hintCopy}>
-          Login autenticado, perfil carregado e entrada direta no jogo ou na criação do personagem.
+          Autenticação concluída.
         </Text>
       </View>
     </AuthScreenLayout>

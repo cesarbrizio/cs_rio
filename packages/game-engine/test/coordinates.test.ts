@@ -91,6 +91,28 @@ describe('tilemap parsing and rendering', () => {
         height: 4,
         data: [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       },
+      {
+        id: 3,
+        name: 'structures',
+        type: 'objectgroup',
+        objects: [
+          {
+            id: 20,
+            name: 'mercado-central',
+            type: 'mercado-negro',
+            x: 128,
+            y: 64,
+            width: 384,
+            height: 128,
+            properties: [
+              { name: 'kind', value: 'mercado-negro' },
+              { name: 'footprintW', value: 3 },
+              { name: 'footprintH', value: 2 },
+              { name: 'interactiveEntityId', value: 'mercado-negro' },
+            ],
+          },
+        ],
+      },
     ],
   };
 
@@ -115,6 +137,35 @@ describe('tilemap parsing and rendering', () => {
 
     expect(plan.ground.length).toBeGreaterThan(0);
     expect(plan.ground.every((tile) => tile.fill.length > 0)).toBe(true);
+  });
+
+  it('extracts structures from tiled object layers', () => {
+    const map = parseTilemap(rawMap);
+
+    expect(map.structures).toEqual([
+      {
+        footprint: { w: 3, h: 2 },
+        gridX: 1,
+        gridY: 1,
+        height: 128,
+        id: 'mercado-central',
+        interactiveEntityId: 'mercado-negro',
+        kind: 'mercado-negro',
+        label: undefined,
+        name: 'mercado-central',
+        objectId: 20,
+        properties: {
+          footprintH: 2,
+          footprintW: 3,
+          interactiveEntityId: 'mercado-negro',
+          kind: 'mercado-negro',
+        },
+        type: 'mercado-negro',
+        width: 384,
+        x: 128,
+        y: 64,
+      },
+    ]);
   });
 });
 

@@ -1,8 +1,8 @@
 import { Skia } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
 
-import type { MapStructureKind } from './mapRegionVisuals';
-import { mapStructureSvgMarkupByKind } from './generated/mapStructureSvgCatalog.generated';
+import type { MapStructureKind } from '@shared/map/types';
+import { mapStructureSvgMarkupByKind } from '@shared/map/structureSvgCatalog';
 
 export type MapStructureSvgCatalog = Record<
   MapStructureKind,
