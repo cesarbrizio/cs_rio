@@ -1,6 +1,7 @@
 node_modules
 .turbo
 dist
+dist-electron
 build
 coverage
 .expo
@@ -9,6 +10,8 @@ coverage
 .env
 .env.local
 apps/mobile/.env
+apps/desktop/release
+.venv/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

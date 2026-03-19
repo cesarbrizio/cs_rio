@@ -22,6 +22,8 @@ export default async function createConfig(): Promise<UserConfig> {
   });
 
   return {
+    envDir: monorepoRoot,
+    envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
     plugins: [react(), ...electronPlugins],
     resolve: {
       alias: {
