@@ -1,28 +1,62 @@
 # CS RIO
 
-Monorepo frontend do CS Rio. Este repositório concentra o app mobile, o app desktop, o editor web e os pacotes compartilhados consumidos por essas interfaces.
+Monorepo frontend do CS Rio.
 
-O backend roda em repositório separado: [cs_rio_api](/home/cesar/projects/cs_rio_api/README.md).
+Contém:
 
-## Escopo deste repositório
+- `apps/mobile`
+- `apps/desktop`
+- `apps/editor`
+- `packages/*`
 
-```text
-cs_rio/
-├── apps/mobile/          # app Expo / React Native
-├── apps/desktop/         # app desktop Electron + Vite + React
-├── apps/editor/          # editor web
-├── packages/domain/      # lógica compartilhada
-├── packages/platform/    # adapters mobile/desktop
-├── packages/ui/          # hooks/controllers React compartilhados
-├── packages/shared/      # tipos e contratos compartilhados
-└── packages/game-engine/ # engine isométrica local
+O backend roda em outro repositório: [cs_rio_api](/home/cesar/projects/cs_rio_api/README.md).
+
+## Requisitos
+
+- Node `22+`
+- `npm`
+- backend `cs_rio_api` ativo
+- para Android: Android SDK, `adb` e Java/JBR
+
+## `.env`
+
+Crie o `.env` na raiz:
+
+```bash
+cd /home/cesar/projects/cs_rio
+cp .env.example .env
 ```
 
-## Dependência obrigatória
+Exemplo:
 
-Este repositório não sobe o backend. Para login, registro, criação de personagem, mapa, crimes, mercado e realtime funcionarem, o `cs_rio_api` precisa estar ativo.
+```env
+EXPO_PUBLIC_API_URL=http://192.168.1.20:9000
+EXPO_PUBLIC_WS_URL=ws://192.168.1.20:2567
+EXPO_PUBLIC_APP_ENV=development
 
-Bootstrap rápido do backend:
+# opcionais: sobrescrevem apenas o desktop
+# VITE_API_URL=http://192.168.1.20:9000
+# VITE_WS_URL=ws://192.168.1.20:2567
+# VITE_APP_ENV=development
+```
+
+Regras:
+
+- mobile usa `EXPO_PUBLIC_*`
+- desktop em `dev` usa `VITE_*`; se eles não existirem, cai para `EXPO_PUBLIC_*`
+- em celular físico, use o IP da máquina, não `localhost`
+- em emulator Android, use `10.0.2.2`
+
+## Instalação
+
+```bash
+cd /home/cesar/projects/cs_rio
+npm install
+```
+
+## Backend
+
+O frontend não sobe a API. Suba o backend em outro terminal:
 
 ```bash
 cd /home/cesar/projects/cs_rio_api
@@ -34,100 +68,23 @@ npm run db:seed
 npm run dev
 ```
 
-Guia completo do backend: [README.md](/home/cesar/projects/cs_rio_api/README.md)
+Referência comum:
 
-## Requisitos
+- HTTP: `http://127.0.0.1:9000`
+- WS: `ws://127.0.0.1:2567`
 
-- Node `22+`
-- `npm`
-- Backend `cs_rio_api` ativo
-- Para mobile Android: Android SDK, `adb` no `PATH` e Java/JBR
-
-## `.env` da raiz
-
-O `.env` da raiz de `cs_rio` e compartilhado entre os fluxos de desenvolvimento.
-
-- O mobile lê `EXPO_PUBLIC_*`
-- O desktop em `dev` também reaproveita `EXPO_PUBLIC_*` quando `VITE_*` não estiver definido
-
-Exemplo:
-
-```env
-EXPO_PUBLIC_API_URL=http://SEU_HOST:PORTA_API
-EXPO_PUBLIC_WS_URL=ws://SEU_HOST:PORTA_WS
-EXPO_PUBLIC_APP_ENV=development
-
-# opcionais: sobrescrevem apenas o desktop
-# VITE_API_URL=http://SEU_HOST:PORTA_API
-# VITE_WS_URL=ws://SEU_HOST:PORTA_WS
-# VITE_APP_ENV=development
-```
-
-Se ainda não existir:
-
-```bash
-cp .env.example .env
-```
-
-Regras práticas:
-
-- Em celular físico, use o IP local da máquina, não `localhost`
-- Em Android Emulator, use `10.0.2.2`
-- No desktop local, `127.0.0.1`, `localhost` ou o IP local funcionam, desde que apontem para o backend real
-- O host e a porta do HTTP e do WS precisam bater com o backend realmente ativo
-
-## Começo rápido
-
-Se você quer subir tudo do frontend de uma vez:
-
-```bash
-cd /home/cesar/projects/cs_rio
-cp .env.example .env
-npm install
-npm run dev
-```
-
-O que `npm run dev` na raiz faz:
-
-- sobe o mobile (`Expo` / `Metro`)
-- sobe o desktop (`Electron` + `Vite`)
-- sobe o editor web
-- coloca os pacotes compartilhados em modo watch
-
-O que `npm run dev` na raiz nao faz:
-
-- nao sobe o backend `cs_rio_api`
-
-## Fluxos de desenvolvimento
+## Fluxos de uso
 
 ### Tudo junto
 
-Use quando quiser trabalhar com mobile, desktop e pacotes compartilhados ao mesmo tempo:
+Sobe mobile, desktop, editor e watchers dos pacotes compartilhados:
 
 ```bash
 cd /home/cesar/projects/cs_rio
 npm run dev
 ```
 
-### Somente mobile
-
-Use quando quiser só o Metro:
-
-```bash
-cd /home/cesar/projects/cs_rio
-npm run dev --workspace @cs-rio/mobile
-```
-
-Importante:
-
-- `npm run dev --workspace @cs-rio/mobile` sobe o Metro
-- `npm run android --workspace @cs-rio/mobile` instala/abre o app Android
-- `npm run ios --workspace @cs-rio/mobile` roda o fluxo iOS
-- `npm run build --workspace @cs-rio/mobile` nao abre o app; ele só valida TypeScript e gera um artefato local de build
-
-### Somente desktop
-
-Use quando quiser só o app desktop:
+### Só desktop
 
 ```bash
 cd /home/cesar/projects/cs_rio
@@ -136,97 +93,71 @@ npm run dev --workspace @cs-rio/desktop
 
 Importante:
 
-- a aplicação correta é a janela do Electron
-- a URL `http://localhost:5173` ou similar é só o servidor do renderer em desenvolvimento
-- se a porta `5173` estiver ocupada, o Vite pode subir em `5174`, `5175` etc.
+- o app correto é a janela do Electron
+- a URL do Vite (`http://localhost:5173`, `5174`, `5175`...) é só o renderer em desenvolvimento
 
-### Somente editor
+### Só mobile
+
+Sobe o Metro:
+
+```bash
+cd /home/cesar/projects/cs_rio
+npm run dev --workspace @cs-rio/mobile
+```
+
+Instala ou atualiza o app no device Android:
+
+```bash
+cd /home/cesar/projects/cs_rio/apps/mobile
+node ./scripts/run-expo-with-root-env.mjs run:android --device
+```
+
+Equivalente Expo, se quiser rodar direto:
+
+```bash
+cd /home/cesar/projects/cs_rio/apps/mobile
+npx expo run:android --device
+```
+
+Preferência do projeto:
+
+- prefira `node ./scripts/run-expo-with-root-env.mjs ...`, porque ele carrega o `.env` da raiz
+- `npm run build --workspace @cs-rio/mobile` não instala nem abre o app; ele só valida TypeScript
+
+### Só editor
 
 ```bash
 cd /home/cesar/projects/cs_rio
 npm run dev --workspace @cs-rio/editor
 ```
 
-## Fluxo recomendado para Android
-
-Este projeto nao deve ser testado com Expo Go. O fluxo correto é `development build`.
-
-Garanta as variáveis de shell:
-
-```bash
-export ANDROID_HOME=$HOME/Android/Sdk
-export ANDROID_SDK_ROOT=$ANDROID_HOME
-export JAVA_HOME=$HOME/android-studio/jbr
-export PATH=$PATH:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin
-```
-
-Confirme o device:
-
-```bash
-adb devices -l
-```
-
-Com o Metro já rodando, instale/atualize o app:
-
-```bash
-cd /home/cesar/projects/cs_rio
-npm run android --workspace @cs-rio/mobile
-```
-
-## Verificações rápidas
-
-Se login, registro ou criação de personagem falharem:
-
-1. Confirme que o `cs_rio_api` está ativo
-2. Abra `http://HOST:PORTA/api/health` e valide que o backend responde
-3. Confira se o `.env` da raiz aponta para o mesmo host/porta do backend
-4. Se você mudou o `.env`, reinicie o `npm run dev`
-
-Se o problema for só no desktop:
-
-1. Confirme que a janela do Electron abriu
-2. Confirme que o `.env` da raiz está correto
-3. Reinicie `npm run dev --workspace @cs-rio/desktop` ou o `npm run dev` da raiz
-4. Lembre que abrir a URL do Vite no navegador nao valida IPC, tray, notificações ou storage do app desktop
-
-## Scripts úteis
+## Comandos de qualidade
 
 Na raiz:
 
 ```bash
-npm run dev
 npm run build
+npm run generate
 npm run lint
 npm run test
 npm run typecheck
 ```
 
-Somente mobile:
+Desktop:
 
 ```bash
-npm run dev --workspace @cs-rio/mobile
-npm run android --workspace @cs-rio/mobile
-npm run ios --workspace @cs-rio/mobile
-npm run lint --workspace @cs-rio/mobile
-npm run test --workspace @cs-rio/mobile
-npm run typecheck --workspace @cs-rio/mobile
-```
-
-Somente desktop:
-
-```bash
-npm run dev --workspace @cs-rio/desktop
 npm run build --workspace @cs-rio/desktop
 npm run package --workspace @cs-rio/desktop -- --dir
 npm run lint --workspace @cs-rio/desktop
 npm run typecheck --workspace @cs-rio/desktop
 ```
 
-Somente editor:
+Mobile:
 
 ```bash
-npm run dev --workspace @cs-rio/editor
-npm run build --workspace @cs-rio/editor
+npm run lint --workspace @cs-rio/mobile
+npm run test --workspace @cs-rio/mobile
+npm run typecheck --workspace @cs-rio/mobile
 ```
 
 ## Smoke mínimo
@@ -244,7 +175,6 @@ npm run build --workspace @cs-rio/editor
 9. Abrir `Território`
 10. Abrir `Inventário`
 11. Abrir `Config`
-12. Validar que nao há erro de rede espontâneo
 
 ### Mobile
 
@@ -257,9 +187,23 @@ npm run build --workspace @cs-rio/editor
 7. Abrir `Mercado`
 8. Abrir `Facção`
 9. Abrir `Território`
-10. Validar que nao há erro de rede espontâneo
 
-## Documentos deste repositório
+## Troubleshooting
+
+Se login ou registro falharem:
+
+1. confira se o `cs_rio_api` está ativo
+2. teste `http://HOST:PORTA/api/health`
+3. confira o `.env` da raiz
+4. reinicie o comando `dev` depois de mudar o `.env`
+
+Se o problema for só no desktop:
+
+1. confirme que a janela do Electron abriu
+2. confirme que o desktop está apontando para a API certa
+3. reinicie `npm run dev --workspace @cs-rio/desktop`
+
+## Documentos úteis
 
 - [PRODUCT_STATUS.md](./PRODUCT_STATUS.md)
 - [JOGO.md](./JOGO.md)

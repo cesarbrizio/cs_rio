@@ -12,7 +12,7 @@ module.exports = function (api) {
             '@': './src',
             '@domain': '../../packages/domain/src',
             '@platform': '../../packages/platform/src',
-            '@shared': '../../packages/shared/src',
+            '@shared': '../../packages/shared/dist',
             '@engine': '../../packages/game-engine/src',
           },
         },
