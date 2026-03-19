@@ -215,15 +215,6 @@ npm run typecheck --workspace @cs-rio/mobile
 Somente desktop:
 
 ```bash
-export VITE_API_URL=http://127.0.0.1:9000
-export VITE_WS_URL=ws://127.0.0.1:2567
-export VITE_APP_ENV=development
-npm run dev --workspace @cs-rio/desktop
-```
-
-## Smoke mínimo do app
-
-```bash
 npm run dev --workspace @cs-rio/desktop
 npm run build --workspace @cs-rio/desktop
 npm run package --workspace @cs-rio/desktop -- --dir
