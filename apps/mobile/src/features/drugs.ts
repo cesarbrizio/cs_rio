@@ -253,13 +253,13 @@ export function resolveDrugRiskLevel(
 
   if (score >= 2) {
     return {
-      copy: 'Risco moderado. O server ainda considera tolerância e mistura recente.',
+      copy: 'Risco moderado. Mistura recente e tolerância ainda podem piorar o quadro.',
       level: 'medium',
     };
   }
 
   return {
-    copy: 'Risco baixo no preview local, mas ainda depende do histórico recente no server.',
+    copy: 'Risco baixo por agora, mas mistura recente ainda pode virar o jogo.',
     level: 'low',
   };
 }

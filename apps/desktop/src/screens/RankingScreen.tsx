@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { RANKING_SCREEN_DESCRIPTION, useRankingController } from '@cs-rio/ui/hooks';
+import { useEffect } from 'react';
 
 import { Badge, Button, Card } from '../components/ui';
 import { roundApi } from '../services/api';
@@ -10,33 +11,19 @@ import {
 } from './shared/DesktopScreenPrimitives';
 
 export function RankingScreen(): JSX.Element {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [center, setCenter] = useState<Awaited<ReturnType<typeof roundApi.getCenter>> | null>(null);
+  const { center, error, isLoading, loadCenter } = useRankingController({
+    roundApi,
+  });
 
   useEffect(() => {
-    void loadCenter();
-  }, []);
-
-  async function loadCenter(): Promise<void> {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await roundApi.getCenter();
-      setCenter(response);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Falha ao carregar o ranking da rodada.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    void loadCenter().catch(() => undefined);
+  }, [loadCenter]);
 
   return (
     <section className="desktop-screen">
       <ScreenHero
         actions={
-          <Button onClick={() => void loadCenter()} variant="secondary">
+          <Button onClick={() => void loadCenter().catch(() => undefined)} variant="secondary">
             {isLoading ? 'Sincronizando...' : 'Atualizar ranking'}
           </Button>
         }
@@ -45,7 +32,7 @@ export function RankingScreen(): JSX.Element {
           { label: `${center?.leaderboard.length ?? 0} no topo`, tone: 'info' },
           { label: `${center?.topTenCreditReward ?? 0} creditos`, tone: 'success' },
         ]}
-        description="Leaderboard autoritativo da rodada atual, com top de conceito, prazo da rodada e premio em creditos para o top 10."
+        description={RANKING_SCREEN_DESCRIPTION}
         title="Ranking"
       />
 

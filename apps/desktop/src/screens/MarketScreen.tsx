@@ -97,11 +97,11 @@ export function MarketScreen(): JSX.Element {
           { label: `${marketAuctions.length} leiloes`, tone: 'warning' },
           { label: `${feeRate}% taxa`, tone: 'neutral' },
         ]}
-        description="Mercado real do backend com livro de ordens, leiloes, minhas ordens e reparo de loadout direto do shell desktop."
-        title="Mercado"
+        description="Compre, venda, repare equipamento e dispute leiloes no mesmo balcão clandestino."
+        title="Negociar"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Mercado sincronizado" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Mercado atualizado" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha no mercado" tone="danger" /> : null}
 
       <Card className="desktop-panel">

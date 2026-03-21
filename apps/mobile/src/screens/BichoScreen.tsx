@@ -10,21 +10,31 @@ import {
 } from '@cs-rio/shared';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import { bichoApi, formatApiError } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
+import {
+  Banner,
+  BichoResultModal,
+  EmptyState,
+  formatBetMode,
+  formatCurrency,
+  formatDateTime,
+  formatDozen,
+  formatRemainingSeconds,
+  formatTimeOnly,
+  MetricCard,
+  MetricPill,
+  resolveAnimalLabel,
+  sanitizeDozen,
+  sanitizeInteger,
+  styles,
+  SummaryCard,
+} from './BichoScreen.parts';
 
 const BET_AMOUNT_SUGGESTIONS = [100, 500, 1_000, 5_000] as const;
 const BET_MODES: Array<{
@@ -73,7 +83,7 @@ export function BichoScreen(): JSX.Element {
       const response = await bichoApi.getState();
       setBook(response);
       setSelectedAnimalNumber((current) => current ?? response.animals[0]?.number ?? 1);
-      setFeedbackMessage('Banca sincronizada. Escolha a jogada e confirme na própria card.');
+      setFeedbackMessage('Banca atualizada. Escolha a jogada e confirme na própria card.');
     } catch (error) {
       setErrorMessage(formatApiError(error).message);
       setFeedbackMessage(null);
@@ -127,10 +137,7 @@ export function BichoScreen(): JSX.Element {
     }
 
     return formatRemainingSeconds(
-      Math.max(
-        0,
-        Math.floor((new Date(book.currentDraw.closesAt).getTime() - nowMs) / 1000),
-      ),
+      Math.max(0, Math.floor((new Date(book.currentDraw.closesAt).getTime() - nowMs) / 1000)),
     );
   }, [book?.currentDraw, nowMs]);
 
@@ -162,18 +169,15 @@ export function BichoScreen(): JSX.Element {
     try {
       const response = await bichoApi.placeBet({
         amount: parsedAmount,
-        animalNumber:
-          selectedMode === 'dezena' ? undefined : selectedAnimal?.number,
-        dozen: selectedMode === 'dezena' ? parsedDozen ?? undefined : undefined,
+        animalNumber: selectedMode === 'dezena' ? undefined : selectedAnimal?.number,
+        dozen: selectedMode === 'dezena' ? (parsedDozen ?? undefined) : undefined,
         mode: selectedMode,
       });
       setResult(response);
       setFeedbackMessage(
         `${selectedModeDefinition.label} registrada. Sorteio #${response.currentDraw.sequence} fecha em ${formatDateTime(response.currentDraw.closesAt)}.`,
       );
-      setBootstrapStatus(
-        `${selectedModeDefinition.label} registrada na banca do bicho.`,
-      );
+      setBootstrapStatus(`${selectedModeDefinition.label} registrada na banca do bicho.`);
       await Promise.all([loadBook(), refreshPlayerProfile()]);
     } catch (error) {
       const message = formatApiError(error).message;
@@ -212,16 +216,14 @@ export function BichoScreen(): JSX.Element {
             value={book ? `#${book.currentDraw.sequence}` : '--'}
           />
           <SummaryCard label="Fecha em" tone={colors.info} value={timeUntilCloseLabel} />
-          <SummaryCard
-            label="Pendentes"
-            tone={colors.success}
-            value={`${pendingBets.length}`}
-          />
+          <SummaryCard label="Pendentes" tone={colors.success} value={`${pendingBets.length}`} />
         </View>
 
         {errorMessage ? <Banner copy={errorMessage} tone="danger" /> : null}
         {feedbackMessage ? <Banner copy={feedbackMessage} tone="neutral" /> : null}
-        {isLoading && !book ? <Banner copy="Carregando banca, sorteio e histórico..." tone="neutral" /> : null}
+        {isLoading && !book ? (
+          <Banner copy="Carregando banca, sorteio e histórico..." tone="neutral" />
+        ) : null}
 
         {book ? (
           <>
@@ -373,7 +375,10 @@ export function BichoScreen(): JSX.Element {
                                     : '--'
                               }
                             />
-                            <MetricPill label="Retorno brut." value={formatCurrency(expectedPayout)} />
+                            <MetricPill
+                              label="Retorno brut."
+                              value={formatCurrency(expectedPayout)}
+                            />
                             <MetricPill label="Fecha" value={timeUntilCloseLabel} />
                           </View>
 
@@ -444,8 +449,10 @@ export function BichoScreen(): JSX.Element {
                         </Text>
                       </View>
                       <Text style={styles.historyCopy}>
-                        {formatCurrency(bet.amount)} · retorno {formatCurrency(bet.payout)} · sorteio{' '}
-                        #{book.recentDraws.find((draw) => draw.id === bet.drawId)?.sequence ?? book.currentDraw.sequence}
+                        {formatCurrency(bet.amount)} · retorno {formatCurrency(bet.payout)} ·
+                        sorteio #
+                        {book.recentDraws.find((draw) => draw.id === bet.drawId)?.sequence ??
+                          book.currentDraw.sequence}
                       </Text>
                     </View>
                   ))}
@@ -469,7 +476,8 @@ export function BichoScreen(): JSX.Element {
                         Grupo {draw.winningAnimalNumber} · Dezena {formatDozen(draw.winningDozen)}
                       </Text>
                       <Text style={styles.historyCopy}>
-                        Entrou {formatCurrency(draw.totalBetAmount)} · saiu {formatCurrency(draw.totalPayoutAmount)}
+                        Entrou {formatCurrency(draw.totalBetAmount)} · saiu{' '}
+                        {formatCurrency(draw.totalPayoutAmount)}
                       </Text>
                     </View>
                   ))}
@@ -493,611 +501,3 @@ export function BichoScreen(): JSX.Element {
     </>
   );
 }
-
-function BichoResultModal(props: {
-  onClose: () => void;
-  result: BichoPlaceBetResponse | null;
-  selectedAnimal: BichoAnimalSummary | null;
-  selectedMode: BichoBetMode;
-}): JSX.Element {
-  return (
-    <Modal animationType="fade" transparent visible={Boolean(props.result)}>
-      <View style={styles.modalRoot}>
-        <View style={styles.modalCard}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalEyebrow}>Banca confirmada</Text>
-            <Text style={styles.modalTitle}>
-              {props.result ? formatBetMode(props.result.bet.mode) : ''}
-            </Text>
-            <Text style={styles.modalCopy}>
-              {props.result
-                ? props.result.bet.mode === 'dezena'
-                  ? `Dezena ${formatDozen(props.result.bet.dozen ?? 0)} registrada com sucesso.`
-                  : `${props.selectedAnimal?.label ?? 'Animal'} entrou na banca do sorteio #${props.result.currentDraw.sequence}.`
-                : ''}
-            </Text>
-          </View>
-
-          {props.result ? (
-            <View style={styles.modalMetrics}>
-              <MetricCard
-                label="Valor"
-                tone={colors.warning}
-                value={formatCurrency(props.result.bet.amount)}
-              />
-              <MetricCard
-                label="Retorno"
-                tone={colors.success}
-                value={formatCurrency(props.result.bet.payout)}
-              />
-              <MetricCard
-                label="Fecha"
-                tone={colors.info}
-                value={formatTimeOnly(props.result.currentDraw.closesAt)}
-              />
-              <MetricCard
-                label="Caixa"
-                tone={colors.accent}
-                value={formatCurrency(props.result.playerMoneyAfterBet)}
-              />
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={props.onClose}
-            style={({ pressed }) => [
-              styles.modalButton,
-              pressed ? styles.buttonPressed : null,
-            ]}
-          >
-            <Text style={styles.modalButtonLabel}>Fechar</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function SummaryCard(props: {
-  label: string;
-  tone: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={[styles.summaryValue, { color: props.tone }]}>{props.value}</Text>
-      <Text style={styles.summaryLabel}>{props.label}</Text>
-    </View>
-  );
-}
-
-function MetricCard(props: {
-  label: string;
-  tone: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <View style={styles.metricCard}>
-      <Text style={[styles.metricCardValue, { color: props.tone }]}>{props.value}</Text>
-      <Text style={styles.metricCardLabel}>{props.label}</Text>
-    </View>
-  );
-}
-
-function MetricPill(props: {
-  label: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <View style={styles.metricPill}>
-      <Text style={styles.metricPillLabel}>{props.label}</Text>
-      <Text style={styles.metricPillValue}>{props.value}</Text>
-    </View>
-  );
-}
-
-function Banner(props: {
-  copy: string;
-  tone: 'danger' | 'neutral';
-}): JSX.Element {
-  return (
-    <View
-      style={[
-        styles.banner,
-        props.tone === 'danger' ? styles.bannerDanger : styles.bannerNeutral,
-      ]}
-    >
-      <Text style={styles.bannerCopy}>{props.copy}</Text>
-    </View>
-  );
-}
-
-function EmptyState(props: { copy: string }): JSX.Element {
-  return (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateCopy}>{props.copy}</Text>
-    </View>
-  );
-}
-
-function sanitizeInteger(value: string): number {
-  const normalized = Number.parseInt(value.replace(/[^0-9]/g, ''), 10);
-  return Number.isFinite(normalized) ? normalized : 0;
-}
-
-function sanitizeDozen(value: string): number | null {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const normalized = Number.parseInt(value.replace(/[^0-9]/g, ''), 10);
-
-  if (!Number.isFinite(normalized) || normalized < 0 || normalized > 99) {
-    return null;
-  }
-
-  return normalized;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    currency: 'BRL',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(value);
-}
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: '2-digit',
-  }).format(new Date(value));
-}
-
-function formatTimeOnly(value: string): string {
-  return new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
-
-function formatRemainingSeconds(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
-}
-
-function formatDozen(value: number): string {
-  return value.toString().padStart(2, '0');
-}
-
-function formatBetMode(mode: BichoBetMode): string {
-  return mode === 'grupo' ? 'Grupo' : mode === 'cabeca' ? 'Cabeça' : 'Dezena';
-}
-
-function resolveAnimalLabel(animals: BichoAnimalSummary[], animalNumber: number | null): string {
-  if (!animalNumber) {
-    return 'Animal';
-  }
-
-  const animal = animals.find((entry) => entry.number === animalNumber);
-  return animal ? `${animal.number}. ${animal.label}` : `Grupo ${animalNumber}`;
-}
-
-const styles = StyleSheet.create({
-  summaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    flexGrow: 1,
-    minWidth: '30%',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  summaryValue: {
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  summaryLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  section: {
-    gap: 12,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  card: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 12,
-    padding: 16,
-  },
-  drawHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  drawCopy: {
-    flex: 1,
-    gap: 4,
-    paddingRight: 12,
-  },
-  drawTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  drawDescription: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  stateBadge: {
-    backgroundColor: 'rgba(123, 178, 255, 0.12)',
-    borderColor: 'rgba(123, 178, 255, 0.24)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  stateBadgeLabel: {
-    color: colors.info,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  listColumn: {
-    gap: 10,
-  },
-  betModeCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 12,
-    padding: 16,
-  },
-  betModeCardSelected: {
-    borderColor: colors.accent,
-  },
-  betModeHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  betModeCopy: {
-    flex: 1,
-    gap: 4,
-    paddingRight: 12,
-  },
-  betModeTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  betModeDescription: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  modeBadge: {
-    backgroundColor: 'rgba(224, 176, 75, 0.14)',
-    borderColor: 'rgba(224, 176, 75, 0.24)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  modeBadgeLabel: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  inlinePanel: {
-    gap: 12,
-  },
-  inlineBlock: {
-    gap: 8,
-  },
-  inlineLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  animalGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  animalChip: {
-    backgroundColor: colors.panelAlt,
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 4,
-    minWidth: '31%',
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  animalChipSelected: {
-    borderColor: colors.accent,
-  },
-  animalChipTitle: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  animalChipMeta: {
-    color: colors.muted,
-    fontSize: 11,
-  },
-  numericInput: {
-    backgroundColor: '#0f0f0f',
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  suggestionChip: {
-    backgroundColor: colors.panelAlt,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  suggestionChipSelected: {
-    borderColor: colors.accent,
-  },
-  suggestionChipLabel: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  metricRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  metricPill: {
-    backgroundColor: colors.panelAlt,
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 4,
-    minWidth: '30%',
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  metricPillLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  metricPillValue: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  inlineHint: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 18,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  primaryButtonLabel: {
-    color: '#17120a',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  buttonContent: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  buttonPressed: {
-    opacity: 0.88,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  historyCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 6,
-    padding: 14,
-  },
-  historyHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  historyTitle: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    paddingRight: 10,
-  },
-  historyMeta: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  historyStatus: {
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  historyPending: {
-    color: colors.info,
-  },
-  historyWon: {
-    color: colors.success,
-  },
-  historyLost: {
-    color: colors.danger,
-  },
-  historyCopy: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  banner: {
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  bannerDanger: {
-    backgroundColor: 'rgba(217, 108, 108, 0.12)',
-    borderColor: 'rgba(217, 108, 108, 0.35)',
-    borderWidth: 1,
-  },
-  bannerNeutral: {
-    backgroundColor: colors.panelAlt,
-    borderColor: colors.line,
-    borderWidth: 1,
-  },
-  bannerCopy: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  emptyState: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-  },
-  emptyStateCopy: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  modalRoot: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.62)',
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    backgroundColor: '#161616',
-    borderColor: colors.line,
-    borderRadius: 28,
-    borderWidth: 1,
-    gap: 16,
-    maxWidth: 420,
-    padding: 20,
-    width: '100%',
-  },
-  modalHeader: {
-    gap: 8,
-  },
-  modalEyebrow: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  modalTitle: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  modalCopy: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  modalMetrics: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  metricCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    flexGrow: 1,
-    minWidth: '46%',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  metricCardValue: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  metricCardLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  modalButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 18,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  modalButtonLabel: {
-    color: '#17120a',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-});

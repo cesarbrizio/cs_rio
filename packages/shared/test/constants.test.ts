@@ -6,8 +6,6 @@ import {
   REALTIME_MESSAGE_PLAYER_MOVE,
   REGIONS,
   REGION_REALTIME_ROOM_NAMES,
-  TRAINING_ATTRIBUTE_WEIGHTS,
-  TRAINING_DEFINITIONS,
   UNIVERSITY_COURSE_DEFINITIONS,
   VOCATIONS,
 } from '../src/constants.js';
@@ -42,23 +40,12 @@ describe('shared constants', () => {
     const yacht = PROPERTY_DEFINITIONS.find((entry) => entry.type === 'yacht');
 
     expect(mansion?.profitable).toBe(false);
-    expect(mansion?.assetClass).toBe('real_estate');
+    expect(mansion?.category).toBe('realty');
     expect(mansion?.utility.inventorySlotsBonus).toBeGreaterThan(0);
     expect(beachHouse?.utility.cansacoRecoveryPerHourBonus).toBeGreaterThan(0);
     expect(yacht?.utility.travelMode).toBe('sea');
-    expect(PROPERTY_DEFINITIONS.some((entry) => entry.type === 'luxury')).toBe(true);
-  });
-
-  it('keeps the training center ladder aligned with vocation specializations', () => {
-    expect(TRAINING_DEFINITIONS.map((entry) => entry.type)).toEqual([
-      'basic',
-      'advanced',
-      'intensive',
-    ]);
-    expect(TRAINING_DEFINITIONS[1]?.minimumBasicSessionsCompleted).toBe(30);
-    expect(TRAINING_DEFINITIONS[2]?.unlockLevel).toBe(7);
-    expect(TRAINING_ATTRIBUTE_WEIGHTS.cria.forca).toBe(0.4);
-    expect(TRAINING_ATTRIBUTE_WEIGHTS.politico.carisma).toBe(0.5);
+    expect(PROPERTY_DEFINITIONS.some((entry) => entry.type === 'jewelry')).toBe(true);
+    expect(PROPERTY_DEFINITIONS.some((entry) => entry.category === 'luxury_item')).toBe(true);
   });
 
   it('keeps the university tree aligned with the five vocation schools', () => {

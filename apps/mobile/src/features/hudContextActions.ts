@@ -169,27 +169,6 @@ export function buildHudContextTarget(entityId: string): HudContextTarget {
     };
   }
 
-  if (entityId.includes('treino')) {
-    return {
-      actions: [
-        {
-          description: 'Abrir o Centro de Treino.',
-          id: 'open_training',
-          label: 'Treinar',
-          tone: 'accent',
-        },
-        {
-          description: 'Ver a sessão ativa e os atributos treináveis.',
-          id: 'review_training',
-          label: 'Sessão',
-        },
-      ],
-      entityId,
-      subtitle: 'Academia, luta e ganho de atributo',
-      title: 'Treino',
-    };
-  }
-
   if (entityId.includes('universidade')) {
     return {
       actions: [

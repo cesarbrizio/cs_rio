@@ -1,7 +1,5 @@
 import {
-  type AssassinationContractNotification,
   type PlayerProfile,
-  type TrainingSessionSummary,
   type UniversityCourseSummary,
 } from '@cs-rio/shared';
 import {
@@ -17,13 +15,12 @@ import {
 import { Platform } from 'react-native';
 
 import {
-  buildAttackNotificationDraft,
   buildAsyncActivityNotificationDraft,
   buildEventNotificationDraft,
   buildEventResultNotificationDraft,
   buildFactionPromotionNotificationDraft,
   buildPrivateMessageNotificationDraft,
-  buildSabotageNotificationDraft,
+  buildTerritoryAlertNotificationDraft,
   buildTerritoryLossNotificationDraft,
   buildTimerNotificationDrafts,
   buildTribunalCueNotificationDraft,
@@ -35,7 +32,7 @@ import { type EventNotificationItem } from '../features/events';
 import { type EventResultCue } from '../features/event-results';
 import { type FactionPromotionCue } from '../features/faction-promotion';
 import { type PrivateMessageCue } from '../features/private-messages';
-import { type SabotageCue } from '../features/sabotage';
+import { type TerritoryAlertCue } from '../features/territory-alerts';
 import { type TerritoryLossCue } from '../features/territory-loss';
 import { type TribunalCue } from '../features/tribunal-results';
 import { type WarResultCue } from '../features/war-results';
@@ -100,22 +97,18 @@ interface NotificationsModule {
 }
 
 interface NotificationContextValue {
-  notifyAttack: (notification: AssassinationContractNotification) => Promise<void>;
   notifyAsyncActivity: (cue: AsyncActivityCue) => Promise<void>;
   notifyEvent: (notification: EventNotificationItem) => Promise<void>;
   notifyEventResult: (cue: EventResultCue) => Promise<void>;
   notifyFactionPromotion: (cue: FactionPromotionCue) => Promise<void>;
   notifyPrivateMessage: (cue: PrivateMessageCue) => Promise<void>;
-  notifySabotageCue: (cue: SabotageCue) => Promise<void>;
+  notifyTerritoryAlert: (cue: TerritoryAlertCue) => Promise<void>;
   notifyTerritoryLoss: (cue: TerritoryLossCue) => Promise<void>;
   notifyTribunalCue: (cue: TribunalCue) => Promise<void>;
   notifyWarResult: (cue: WarResultCue) => Promise<void>;
   requestNotificationPermissions: () => Promise<NotificationPermissionState>;
   syncTimerNotifications: (
     player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined,
-  ) => Promise<void>;
-  syncTrainingNotifications: (
-    session: Pick<TrainingSessionSummary, 'endsAt' | 'id' | 'readyToClaim' | 'type'> | null | undefined,
   ) => Promise<void>;
   syncUniversityNotifications: (
     course: Pick<UniversityCourseSummary, 'code' | 'endsAt' | 'isInProgress' | 'label'> | null | undefined,
@@ -213,16 +206,6 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
     return nextStatus;
   }, [setNotificationPermissionStatus]);
 
-  const notifyAttack = useCallback(async (notification: AssassinationContractNotification) => {
-    const draft = buildAttackNotificationDraft(notification);
-    await presentImmediateNotification({
-      deliveredIdsRef,
-      draft,
-      enabled: notificationSettings.enabled,
-      permissionStatus: notificationSettings.permissionStatus,
-    });
-  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
-
   const notifyEvent = useCallback(async (notification: EventNotificationItem) => {
     const draft = buildEventNotificationDraft(notification);
     await presentImmediateNotification({
@@ -283,8 +266,8 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
     });
   }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
-  const notifySabotageCue = useCallback(async (cue: SabotageCue) => {
-    const draft = buildSabotageNotificationDraft(cue);
+  const notifyTerritoryAlert = useCallback(async (cue: TerritoryAlertCue) => {
+    const draft = buildTerritoryAlertNotificationDraft(cue);
     await presentImmediateNotification({
       deliveredIdsRef,
       draft,
@@ -339,33 +322,6 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
     });
   }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
 
-  const syncTrainingNotifications = useCallback(async (
-    session: Pick<TrainingSessionSummary, 'endsAt' | 'id' | 'readyToClaim' | 'type'> | null | undefined,
-  ) => {
-    const Notifications = getNotificationsModule();
-
-    if (!Notifications) {
-      return;
-    }
-
-    if (!notificationSettings.enabled || notificationSettings.permissionStatus !== 'granted') {
-      await syncDraftsForPrefixes({
-        Notifications,
-        drafts: [],
-        prefixes: ['timer:training:'],
-        scheduledIdsRef,
-      });
-      return;
-    }
-
-    await syncDraftsForPrefixes({
-      Notifications,
-      drafts: buildTimerNotificationDrafts({ player: null, trainingSession: session ?? null }),
-      prefixes: ['timer:training:'],
-      scheduledIdsRef,
-    });
-  }, [notificationSettings.enabled, notificationSettings.permissionStatus]);
-
   const syncUniversityNotifications = useCallback(async (
     course: Pick<UniversityCourseSummary, 'code' | 'endsAt' | 'isInProgress' | 'label'> | null | undefined,
   ) => {
@@ -395,35 +351,31 @@ export function NotificationProvider({ children }: PropsWithChildren): JSX.Eleme
 
   const value = useMemo<NotificationContextValue>(
     () => ({
-      notifyAttack,
       notifyAsyncActivity,
       notifyEvent,
       notifyEventResult,
       notifyFactionPromotion,
       notifyPrivateMessage,
-      notifySabotageCue,
+      notifyTerritoryAlert,
       notifyTerritoryLoss,
       notifyTribunalCue,
       notifyWarResult,
       requestNotificationPermissions,
       syncTimerNotifications,
-      syncTrainingNotifications,
       syncUniversityNotifications,
     }),
     [
-      notifyAttack,
       notifyAsyncActivity,
       notifyEvent,
       notifyEventResult,
       notifyFactionPromotion,
       notifyPrivateMessage,
-      notifySabotageCue,
+      notifyTerritoryAlert,
       notifyTerritoryLoss,
       notifyTribunalCue,
       notifyWarResult,
       requestNotificationPermissions,
       syncTimerNotifications,
-      syncTrainingNotifications,
       syncUniversityNotifications,
     ],
   );

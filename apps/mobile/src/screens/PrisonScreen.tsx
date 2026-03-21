@@ -112,7 +112,7 @@ export function PrisonScreen(): JSX.Element {
 
   return (
     <InGameScreenLayout
-      subtitle="Veja a pena em tempo real, leia o calor atual e tente as saídas liberadas pelo backend sem ficar adivinhando por que as outras ações estão travadas."
+      subtitle="Acompanhe a pena, leia o calor atual e tente as saídas liberadas sem precisar adivinhar por que o resto travou."
       title="Prisão"
     >
       <View style={styles.summaryGrid}>
@@ -142,7 +142,7 @@ export function PrisonScreen(): JSX.Element {
         <View style={styles.loadingCard}>
           <ActivityIndicator color={colors.accent} size="large" />
           <Text style={styles.loadingTitle}>Carregando centro prisional</Text>
-          <Text style={styles.loadingCopy}>Sincronizando pena, calor da polícia e alternativas de soltura.</Text>
+          <Text style={styles.loadingCopy}>Carregando pena, calor da polícia e alternativas de soltura.</Text>
         </View>
       ) : null}
 
@@ -180,7 +180,7 @@ export function PrisonScreen(): JSX.Element {
             ? canActNow
               ? 'Você ainda pode tentar sair agora usando uma das opções abaixo.'
               : 'Não há saída imediata liberada. Resta aguardar a pena ou depender de outro membro autorizado.'
-            : 'Seu personagem está livre. Quando o backend registrar nova pena, esta tela passa a mostrar timer e opções reais.'}
+            : 'Seu personagem está livre. Se pintar nova pena, esta tela volta a mostrar o timer e as saídas possíveis.'}
         </Text>
       </View>
 

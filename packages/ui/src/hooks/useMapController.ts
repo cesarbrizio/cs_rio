@@ -1,6 +1,8 @@
 import { REGIONS, type PlayerProfile } from '@cs-rio/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { estimateMacroRegionTravel } from './mapPresentation';
+
 interface UseMapControllerInput {
   player: PlayerProfile | null;
   travelToRegion: (regionId: PlayerProfile['regionId']) => Promise<unknown>;
@@ -24,7 +26,7 @@ export function useMapController({ player, travelToRegion }: UseMapControllerInp
     [selectedRegionId],
   );
   const routeEstimate = useMemo(
-    () => estimateRegionalTravel(currentRegionId, selectedRegionId),
+    () => estimateMacroRegionTravel(currentRegionId, selectedRegionId),
     [currentRegionId, selectedRegionId],
   );
 
@@ -70,28 +72,5 @@ export function useMapController({ player, travelToRegion }: UseMapControllerInp
     selectedRegionId,
     setSelectedRegionId,
     travel,
-  };
-}
-
-function estimateRegionalTravel(
-  fromRegionId: string,
-  toRegionId: string,
-): {
-  cost: number;
-  minutes: number;
-} {
-  if (fromRegionId === toRegionId) {
-    return {
-      cost: 0,
-      minutes: 0,
-    };
-  }
-
-  const regionIndex = new Map<string, number>(REGIONS.map((region, index) => [region.id, index]));
-  const distance = Math.abs((regionIndex.get(fromRegionId) ?? 0) - (regionIndex.get(toRegionId) ?? 0)) + 1;
-
-  return {
-    cost: distance * 350,
-    minutes: distance * 9,
   };
 }

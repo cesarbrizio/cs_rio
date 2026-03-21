@@ -9,7 +9,6 @@ import {
   getVocationLabel,
 } from '../features/character/characterOptions';
 import type {
-  CombatNavigationState,
   MessagesNavigationState,
   ProfileNavigationState,
 } from '../router/navigationIntents';
@@ -96,17 +95,6 @@ export function ProfileScreen(): JSX.Element {
             } satisfies MessagesNavigationState,
           })
         }
-        onAttack={() => {
-          if (!publicProfile) {
-            return;
-          }
-
-          navigate('/combat', {
-            state: {
-              preselectedTargetId: publicProfile.id,
-            } satisfies CombatNavigationState,
-          });
-        }}
       />
     );
   }
@@ -114,13 +102,18 @@ export function ProfileScreen(): JSX.Element {
   return (
     <section className="desktop-screen">
       <ScreenHero
+        actions={
+          <Button onClick={() => navigate('/vocation')} variant="secondary">
+            Gerir vocacao
+          </Button>
+        }
         badges={[
           { label: getRegionLabel(player.regionId), tone: 'success' },
           { label: player.title, tone: 'warning' },
           { label: player.faction ? player.faction.abbreviation : 'Sem faccao', tone: 'neutral' },
         ]}
-        description={`${getVocationLabel(player.vocation)} em ${getRegionLabel(player.regionId)}. O perfil desktop agora expande progressao, recursos e escopo atual da vocacao.`}
-        title={player.nickname}
+        description={`${getVocationLabel(player.vocation)} em ${getRegionLabel(player.regionId)}. Veja seus recursos, atributos e o peso atual da sua reputacao na rua.`}
+        title="Ver perfil"
       />
 
       <div className="desktop-metric-grid">
@@ -219,7 +212,6 @@ interface PublicProfileViewProps {
   error: string | null;
   isLoading: boolean;
   nickname: string;
-  onAttack: () => void;
   onBack: () => void;
   onMessage: () => void;
   profile: PlayerPublicProfile | null;
@@ -229,7 +221,6 @@ function PublicProfileView({
   error,
   isLoading,
   nickname,
-  onAttack,
   onBack,
   onMessage,
   profile,
@@ -251,10 +242,7 @@ function PublicProfileView({
               Voltar ao meu perfil
             </Button>
             <Button data-desktop-primary-action="true" disabled={!profile} onClick={onMessage} variant="ghost">
-              Mensagem
-            </Button>
-            <Button disabled={!profile} onClick={onAttack} variant="danger">
-              Atacar
+              Abrir contatos
             </Button>
           </>
         }
@@ -263,12 +251,12 @@ function PublicProfileView({
           { label: profile?.title ?? 'Sem titulo', tone: 'warning' },
           { label: profile?.faction ? profile.faction.abbreviation : 'Sem faccao', tone: 'neutral' },
         ]}
-        description="Leitura publica do alvo selecionado pelo menu de contexto do shell desktop."
-        title={profile?.nickname ?? nickname}
+        description="Ficha publica do alvo selecionado para leitura rapida antes de decidir contato ou abordagem."
+        title="Ver perfil"
       />
 
-      {isLoading ? <FeedbackCard message="Buscando perfil publico no backend." title="Sincronizando perfil" tone="info" /> : null}
-      {error ? <FeedbackCard message={error} title="Falha no perfil publico" tone="danger" /> : null}
+      {isLoading ? <FeedbackCard message="Puxando a ficha publica do alvo." title="Carregando perfil" tone="info" /> : null}
+      {error ? <FeedbackCard message={error} title="Falha no perfil" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">
         <MetricCard label="Nivel" tone="warning" value={profile ? `${profile.level}` : '--'} />

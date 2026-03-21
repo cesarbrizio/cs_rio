@@ -1,13 +1,13 @@
-import type {
-  CrimeAttemptResponse,
-  PvpAmbushResponse,
-  PvpAssaultResponse,
-  PvpContractExecutionResponse,
-} from '@cs-rio/shared';
+import type { CrimeAttemptResponse } from '@cs-rio/shared';
 
 export type VisualEffectVariant = 'combat' | 'danger' | 'level_up' | 'success';
 
-type CombatLikeResult = PvpAmbushResponse | PvpAssaultResponse | PvpContractExecutionResponse;
+interface CombatLikeResult {
+  fatality: {
+    defenderDied: boolean;
+  };
+  success: boolean;
+}
 
 export function resolveCrimeVisualEffectVariant(result: CrimeAttemptResponse): VisualEffectVariant {
   if (result.leveledUp) {

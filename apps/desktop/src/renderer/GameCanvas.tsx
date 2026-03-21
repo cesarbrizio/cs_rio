@@ -1,4 +1,4 @@
-import type { TerritoryOverviewResponse } from '@cs-rio/shared';
+import type { PropertySlotSummary, TerritoryOverviewResponse } from '@cs-rio/shared';
 import { Camera } from '@engine/camera';
 import { cartToIso } from '@engine/coordinates';
 import { GameLoop } from '@engine/game-loop';
@@ -26,6 +26,8 @@ interface GameCanvasProps {
   eventRuntimeState?: EventRuntimeState | null;
   onTelemetryChange?: (telemetry: RendererTelemetry) => void;
   playerFaction?: UseHomeMapSceneInput['playerFaction'];
+  playerId?: string | null;
+  propertySlots?: PropertySlotSummary[];
   playerRegionId?: string | null;
   playerSpawnPosition?: { x: number; y: number } | null;
   relevantRemotePlayers?: UseHomeMapSceneInput['relevantRemotePlayers'];
@@ -42,6 +44,8 @@ export function GameCanvas({
   eventRuntimeState = null,
   onTelemetryChange,
   playerFaction = null,
+  playerId = null,
+  propertySlots = [],
   playerRegionId = 'zona_norte',
   playerSpawnPosition = null,
   relevantRemotePlayers = [],
@@ -57,12 +61,15 @@ export function GameCanvas({
     buildRenderPlan,
     map,
     renderEntities: worldEntities,
+    staticStructures,
   } = useHomeMapScene({
     eventRuntimeState,
     hudPlayerPosition: null,
+    playerId,
     playerFaction,
     playerRegionId,
     playerSpawnPosition,
+    propertySlots,
     relevantRemotePlayers,
     selectedMapFavelaId,
     territoryOverview,
@@ -81,7 +88,7 @@ export function GameCanvas({
     () => buildDemoRemoteEntities(map, resolvedSpawn),
     [map, resolvedSpawn],
   );
-  const structureOverlaysRef = useRef(buildStructureOverlays(map, tileSizeRef.current));
+  const structureOverlaysRef = useRef(buildStructureOverlays(staticStructures, tileSizeRef.current));
   const rendererRef = useRef(new CanvasRenderer(tileSizeRef.current));
   const mapBoundsRef = useRef(buildMapWorldBounds(map.width, map.height, tileSizeRef.current));
   const cameraRef = useRef(
@@ -153,6 +160,10 @@ export function GameCanvas({
       mapBoundsRef.current,
     );
   }, [map, resolvedSpawn]);
+
+  useEffect(() => {
+    structureOverlaysRef.current = buildStructureOverlays(staticStructures, tileSizeRef.current);
+  }, [staticStructures]);
 
   useEffect(() => {
     const image = new Image();

@@ -47,7 +47,7 @@ export function useCrimesController({
 
         return response.crimes.find((crime) => crime.isRunnable)?.id ?? response.crimes[0]?.id ?? null;
       });
-      setFeedback('Catalogo criminal sincronizado.');
+      setFeedback('Catalogo criminal atualizado.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Falha ao carregar catalogo criminal.');
     } finally {

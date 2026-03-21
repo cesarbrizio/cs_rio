@@ -19,7 +19,7 @@ export function AuthGuard({ children, mode }: AuthGuardProps): JSX.Element {
   if (!isHydrated) {
     return (
       <LoadingScreen
-        copy="Carregando tokens persistidos, autenticando o renderer e buscando o perfil do jogador."
+        copy="Abrindo sua sessao e puxando o perfil do personagem."
         title="Inicializando autenticacao"
       />
     );
@@ -28,8 +28,8 @@ export function AuthGuard({ children, mode }: AuthGuardProps): JSX.Element {
   if (isAuthenticated && !player) {
     return (
       <LoadingScreen
-        copy="Sessao autenticada. Falta sincronizar o perfil com a API antes de decidir a rota final."
-        title="Sincronizando perfil"
+        copy="Sua sessao abriu. Falta carregar o perfil para decidir para onde voce cai."
+        title="Carregando perfil"
       />
     );
   }
@@ -69,7 +69,7 @@ export function RootRedirect(): JSX.Element {
   if (!isHydrated || (isAuthenticated && !player)) {
     return (
       <LoadingScreen
-        copy="Aplicando o mesmo gate do mobile para decidir se o fluxo cai em login, criacao ou gameplay."
+        copy="Definindo se voce cai no login, na criacao do personagem ou direto no jogo."
         title="Preparando rotas"
       />
     );

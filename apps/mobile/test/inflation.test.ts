@@ -8,8 +8,8 @@ import {
 } from '../src/features/inflation';
 
 const inflationSummary = {
-  affectedServices: ['hospital', 'training', 'university', 'black_market'] as Array<
-    'black_market' | 'hospital' | 'training' | 'university'
+  affectedServices: ['hospital', 'university', 'black_market'] as Array<
+    'black_market' | 'hospital' | 'university'
   >,
   currentGameDay: 12,
   currentMultiplier: 1.12,

@@ -10,10 +10,15 @@ import {
   type FactionWarSide,
   type FactionWarStatus,
   type FactionWarSummary,
+  resolveTerritoryActionVisibility,
   type TerritoryFavelaSummary,
+  type TerritoryActionVisibility,
   type TerritoryOverviewResponse,
   type TerritoryRegionSummary,
 } from '@cs-rio/shared';
+
+export { resolveTerritoryActionVisibility };
+export type { TerritoryActionVisibility };
 
 export interface TerritoryHeadlineStats {
   atWarFavelas: number;

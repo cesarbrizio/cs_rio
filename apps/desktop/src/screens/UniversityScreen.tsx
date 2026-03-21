@@ -11,6 +11,7 @@ import {
   summarizeUniversityPassives,
 } from '@cs-rio/ui/hooks';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Badge, Button, Card, ProgressBar } from '../components/ui';
 import { universityApi } from '../services/api';
@@ -22,6 +23,7 @@ import {
 } from './shared/DesktopScreenPrimitives';
 
 export function UniversityScreen(): JSX.Element {
+  const navigate = useNavigate();
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -132,20 +134,25 @@ export function UniversityScreen(): JSX.Element {
     <section className="desktop-screen">
       <ScreenHero
         actions={
-          <Button onClick={() => void loadCenter()} variant="secondary">
-            {isLoading ? 'Sincronizando...' : 'Atualizar universidade'}
-          </Button>
+          <>
+            <Button onClick={() => navigate('/vocation')} variant="secondary">
+              Gerir vocacao
+            </Button>
+            <Button onClick={() => void loadCenter()} variant="ghost">
+              {isLoading ? 'Sincronizando...' : 'Atualizar estudos'}
+            </Button>
+          </>
         }
         badges={[
           { label: formatUniversityVocation(center?.player.vocation ?? player?.vocation ?? VocationType.Cria), tone: 'info' },
           { label: `${center?.completedCourseCodes.length ?? 0} concluidos`, tone: 'success' },
           { label: `${passiveLines.length} passivos`, tone: 'warning' },
         ]}
-        description="Cursos reais da universidade com trilha de vocacao, requisitos, passivos liberados e progresso assincrono no desktop."
-        title="Universidade do Crime"
+        description="Estude, libere passivos e acompanhe sua trilha de vocacao com clareza."
+        title="Estudar"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Universidade sincronizada" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Universidade atualizada" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha na universidade" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">
@@ -321,12 +328,6 @@ function nullPassiveProfile() {
     police: {
       bribeCostMultiplier: 1,
       negotiationSuccessMultiplier: 1,
-    },
-    pvp: {
-      ambushPowerMultiplier: 1,
-      assaultPowerMultiplier: 1,
-      damageDealtMultiplier: 1,
-      lowHpDamageTakenMultiplier: 1,
     },
     social: {
       communityInfluenceMultiplier: 1,

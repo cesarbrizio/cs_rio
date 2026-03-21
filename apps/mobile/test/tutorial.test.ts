@@ -10,11 +10,11 @@ import {
 describe('tutorial helpers', () => {
   it('returns the next unfinished step and progress', () => {
     expect(getCurrentTutorialStep([])?.id).toBe('move');
-    expect(getCurrentTutorialStep(['move', 'crimes'])?.id).toBe('training');
+    expect(getCurrentTutorialStep(['move', 'crimes'])?.id).toBe('market');
     expect(getTutorialProgress(['move', 'crimes'])).toEqual({
       completed: 2,
       current: 3,
-      total: 5,
+      total: 4,
     });
   });
 
@@ -33,7 +33,7 @@ describe('tutorial helpers', () => {
     expect(
       isTutorialStillActive(
         startedAt,
-        ['move', 'crimes', 'training', 'market', 'territory'],
+        ['move', 'crimes', 'market', 'territory'],
         false,
         new Date('2026-03-12T10:05:00.000Z').getTime(),
       ),

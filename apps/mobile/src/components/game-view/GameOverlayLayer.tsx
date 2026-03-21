@@ -110,7 +110,6 @@ function GameOverlayLayerComponent({
                     overlay.entityKind === 'factory' ? styles.factoryLabel : null,
                     overlay.entityKind === 'party' ? styles.partyLabel : null,
                     overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                    overlay.entityKind === 'training' ? styles.trainingLabel : null,
                     overlay.entityKind === 'university' ? styles.universityLabel : null,
                     overlay.entityKind === 'docks' ? styles.docksLabel : null,
                     overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
@@ -137,7 +136,6 @@ function GameOverlayLayerComponent({
                     overlay.kind === 'entity' && overlay.entityKind === 'factory' ? styles.factoryLabel : null,
                     overlay.kind === 'entity' && overlay.entityKind === 'party' ? styles.partyLabel : null,
                     overlay.kind === 'entity' && overlay.entityKind === 'hospital' ? styles.hospitalLabel : null,
-                    overlay.kind === 'entity' && overlay.entityKind === 'training' ? styles.trainingLabel : null,
                     overlay.kind === 'entity' && overlay.entityKind === 'university' ? styles.universityLabel : null,
                     overlay.kind === 'entity' && overlay.entityKind === 'docks' ? styles.docksLabel : null,
                     overlay.kind === 'entity' && overlay.entityKind === 'scrapyard' ? styles.scrapyardLabel : null,
@@ -302,9 +300,6 @@ const styles = StyleSheet.create({
   },
   hospitalLabel: {
     backgroundColor: 'rgba(20, 34, 54, 0.94)',
-  },
-  trainingLabel: {
-    backgroundColor: 'rgba(54, 40, 18, 0.94)',
   },
   universityLabel: {
     backgroundColor: 'rgba(18, 36, 52, 0.94)',

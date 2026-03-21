@@ -1,7 +1,6 @@
 import { type AsyncActivityCue } from '../features/activity-results';
 import { type EventResultCue } from '../features/event-results';
 import { type FactionPromotionCue } from '../features/faction-promotion';
-import { type SabotageCue } from '../features/sabotage';
 import { type TerritoryLossCue } from '../features/territory-loss';
 import { type TribunalCue } from '../features/tribunal-results';
 import { type WarResultCue } from '../features/war-results';
@@ -11,7 +10,6 @@ import { ActivityResultModal } from './ActivityResultModal';
 import { EventResultModal } from './EventResultModal';
 import { EventToastOverlay } from './EventToastOverlay';
 import { FactionPromotionModal } from './FactionPromotionModal';
-import { SabotageResultModal } from './SabotageResultModal';
 import { TerritoryLossModal } from './TerritoryLossModal';
 import { TribunalResultModal } from './TribunalResultModal';
 import { WarResultModal } from './WarResultModal';
@@ -20,14 +18,12 @@ interface RootModalsProps {
   activeActivityCue: AsyncActivityCue | null;
   activeEventResultCue: EventResultCue | null;
   activeFactionPromotionCue: FactionPromotionCue | null;
-  activeSabotageCue: SabotageCue | null;
   activeTerritoryLossCue: TerritoryLossCue | null;
   activeTribunalCue: TribunalCue | null;
   activeWarResultCue: WarResultCue | null;
   onCloseActivityCue: () => void;
   onCloseEventResultCue: () => void;
   onCloseFactionPromotionCue: () => void;
-  onCloseSabotageCue: () => void;
   onCloseTerritoryLossCue: () => void;
   onCloseTribunalCue: () => void;
   onCloseWarResultCue: () => void;
@@ -37,14 +33,12 @@ export function RootModals({
   activeActivityCue,
   activeEventResultCue,
   activeFactionPromotionCue,
-  activeSabotageCue,
   activeTerritoryLossCue,
   activeTribunalCue,
   activeWarResultCue,
   onCloseActivityCue,
   onCloseEventResultCue,
   onCloseFactionPromotionCue,
-  onCloseSabotageCue,
   onCloseTerritoryLossCue,
   onCloseTribunalCue,
   onCloseWarResultCue,
@@ -74,7 +68,7 @@ export function RootModals({
             return;
           }
 
-          navigationRef.navigate(cue.kind === 'training' ? 'Training' : 'University');
+          navigationRef.navigate('University');
         }}
         visible={Boolean(activeActivityCue)}
       />
@@ -82,22 +76,6 @@ export function RootModals({
         cue={activeFactionPromotionCue}
         onClose={onCloseFactionPromotionCue}
         visible={Boolean(activeFactionPromotionCue)}
-      />
-      <SabotageResultModal
-        cue={activeSabotageCue}
-        onClose={onCloseSabotageCue}
-        onOpenTarget={(cue) => {
-          onCloseSabotageCue();
-
-          if (!navigationRef.isReady()) {
-            return;
-          }
-
-          navigationRef.navigate('Sabotage', {
-            focusPropertyId: cue.propertyId,
-          });
-        }}
-        visible={Boolean(activeSabotageCue)}
       />
       <TribunalResultModal
         cue={activeTribunalCue}

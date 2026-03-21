@@ -1,5 +1,5 @@
 import { cartToIso } from '@engine/coordinates';
-import type { ParsedMapStructure, ParsedTilemap, ScreenPoint, TileSize } from '@engine/types';
+import type { ScreenPoint, TileSize } from '@engine/types';
 
 import type { StructureOverlay } from './types';
 
@@ -12,39 +12,50 @@ const STRUCTURE_ACCENT: Record<string, string> = {
   'mercado-negro': '#f4d06f',
   prison: '#b7a7ff',
   rave: '#ff78c8',
-  treino: '#8ad77b',
   universidade: '#ffd37e',
 };
 
-export function buildStructureOverlays(map: ParsedTilemap, tileSize: TileSize): StructureOverlay[] {
-  return map.structures.map((structure) => buildStructureOverlay(structure, tileSize));
+type OverlaySourceStructure = {
+  accent?: string;
+  footprint: { h: number; w: number };
+  id: string;
+  kind: string;
+  label?: string;
+  position: { x: number; y: number };
+};
+
+export function buildStructureOverlays(
+  structures: OverlaySourceStructure[],
+  tileSize: TileSize,
+): StructureOverlay[] {
+  return structures.map((structure) => buildStructureOverlay(structure, tileSize));
 }
 
-function buildStructureOverlay(structure: ParsedMapStructure, tileSize: TileSize): StructureOverlay {
+function buildStructureOverlay(structure: OverlaySourceStructure, tileSize: TileSize): StructureOverlay {
   const footprintWidth = structure.footprint.w;
   const footprintHeight = structure.footprint.h;
   const lot = toDiamond(
-    structure.gridX,
-    structure.gridY,
+    structure.position.x,
+    structure.position.y,
     footprintWidth,
     footprintHeight,
     tileSize,
   );
-  const wallHeight = Math.max(tileSize.height * 1.35, structure.height * 0.42);
+  const wallHeight = tileSize.height * 1.35;
   const roof = lot.map((point) => ({
     x: point.x,
     y: point.y - wallHeight,
   })) as [ScreenPoint, ScreenPoint, ScreenPoint, ScreenPoint];
 
   return {
-    accent: STRUCTURE_ACCENT[structure.kind] ?? '#c7a56a',
+    accent: structure.accent ?? STRUCTURE_ACCENT[structure.kind] ?? '#c7a56a',
     center: {
       x: (roof[0].x + roof[2].x) / 2,
       y: (roof[0].y + roof[2].y) / 2,
     },
     id: structure.id,
     kind: structure.kind,
-    label: structure.label ?? structure.name,
+    label: structure.label ?? structure.id,
     leftWall: [roof[0], roof[3], lot[3], lot[0]],
     lot,
     roof,

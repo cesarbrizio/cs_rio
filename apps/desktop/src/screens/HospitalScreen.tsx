@@ -12,6 +12,7 @@ import {
   hasSurgeryChanges,
 } from '@cs-rio/ui/hooks';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Badge, Button, Card } from '../components/ui';
 import { hospitalApi } from '../services/api';
@@ -26,6 +27,7 @@ import {
 type HospitalActionId = 'detox' | 'healthPlan' | 'statItem' | 'surgery' | 'treatment';
 
 export function HospitalScreen(): JSX.Element {
+  const navigate = useNavigate();
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -135,20 +137,25 @@ export function HospitalScreen(): JSX.Element {
     <section className="desktop-screen">
       <ScreenHero
         actions={
-          <Button onClick={() => void loadCenter()} variant="secondary">
-            {isLoading ? 'Sincronizando...' : 'Atualizar hospital'}
-          </Button>
+          <>
+            <Button onClick={() => navigate('/drug-use')} variant="secondary">
+              Rave / Baile
+            </Button>
+            <Button onClick={() => void loadCenter()} variant="ghost">
+              {isLoading ? 'Sincronizando...' : 'Atualizar hospital'}
+            </Button>
+          </>
         }
         badges={[
           { label: `${center?.player.credits ?? '--'} creditos`, tone: 'warning' },
           { label: hospitalization.isHospitalized ? 'Internado' : 'Livre', tone: hospitalization.isHospitalized ? 'danger' : 'success' },
           { label: hasImmediateHospitalActions(center) ? 'Servicos abertos' : 'Sem servico imediato', tone: 'info' },
         ]}
-        description="Hospital real do backend com cura, detox, plano de saude, cirurgia e itens de atributo no desktop."
-        title="Hospital"
+        description="Recupere vida, trate vicio, use o plano e resolva sua volta para a rua."
+        title="Ir ao hospital"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Hospital sincronizado" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Hospital atualizado" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha no hospital" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">

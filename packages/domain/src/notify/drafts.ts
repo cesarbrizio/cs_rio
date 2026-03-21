@@ -1,15 +1,14 @@
 import {
-  type AssassinationContractNotification,
   type PlayerProfile,
-  type TrainingSessionSummary,
   type UniversityCourseSummary,
 } from '@cs-rio/shared';
 
 import type { AsyncActivityCue } from './activityCues';
 import type { EventNotificationItem } from './eventFeed';
 import type { EventResultCue } from './eventResults';
+import type { FactionPromotionCue } from './factionPromotions';
 import type { PrivateMessageCue } from './privateMessages';
-import type { SabotageCue } from './sabotageCues';
+import type { TerritoryAlertCue } from './territoryAlerts';
 import type { TerritoryLossCue } from './territoryLoss';
 import type { TribunalCue } from './tribunalCues';
 import type { WarResultCue } from './warResults';
@@ -21,16 +20,6 @@ export interface LocalNotificationDraft {
   key: string;
   secondsUntilTrigger?: number;
   title: string;
-}
-
-export function buildAttackNotificationDraft(
-  notification: AssassinationContractNotification,
-): LocalNotificationDraft {
-  return {
-    body: notification.message,
-    key: `attack:${notification.id}`,
-    title: resolveContractNotificationLabel(notification.type),
-  };
 }
 
 export function buildEventNotificationDraft(
@@ -83,6 +72,16 @@ export function buildAsyncActivityNotificationDraft(
   };
 }
 
+export function buildFactionPromotionNotificationDraft(
+  cue: Pick<FactionPromotionCue, 'body' | 'key' | 'title'>,
+): LocalNotificationDraft {
+  return {
+    body: cue.body,
+    key: cue.key,
+    title: cue.title,
+  };
+}
+
 export function buildPrivateMessageNotificationDraft(
   cue: Pick<PrivateMessageCue, 'body' | 'key' | 'title'>,
 ): LocalNotificationDraft {
@@ -93,8 +92,8 @@ export function buildPrivateMessageNotificationDraft(
   };
 }
 
-export function buildSabotageNotificationDraft(
-  cue: Pick<SabotageCue, 'body' | 'key' | 'title'>,
+export function buildTerritoryAlertNotificationDraft(
+  cue: Pick<TerritoryAlertCue, 'body' | 'key' | 'title'>,
 ): LocalNotificationDraft {
   return {
     body: cue.body,
@@ -116,10 +115,6 @@ export function buildTribunalCueNotificationDraft(
 export function buildTimerNotificationDrafts(
   input: {
     player: Pick<PlayerProfile, 'hospitalization' | 'prison'> | null | undefined;
-    trainingSession?: Pick<
-      TrainingSessionSummary,
-      'endsAt' | 'id' | 'readyToClaim' | 'type'
-    > | null;
     universityCourse?: Pick<
       UniversityCourseSummary,
       'code' | 'endsAt' | 'isInProgress' | 'label'
@@ -158,21 +153,6 @@ export function buildTimerNotificationDrafts(
     }
   }
 
-  if (input.trainingSession && !input.trainingSession.readyToClaim) {
-    const remainingSeconds = Math.ceil(
-      (new Date(input.trainingSession.endsAt).getTime() - nowMs) / 1000,
-    );
-
-    if (remainingSeconds > 1) {
-      drafts.push({
-        body: `Seu treino ${resolveTrainingTypeLabel(input.trainingSession.type)} terminou. Volte ao Centro de Treino para resgatar os ganhos.`,
-        key: `timer:training:${input.trainingSession.id}:${input.trainingSession.endsAt}`,
-        secondsUntilTrigger: remainingSeconds,
-        title: 'Treino: pronto para resgatar',
-      });
-    }
-  }
-
   if (input.universityCourse?.isInProgress && input.universityCourse.endsAt) {
     const remainingSeconds = Math.ceil(
       (new Date(input.universityCourse.endsAt).getTime() - nowMs) / 1000,
@@ -202,34 +182,5 @@ export function formatNotificationPermissionStatus(
     case 'undetermined':
     default:
       return 'Nao definidas';
-  }
-}
-
-function resolveTrainingTypeLabel(type: TrainingSessionSummary['type']): string {
-  if (type === 'basic') {
-    return 'basico';
-  }
-
-  if (type === 'advanced') {
-    return 'avancado';
-  }
-
-  return 'intensivo';
-}
-
-function resolveContractNotificationLabel(
-  type: AssassinationContractNotification['type'],
-): string {
-  switch (type) {
-    case 'accepted':
-      return 'Contrato aceito';
-    case 'completed':
-      return 'Contrato concluido';
-    case 'expired':
-      return 'Contrato expirado';
-    case 'target_warned':
-      return 'Alvo avisado';
-    default:
-      return type;
   }
 }

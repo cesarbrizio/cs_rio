@@ -13,6 +13,8 @@
     "packages/*"
   ],
   "scripts": {
+    "db:fresh": "npm --prefix ../cs_rio_api run db:fresh",
+    "db:fresh:test": "npm --prefix ../cs_rio_api run db:fresh:test",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
     "generate": "turbo run generate",

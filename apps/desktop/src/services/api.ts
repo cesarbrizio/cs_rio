@@ -46,12 +46,10 @@ export const {
   prisonApi,
   propertyApi,
   puteiroApi,
-  pvpApi,
   raveApi,
   roundApi,
   slotMachineApi,
   territoryApi,
-  trainingApi,
   tribunalApi,
   universityApi,
 } = apiClient;

@@ -5,7 +5,6 @@ import crimeFailureSound from '../../../mobile/assets/audio/crime-failure.wav';
 import crimeSuccessSound from '../../../mobile/assets/audio/crime-success.wav';
 
 export type DesktopAudioSfxKey =
-  | 'combat'
   | 'crimeArrest'
   | 'crimeFailure'
   | 'crimeSuccess'
@@ -23,7 +22,6 @@ export type DesktopAudioMusicTrackKey =
   | 'zona_sul';
 
 export const DESKTOP_AUDIO_SFX_SOURCES: Record<DesktopAudioSfxKey, string> = {
-  combat: crimeFailureSound,
   crimeArrest: crimeArrestSound,
   crimeFailure: crimeFailureSound,
   crimeSuccess: crimeSuccessSound,

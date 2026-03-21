@@ -1,14 +1,23 @@
 import {
+  SLOT_MACHINE_DEFAULT_HOUSE_EDGE,
+  SLOT_MACHINE_DEFAULT_JACKPOT_CHANCE,
+  SLOT_MACHINE_DEFAULT_MAX_BET,
+  SLOT_MACHINE_DEFAULT_MIN_BET,
+  type GpTemplateSummary,
+} from '@cs-rio/shared';
+import {
   buildPuteiroDashboardSnapshot,
   countOperationalAlerts,
   countReadyOperations,
   filterPropertiesByTab,
   formatOperationsCurrency,
+  formatPercent,
   resolveOperationsTabDescription,
   resolveOperationsTabLabel,
   resolvePropertyAssetClassLabel,
   resolvePropertyOperationSnapshot,
   resolvePropertyRegionLabel,
+  resolvePropertyStockLabel,
   resolvePropertyTypeLabel,
   resolvePropertyUtilityLines,
   resolvePuteiroWorkerStatusLabel,
@@ -35,6 +44,11 @@ import {
   MetricCard,
   ScreenHero,
 } from './shared/DesktopScreenPrimitives';
+import {
+  OperationsCatalogPanel,
+  OperationsPropertyListPanel,
+  OperationsSelectedPropertyPanel,
+} from './OperationsScreenSections';
 
 const operationTabs = [
   { id: 'business', label: 'Operacoes' },
@@ -42,6 +56,18 @@ const operationTabs = [
 ] as const;
 
 export function OperationsScreen(): JSX.Element {
+  const [selectedCatalogType, setSelectedCatalogType] = useState<string | null>(null);
+  const [selectedSoldierType, setSelectedSoldierType] = useState<string | null>(null);
+  const [selectedGpType, setSelectedGpType] = useState<GpTemplateSummary['type'] | null>(null);
+  const [slotMachineInstallQuantityInput, setSlotMachineInstallQuantityInput] = useState('1');
+  const [slotMachineHouseEdgeInput, setSlotMachineHouseEdgeInput] = useState(
+    formatPercentageInput(SLOT_MACHINE_DEFAULT_HOUSE_EDGE),
+  );
+  const [slotMachineJackpotInput, setSlotMachineJackpotInput] = useState(
+    formatPercentageInput(SLOT_MACHINE_DEFAULT_JACKPOT_CHANCE),
+  );
+  const [slotMachineMinBetInput, setSlotMachineMinBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MIN_BET));
+  const [slotMachineMaxBetInput, setSlotMachineMaxBetInput] = useState(String(SLOT_MACHINE_DEFAULT_MAX_BET));
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const [activeTab, setActiveTab] = useState<OperationsTab>('business');
@@ -50,10 +76,7 @@ export function OperationsScreen(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<OperationsDashboardData | null>(null);
-  const [sabotageCenter, setSabotageCenter] = useState<Awaited<ReturnType<typeof propertyApi.getSabotageCenter>> | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  const [selectedCatalogType, setSelectedCatalogType] = useState<string | null>(null);
-  const [selectedTargetPropertyId, setSelectedTargetPropertyId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadDashboard();
@@ -78,16 +101,13 @@ export function OperationsScreen(): JSX.Element {
       null,
     [dashboard?.propertyBook.availableProperties, selectedCatalogType],
   );
-  const selectedTarget = useMemo(
-    () =>
-      sabotageCenter?.targets.find((target) => target.id === selectedTargetPropertyId) ??
-      sabotageCenter?.targets[0] ??
-      null,
-    [sabotageCenter?.targets, selectedTargetPropertyId],
-  );
   const selectedOperation = useMemo(
     () => (dashboard && selectedProperty ? resolvePropertyOperationSnapshot(selectedProperty, dashboard) : null),
     [dashboard, selectedProperty],
+  );
+  const selectedSlotMachine = useMemo(
+    () => dashboard?.slotMachineBook.slotMachines.find((entry) => entry.id === selectedProperty?.id) ?? null,
+    [dashboard?.slotMachineBook.slotMachines, selectedProperty?.id],
   );
   const selectedPuteiro = useMemo(
     () => dashboard?.puteiroBook.puteiros.find((entry) => entry.id === selectedProperty?.id) ?? null,
@@ -96,6 +116,38 @@ export function OperationsScreen(): JSX.Element {
   const puteiroSnapshot = useMemo(
     () => (selectedPuteiro ? buildPuteiroDashboardSnapshot(selectedPuteiro) : null),
     [selectedPuteiro],
+  );
+  const unlockedSoldierTemplates = useMemo(
+    () =>
+      (dashboard?.propertyBook.soldierTemplates ?? []).filter(
+        (template) => (player?.level ?? 0) >= template.unlockLevel,
+      ),
+    [dashboard?.propertyBook.soldierTemplates, player?.level],
+  );
+  const selectedSoldierTemplate = useMemo(
+    () =>
+      unlockedSoldierTemplates.find((template) => template.type === selectedSoldierType) ??
+      unlockedSoldierTemplates[0] ??
+      null,
+    [selectedSoldierType, unlockedSoldierTemplates],
+  );
+  const selectedGpTemplate = useMemo(
+    () =>
+      (dashboard?.puteiroBook.templates ?? []).find((template) => template.type === selectedGpType) ??
+      dashboard?.puteiroBook.templates[0] ??
+      null,
+    [dashboard?.puteiroBook.templates, selectedGpType],
+  );
+  const selectedCatalogCanAfford = useMemo(
+    () => Boolean(selectedCatalogProperty && (player?.resources.money ?? 0) >= selectedCatalogProperty.basePrice),
+    [player?.resources.money, selectedCatalogProperty],
+  );
+  const selectedCatalogHasStock = useMemo(
+    () =>
+      selectedCatalogProperty
+        ? selectedCatalogProperty.stockAvailable === null || selectedCatalogProperty.stockAvailable > 0
+        : false,
+    [selectedCatalogProperty],
   );
 
   useEffect(() => {
@@ -123,6 +175,51 @@ export function OperationsScreen(): JSX.Element {
     }
   }, [dashboard?.propertyBook.availableProperties, selectedCatalogProperty]);
 
+  useEffect(() => {
+    if (!selectedSoldierTemplate && unlockedSoldierTemplates.length > 0) {
+      setSelectedSoldierType(unlockedSoldierTemplates[0]?.type ?? null);
+      return;
+    }
+
+    if (selectedSoldierTemplate && selectedSoldierTemplate.type !== selectedSoldierType) {
+      setSelectedSoldierType(selectedSoldierTemplate.type);
+      return;
+    }
+
+    if (unlockedSoldierTemplates.length === 0) {
+      setSelectedSoldierType(null);
+    }
+  }, [selectedSoldierTemplate, selectedSoldierType, unlockedSoldierTemplates]);
+
+  useEffect(() => {
+    const templates = dashboard?.puteiroBook.templates ?? [];
+
+    if (!selectedGpTemplate && templates.length > 0) {
+      setSelectedGpType(templates[0]?.type ?? null);
+      return;
+    }
+
+    if (selectedGpTemplate && selectedGpTemplate.type !== selectedGpType) {
+      setSelectedGpType(selectedGpTemplate.type);
+      return;
+    }
+
+    if (templates.length === 0) {
+      setSelectedGpType(null);
+    }
+  }, [dashboard?.puteiroBook.templates, selectedGpTemplate, selectedGpType]);
+
+  useEffect(() => {
+    if (!selectedSlotMachine) {
+      return;
+    }
+
+    setSlotMachineHouseEdgeInput(formatPercentageInput(selectedSlotMachine.config.houseEdge));
+    setSlotMachineJackpotInput(formatPercentageInput(selectedSlotMachine.config.jackpotChance));
+    setSlotMachineMinBetInput(String(Math.round(selectedSlotMachine.config.minBet)));
+    setSlotMachineMaxBetInput(String(Math.round(selectedSlotMachine.config.maxBet)));
+  }, [selectedSlotMachine]);
+
   async function loadDashboard(): Promise<void> {
     setIsLoading(true);
     setError(null);
@@ -136,7 +233,6 @@ export function OperationsScreen(): JSX.Element {
         frontStoreBook,
         slotMachineBook,
         factoryBook,
-        nextSabotageCenter,
       ] = await Promise.all([
         propertyApi.list(),
         bocaApi.list(),
@@ -145,7 +241,6 @@ export function OperationsScreen(): JSX.Element {
         frontStoreApi.list(),
         slotMachineApi.list(),
         factoryApi.list(),
-        propertyApi.getSabotageCenter(),
       ]);
 
       setDashboard({
@@ -157,7 +252,6 @@ export function OperationsScreen(): JSX.Element {
         raveBook,
         slotMachineBook,
       });
-      setSabotageCenter(nextSabotageCenter);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Falha ao carregar as operacoes.');
     } finally {
@@ -208,6 +302,16 @@ export function OperationsScreen(): JSX.Element {
       return;
     }
 
+    if (!selectedCatalogHasStock) {
+      setError('Nao existe slot livre ou estoque restante para esse ativo agora.');
+      return;
+    }
+
+    if (!selectedCatalogCanAfford) {
+      setError('Fundos insuficientes para comprar esse ativo.');
+      return;
+    }
+
     setIsMutating(true);
     setError(null);
     setFeedback(null);
@@ -246,8 +350,9 @@ export function OperationsScreen(): JSX.Element {
     }
   }
 
-  async function handleRecoverSelectedProperty(): Promise<void> {
-    if (!selectedProperty) {
+  async function handleHireSelectedSoldiers(): Promise<void> {
+    if (!selectedProperty || !selectedSoldierTemplate) {
+      setError('Selecione um ativo com capacidade militar e um template desbloqueado.');
       return;
     }
 
@@ -256,58 +361,132 @@ export function OperationsScreen(): JSX.Element {
     setFeedback(null);
 
     try {
-      const response = await propertyApi.recoverSabotage(selectedProperty.id);
+      const response = await propertyApi.hireSoldiers(selectedProperty.id, {
+        quantity: 1,
+        type: selectedSoldierTemplate.type,
+      });
       await Promise.all([loadDashboard(), refreshPlayerProfile()]);
-      setFeedback(`${response.property.definition.label} liberado para recuperar a operacao.`);
+      setFeedback(`${response.hiredQuantity}x ${selectedSoldierTemplate.label} enviado(s) para ${response.property.definition.label}.`);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Falha ao recuperar o ativo sabotado.');
+      setError(nextError instanceof Error ? nextError.message : 'Falha ao contratar segurancas.');
     } finally {
       setIsMutating(false);
     }
   }
 
-  async function handleSabotageSelectedTarget(): Promise<void> {
-    if (!selectedTarget) {
+  async function handleInstallSelectedSlotMachines(): Promise<void> {
+    if (!selectedProperty || selectedProperty.type !== 'slot_machine') {
+      setError('Selecione uma maquininha antes de instalar unidades.');
       return;
     }
 
-    await handleSabotageTarget(selectedTarget.id);
-  }
+    const quantity = sanitizePositiveInteger(slotMachineInstallQuantityInput);
 
-  async function handleSabotageTarget(targetId: string): Promise<void> {
+    if (quantity <= 0) {
+      setError('Informe uma quantidade positiva para instalar.');
+      return;
+    }
+
     setIsMutating(true);
     setError(null);
     setFeedback(null);
 
     try {
-      const response = await propertyApi.attemptSabotage(targetId);
+      const response = await slotMachineApi.install(selectedProperty.id, {
+        quantity,
+      });
       await Promise.all([loadDashboard(), refreshPlayerProfile()]);
-      setFeedback(response.message);
+      setFeedback(`${response.installedQuantity} maquina(s) instalada(s) por ${formatOperationsCurrency(response.totalInstallCost)}.`);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Falha ao sabotar o alvo.');
+      setError(nextError instanceof Error ? nextError.message : 'Falha ao instalar maquinas.');
     } finally {
       setIsMutating(false);
     }
   }
+
+  async function handleConfigureSelectedSlotMachine(): Promise<void> {
+    if (!selectedProperty || selectedProperty.type !== 'slot_machine') {
+      setError('Selecione uma maquininha antes de configurar a sala.');
+      return;
+    }
+
+    const houseEdge = sanitizePercentageInput(slotMachineHouseEdgeInput);
+    const jackpotChance = sanitizePercentageInput(slotMachineJackpotInput);
+    const minBet = sanitizePositiveInteger(slotMachineMinBetInput);
+    const maxBet = sanitizePositiveInteger(slotMachineMaxBetInput);
+
+    if (houseEdge <= 0 || jackpotChance <= 0 || minBet <= 0 || maxBet <= 0 || minBet > maxBet) {
+      setError('Preencha margem, jackpot e faixa de aposta com valores validos.');
+      return;
+    }
+
+    setIsMutating(true);
+    setError(null);
+    setFeedback(null);
+
+    try {
+      await slotMachineApi.configure(selectedProperty.id, {
+        houseEdge,
+        jackpotChance,
+        maxBet,
+        minBet,
+      });
+      await Promise.all([loadDashboard(), refreshPlayerProfile()]);
+      setFeedback(`Sala configurada. Casa ${formatPercent(houseEdge)} · jackpot ${formatPercent(jackpotChance)}.`);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Falha ao configurar a maquininha.');
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleHireSelectedGps(): Promise<void> {
+    if (!selectedProperty || selectedProperty.type !== 'puteiro' || !selectedGpTemplate) {
+      setError('Selecione um puteiro e um template de GP.');
+      return;
+    }
+
+    setIsMutating(true);
+    setError(null);
+    setFeedback(null);
+
+    try {
+      const response = await puteiroApi.hireGps(selectedProperty.id, {
+        quantity: 1,
+        type: selectedGpTemplate.type,
+      });
+      await Promise.all([loadDashboard(), refreshPlayerProfile()]);
+      setFeedback(`${response.hiredGps.length}x ${selectedGpTemplate.label} contratada(s) por ${formatOperationsCurrency(response.totalPurchaseCost)}.`);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Falha ao contratar GPs.');
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  const canPurchaseSelectedCatalogProperty =
+    Boolean(selectedCatalogProperty && player?.regionId) &&
+    selectedCatalogCanAfford &&
+    selectedCatalogHasStock &&
+    !isMutating;
 
   return (
     <section className="desktop-screen">
       <ScreenHero
         actions={
           <Button onClick={() => void loadDashboard()} variant="secondary">
-            {isLoading ? 'Sincronizando...' : 'Atualizar operacoes'}
+            {isLoading ? 'Sincronizando...' : 'Atualizar ativos'}
           </Button>
         }
         badges={[
           { label: `${allProperties.length} ativos`, tone: 'info' },
-          { label: `${sabotageCenter?.targets.length ?? 0} alvos`, tone: 'warning' },
           { label: resolveOperationsTabLabel(activeTab), tone: 'neutral' },
         ]}
-        description="Operacoes, base e logistica do personagem com coleta, upgrade, compra de ativos e centro de sabotagem direto no desktop."
-        title="Operacoes"
+        description="Cuide do que gira caixa e do que sustenta sua mobilidade, protecao e recuperacao."
+        title="Gerir ativos"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Operacoes sincronizadas" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Ativos atualizados" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha nas operacoes" tone="danger" /> : null}
 
       <Card className="desktop-panel">
@@ -323,187 +502,75 @@ export function OperationsScreen(): JSX.Element {
       </div>
 
       <div className="desktop-grid-2">
-        <Card className="desktop-panel">
-          <div className="desktop-panel__header">
-            <h3>Ativos</h3>
-            <Badge tone="neutral">{filteredProperties.length}</Badge>
-          </div>
-          <div className="desktop-scroll-list">
-            {filteredProperties.map((property) => (
-              <ContextMenu
-                items={[
-                  {
-                    id: 'focus-property',
-                    label: 'Interagir com estrutura',
-                    onSelect: () => setSelectedPropertyId(property.id),
-                  },
-                  {
-                    id: 'open-property',
-                    label: 'Abrir detalhes',
-                    onSelect: () => setSelectedPropertyId(property.id),
-                  },
-                ]}
-                key={property.id}
-              >
-                <button
-                  className={`desktop-list-row desktop-list-row--clickable ${selectedProperty?.id === property.id ? 'desktop-list-row--active' : ''}`}
-                  onClick={() => setSelectedPropertyId(property.id)}
-                  type="button"
-                >
-                  <div className="desktop-list-row__headline">
-                    <strong>{property.definition.label}</strong>
-                    <Badge tone={property.sabotageStatus.state === 'normal' ? 'success' : 'danger'}>
-                      {property.sabotageStatus.state === 'normal' ? 'Estavel' : property.sabotageStatus.state}
-                    </Badge>
-                  </div>
-                  <small>{resolvePropertyTypeLabel(property.type)} · {resolvePropertyRegionLabel(property.regionId)}</small>
-                  <small>Nivel {property.level} · {resolvePropertyAssetClassLabel(property.definition)}</small>
-                </button>
-              </ContextMenu>
-            ))}
-          </div>
-        </Card>
+        <OperationsPropertyListPanel
+          filteredProperties={filteredProperties}
+          onSelectProperty={setSelectedPropertyId}
+          selectedPropertyId={selectedProperty?.id ?? null}
+        />
 
         <div className="desktop-screen__stack">
-          {selectedProperty ? (
-            <Card className="desktop-panel">
-              <div className="desktop-panel__header">
-                <div>
-                  <h3>{selectedProperty.definition.label}</h3>
-                  <p>{resolvePropertyTypeLabel(selectedProperty.type)} · {resolvePropertyRegionLabel(selectedProperty.regionId)}</p>
-                </div>
-                <Badge tone={selectedOperation?.readyToCollect ? 'success' : 'neutral'}>
-                  {selectedOperation?.statusLabel ?? 'Sem snapshot'}
-                </Badge>
-              </div>
-              <div className="desktop-grid-3">
-                <MetricCard label="Nivel" tone="info" value={`${selectedProperty.level}`} />
-                <MetricCard label="Risco invasao" tone="danger" value={`${Math.round(selectedProperty.protection.invasionRisk)}%`} />
-                <MetricCard label="Risco roubo" tone="warning" value={`${Math.round(selectedProperty.protection.robberyRisk)}%`} />
-              </div>
-              <div className="desktop-detail-list">
-                {(selectedOperation?.detailLines ?? resolvePropertyUtilityLines(selectedProperty.definition)).map((line) => (
-                  <div key={line}>
-                    <strong>Operacao</strong>
-                    <small>{line}</small>
-                  </div>
-                ))}
-                {selectedOperation ? (
-                  <div>
-                    <strong>Coleta</strong>
-                    <small>{selectedOperation.collectableLabel} · estimativa {selectedOperation.estimatedHourlyLabel}</small>
-                  </div>
-                ) : null}
-              </div>
-              <div className="desktop-inline-actions">
-                <Button disabled={isMutating || !selectedOperation?.readyToCollect} onClick={() => void handleCollectSelectedOperation()} variant="primary">
-                  {isMutating ? 'Processando...' : selectedOperation?.actionLabel ?? 'Coletar'}
-                </Button>
-                <Button disabled={isMutating} onClick={() => void handleUpgradeSelectedProperty()} variant="secondary">
-                  Melhorar ativo
-                </Button>
-                <Button disabled={isMutating || selectedProperty.sabotageStatus.state === 'normal'} onClick={() => void handleRecoverSelectedProperty()} variant="ghost">
-                  Recuperar sabotagem
-                </Button>
-              </div>
-              {puteiroSnapshot ? (
-                <div className="desktop-detail-list">
-                  <div>
-                    <strong>Puteiro</strong>
-                    <small>{puteiroSnapshot.operatingHeadline}</small>
-                  </div>
-                  <div>
-                    <strong>Elenco</strong>
-                    <small>{puteiroSnapshot.workerStatusSummary}</small>
-                  </div>
-                  <div>
-                    <strong>Proximo passo</strong>
-                    <small>{puteiroSnapshot.nextStepCopy}</small>
-                  </div>
-                  {selectedPuteiro?.roster.slice(0, 3).map((worker) => (
-                    <div key={worker.id}>
-                      <strong>{worker.label}</strong>
-                      <small>{resolvePuteiroWorkerStatusLabel(worker)} · {formatOperationsCurrency(worker.hourlyGrossRevenueEstimate)}/h</small>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </Card>
-          ) : null}
+          <OperationsSelectedPropertyPanel
+            isMutating={isMutating}
+            onCollect={() => void handleCollectSelectedOperation()}
+            onConfigureSlotMachine={() => void handleConfigureSelectedSlotMachine()}
+            onHireGps={() => void handleHireSelectedGps()}
+            onHireSoldiers={() => void handleHireSelectedSoldiers()}
+            onInstallSlotMachines={() => void handleInstallSelectedSlotMachines()}
+            onSelectGpType={setSelectedGpType}
+            onSelectSoldierType={setSelectedSoldierType}
+            onSlotMachineHouseEdgeInputChange={setSlotMachineHouseEdgeInput}
+            onSlotMachineInstallQuantityInputChange={setSlotMachineInstallQuantityInput}
+            onSlotMachineJackpotInputChange={setSlotMachineJackpotInput}
+            onSlotMachineMaxBetInputChange={setSlotMachineMaxBetInput}
+            onSlotMachineMinBetInputChange={setSlotMachineMinBetInput}
+            onUpgrade={() => void handleUpgradeSelectedProperty()}
+            puteiroSnapshot={puteiroSnapshot}
+            puteiroTemplates={dashboard?.puteiroBook.templates ?? []}
+            selectedGpTemplate={selectedGpTemplate}
+            selectedOperation={selectedOperation}
+            selectedProperty={selectedProperty}
+            selectedPuteiro={selectedPuteiro}
+            selectedSlotMachine={selectedSlotMachine}
+            selectedSoldierTemplate={selectedSoldierTemplate}
+            slotMachineHouseEdgeInput={slotMachineHouseEdgeInput}
+            slotMachineInstallQuantityInput={slotMachineInstallQuantityInput}
+            slotMachineJackpotInput={slotMachineJackpotInput}
+            slotMachineMaxBetInput={slotMachineMaxBetInput}
+            slotMachineMinBetInput={slotMachineMinBetInput}
+            unlockedSoldierTemplates={unlockedSoldierTemplates}
+          />
 
-          <Card className="desktop-panel">
-            <div className="desktop-panel__header">
-              <h3>Catalogo de compra</h3>
-              <Badge tone="info">{dashboard?.propertyBook.availableProperties.length ?? 0}</Badge>
-            </div>
-            <div className="desktop-scroll-list">
-              {(dashboard?.propertyBook.availableProperties ?? []).map((definition) => (
-                <button
-                  className={`desktop-list-row desktop-list-row--clickable ${selectedCatalogProperty?.type === definition.type ? 'desktop-list-row--active' : ''}`}
-                  key={definition.type}
-                  onClick={() => setSelectedCatalogType(definition.type)}
-                  type="button"
-                >
-                  <div className="desktop-list-row__headline">
-                    <strong>{definition.label}</strong>
-                    <Badge tone="warning">{formatOperationsCurrency(definition.basePrice)}</Badge>
-                  </div>
-                  <small>{resolvePropertyTypeLabel(definition.type)} · nivel {definition.unlockLevel}</small>
-                </button>
-              ))}
-            </div>
-            <Button disabled={isMutating || !selectedCatalogProperty || !player?.regionId} onClick={() => void handlePurchaseSelectedProperty()} variant="primary">
-              {isMutating ? 'Processando...' : 'Comprar ativo selecionado'}
-            </Button>
-          </Card>
-
-          <Card className="desktop-panel">
-            <div className="desktop-panel__header">
-              <h3>Centro de sabotagem</h3>
-              <Badge tone="danger">{sabotageCenter?.targets.length ?? 0}</Badge>
-            </div>
-            <div className="desktop-scroll-list">
-              {(sabotageCenter?.targets ?? []).map((target) => (
-                <ContextMenu
-                  items={[
-                    {
-                      id: 'focus-target',
-                      label: 'Interagir com estrutura',
-                      onSelect: () => setSelectedTargetPropertyId(target.id),
-                    },
-                    {
-                      id: 'sabotage-target',
-                      label: 'Sabotar estrutura',
-                      onSelect: () => {
-                        setSelectedTargetPropertyId(target.id);
-                        void handleSabotageTarget(target.id);
-                      },
-                    },
-                  ]}
-                  key={target.id}
-                >
-                  <button
-                    className={`desktop-list-row desktop-list-row--clickable ${selectedTarget?.id === target.id ? 'desktop-list-row--active' : ''}`}
-                    onClick={() => setSelectedTargetPropertyId(target.id)}
-                    type="button"
-                  >
-                    <div className="desktop-list-row__headline">
-                      <strong>{resolvePropertyTypeLabel(target.type)} · {target.ownerNickname}</strong>
-                      <Badge tone={target.status === 'eligible' ? 'warning' : 'neutral'}>
-                        {target.status === 'eligible' ? 'Elegivel' : 'Cooldown'}
-                      </Badge>
-                    </div>
-                    <small>{resolvePropertyRegionLabel(target.regionId)} · defesa {Math.round(target.defenseScore)}</small>
-                  </button>
-                </ContextMenu>
-              ))}
-            </div>
-            <Button data-desktop-primary-action="true" disabled={isMutating || !selectedTarget || selectedTarget.status !== 'eligible'} onClick={() => void handleSabotageSelectedTarget()} variant="danger">
-              {isMutating ? 'Processando...' : 'Sabotar alvo selecionado'}
-            </Button>
-          </Card>
+          <OperationsCatalogPanel
+            availableProperties={dashboard?.propertyBook.availableProperties ?? []}
+            canPurchaseSelectedCatalogProperty={canPurchaseSelectedCatalogProperty}
+            isMutating={isMutating}
+            onPurchase={() => void handlePurchaseSelectedProperty()}
+            onSelectCatalogType={setSelectedCatalogType}
+            playerMoney={player?.resources.money ?? 0}
+            selectedCatalogProperty={selectedCatalogProperty}
+          />
         </div>
       </div>
     </section>
   );
+}
+
+function sanitizePositiveInteger(value: string): number {
+  const parsed = Number.parseInt(value.replace(/[^0-9]/g, ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function sanitizePercentageInput(value: string): number {
+  const normalized = value.replace(',', '.').trim();
+  const parsed = Number.parseFloat(normalized);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+
+  return parsed > 1 ? parsed / 100 : parsed;
+}
+
+function formatPercentageInput(value: number): string {
+  return `${Math.round(value * 100)}`;
 }

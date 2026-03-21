@@ -22,40 +22,19 @@ export function ActivityResultModal({
     <Modal animationType="fade" transparent visible={visible}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.eyebrow}>
-            {cue.kind === 'training' ? 'Treino concluído' : 'Curso concluído'}
-          </Text>
+          <Text style={styles.eyebrow}>Curso concluído</Text>
           <Text style={styles.title}>{cue.title}</Text>
           <Text style={styles.copy}>{cue.body}</Text>
+          <View style={styles.metrics}>
+            <MetricCard label="Custo" value={cue.costLabel} />
+            <MetricCard label="Duração" value={cue.durationLabel} />
+            <MetricCard label="Vocação" value={cue.vocationLabel} />
+          </View>
 
-          {cue.kind === 'training' ? (
-            <>
-              <View style={styles.metrics}>
-                <MetricCard label="Custo" value={cue.costLabel} />
-                <MetricCard label="Cansaço" value={cue.cansacoLabel} />
-                <MetricCard label="Streak" value={cue.streakLabel} />
-                <MetricCard label="Mult." value={cue.multiplierLabel} />
-              </View>
-
-              <View style={styles.block}>
-                <Text style={styles.blockTitle}>Ganhos prontos para resgate</Text>
-                <Text style={styles.blockCopy}>{cue.gainsLabel}</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.metrics}>
-                <MetricCard label="Custo" value={cue.costLabel} />
-                <MetricCard label="Duração" value={cue.durationLabel} />
-                <MetricCard label="Vocação" value={cue.vocationLabel} />
-              </View>
-
-              <View style={styles.block}>
-                <Text style={styles.blockTitle}>Passivo liberado</Text>
-                <Text style={styles.blockCopy}>{cue.passiveLabel}</Text>
-              </View>
-            </>
-          )}
+          <View style={styles.block}>
+            <Text style={styles.blockTitle}>Passivo liberado</Text>
+            <Text style={styles.blockCopy}>{cue.passiveLabel}</Text>
+          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -64,9 +43,7 @@ export function ActivityResultModal({
               }}
               style={({ pressed }) => [styles.primaryButton, pressed ? styles.buttonPressed : null]}
             >
-              <Text style={styles.primaryButtonLabel}>
-                {cue.kind === 'training' ? 'Abrir treino' : 'Abrir universidade'}
-              </Text>
+              <Text style={styles.primaryButtonLabel}>Abrir universidade</Text>
             </Pressable>
             <Pressable
               onPress={onClose}

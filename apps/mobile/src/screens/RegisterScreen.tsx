@@ -44,7 +44,7 @@ export function RegisterScreen({ navigation }: RegisterScreenProps): JSX.Element
       actionLabel="Registrar e entrar"
       footerCopy="Já tem conta?"
       footerLabel="Voltar para login"
-      helperText="O registro já retorna tokens do backend, salva no SecureStore e cai no fluxo de personagem."
+      helperText="Criando a conta, o app já abre sua sessão e cai no fluxo do personagem."
       isLoading={isLoading}
       onActionPress={handleSubmit}
       onFooterPress={() => navigation.navigate('Login')}

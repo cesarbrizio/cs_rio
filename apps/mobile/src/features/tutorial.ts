@@ -1,9 +1,9 @@
 export const TUTORIAL_WINDOW_MS = 30 * 60 * 1000;
 
-export type TutorialStepId = 'move' | 'crimes' | 'training' | 'market' | 'territory';
+export type TutorialStepId = 'move' | 'crimes' | 'market' | 'territory';
 
 export interface TutorialStepDefinition {
-  actionId: 'crimes' | 'market' | 'territory' | 'training' | null;
+  actionId: 'crimes' | 'market' | 'territory' | null;
   ctaLabel: string;
   hint: string;
   id: TutorialStepId;
@@ -30,15 +30,6 @@ export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
     npcName: 'Vapor Darlan',
     npcRole: 'Corre da rua',
     title: 'Agora faça seu primeiro corre.',
-  },
-  {
-    actionId: 'training',
-    ctaLabel: 'Abrir treino',
-    hint: 'Treino aumenta atributo e prepara o personagem para crimes, PvP e negócios.',
-    id: 'training',
-    npcName: 'Professor Catraca',
-    npcRole: 'Instrutor da base',
-    title: 'Sem treino você fica para trás.',
   },
   {
     actionId: 'market',

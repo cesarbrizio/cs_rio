@@ -4,8 +4,11 @@ import type {
 } from '@engine/types';
 import {
   getMapStructureDefinition,
+  isMapStructurePurchasable,
+  listMapStructurePropertyTypeOptions,
   type MapStructureCategory,
 } from '@shared/map/structureCatalog';
+import type { PropertyType } from '@shared/types';
 import type { MapStructureKind } from '@shared/map/types';
 
 import type { EditorStructureOverlay } from './buildStructureOverlays';
@@ -18,10 +21,13 @@ interface MapBounds {
 export interface StructurePropertyDraft {
   footprintH: number;
   footprintW: number;
+  favelaId: string;
   interactiveEntityId: string;
   kind: MapStructureKind;
   label: string;
+  maxUnits: number;
   name: string;
+  propertyType: PropertyType | '';
 }
 
 function sanitizeFootprint(value: number) {
@@ -34,6 +40,20 @@ function slugifyStructureName(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function sanitizeMaxUnits(value: number) {
+  return Math.max(1, Math.round(value));
+}
+
+function resolveDraftPropertyType(kind: MapStructureKind, fallback: PropertyType | '' = ''): PropertyType | '' {
+  const allowedTypes = listMapStructurePropertyTypeOptions(kind);
+
+  if (fallback && allowedTypes.includes(fallback)) {
+    return fallback;
+  }
+
+  return allowedTypes[0] ?? '';
 }
 
 export function cloneStructure(
@@ -94,8 +114,13 @@ export function createPlacedStructure(input: {
     properties: {
       footprintH: footprint.h,
       footprintW: footprint.w,
+      favelaId: '',
       kind: input.kind,
       label: definition.label,
+      maxUnits: 1,
+      propertyType: isMapStructurePurchasable(input.kind)
+        ? resolveDraftPropertyType(input.kind)
+        : '',
     },
     type: input.kind,
     width: 0,
@@ -121,7 +146,11 @@ export function applyStructureDraft(
 ): ParsedMapStructure {
   const name = draft.name.trim();
   const label = draft.label.trim();
+  const favelaId = draft.favelaId.trim();
   const interactiveEntityId = draft.interactiveEntityId.trim();
+  const propertyType = resolveDraftPropertyType(draft.kind, draft.propertyType);
+  const maxUnits = sanitizeMaxUnits(draft.maxUnits);
+  const isPurchasable = isMapStructurePurchasable(draft.kind);
 
   return {
     ...cloneStructure(structure),
@@ -138,9 +167,12 @@ export function applyStructureDraft(
       ...structure.properties,
       footprintH: sanitizeFootprint(draft.footprintH),
       footprintW: sanitizeFootprint(draft.footprintW),
+      favelaId: isPurchasable ? favelaId : '',
       interactiveEntityId: interactiveEntityId.length > 0 ? interactiveEntityId : '',
       kind: draft.kind,
       label: label.length > 0 ? label : '',
+      maxUnits: isPurchasable ? maxUnits : 1,
+      propertyType: isPurchasable ? propertyType : '',
     },
     type: draft.kind,
   };
@@ -226,10 +258,24 @@ export function buildStructurePropertyDraft(
   return {
     footprintH: structure.footprint.h,
     footprintW: structure.footprint.w,
+    favelaId: typeof structure.properties.favelaId === 'string' ? structure.properties.favelaId : '',
     interactiveEntityId: structure.interactiveEntityId ?? '',
     kind: structure.kind as MapStructureKind,
     label: structure.label ?? '',
+    maxUnits:
+      typeof structure.properties.maxUnits === 'number'
+        ? sanitizeMaxUnits(structure.properties.maxUnits)
+        : typeof structure.properties.maxUnits === 'string'
+          ? sanitizeMaxUnits(Number(structure.properties.maxUnits) || 1)
+          : 1,
     name: structure.name,
+    propertyType:
+      typeof structure.properties.propertyType === 'string'
+        ? resolveDraftPropertyType(
+            structure.kind as MapStructureKind,
+            structure.properties.propertyType as PropertyType,
+          )
+        : resolveDraftPropertyType(structure.kind as MapStructureKind),
   };
 }
 

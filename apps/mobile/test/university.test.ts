@@ -132,12 +132,6 @@ describe('university helpers', () => {
           bribeCostMultiplier: 1,
           negotiationSuccessMultiplier: 1,
         },
-        pvp: {
-          ambushPowerMultiplier: 1,
-          assaultPowerMultiplier: 1,
-          damageDealtMultiplier: 1,
-          lowHpDamageTakenMultiplier: 1,
-        },
         social: {
           communityInfluenceMultiplier: 1,
         },

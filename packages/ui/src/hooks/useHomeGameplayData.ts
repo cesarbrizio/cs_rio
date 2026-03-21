@@ -2,6 +2,8 @@ import {
   type EventResultListResponse,
   type NpcInflationSummary,
   type PlayerProfile,
+  type PropertyCatalogResponse,
+  type PropertySlotSummary,
   type RegionId,
   type RoundLeaderboardEntry,
   type RoundSummary,
@@ -35,6 +37,9 @@ interface UseHomeGameplayDataInput {
     getSeasonalStatus: () => Promise<EventRuntimeState['seasonal']>;
   };
   player: PlayerProfile | null;
+  propertyApi: {
+    list: () => Promise<PropertyCatalogResponse>;
+  };
   realtimeService: Pick<
     {
       connectToRegionRoom: (input: {
@@ -83,6 +88,7 @@ export interface HomeGameplayDataResult {
     distance: number;
     player: RegionRealtimeSnapshot['players'][number];
   }>;
+  propertySlots: PropertySlotSummary[];
   roundInflation: NpcInflationSummary | null;
   roundLeaderboard: RoundLeaderboardEntry[];
   roundSummary: RoundSummary | null;
@@ -96,6 +102,7 @@ const RELEVANT_REMOTE_PLAYER_MIN_COUNT = 2;
 export function useHomeGameplayData({
   eventApi,
   player,
+  propertyApi,
   realtimeService,
   refreshPlayerProfile,
   roundApi,
@@ -112,6 +119,7 @@ export function useHomeGameplayData({
   const [roundLeaderboard, setRoundLeaderboard] = useState<RoundLeaderboardEntry[]>([]);
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
   const [territoryOverview, setTerritoryOverview] = useState<TerritoryOverviewResponse | null>(null);
+  const [propertySlots, setPropertySlots] = useState<PropertySlotSummary[]>([]);
 
   const loadHomeData = useCallback(async () => {
     if (!player?.hasCharacter) {
@@ -122,7 +130,7 @@ export function useHomeGameplayData({
 
     try {
       await refreshPlayerProfile();
-      const [roundCenter, territory, docks, police, seasonal, eventResultsResponse] =
+      const [roundCenter, territory, docks, police, seasonal, eventResultsResponse, propertyCatalog] =
         await Promise.allSettled([
           roundApi.getCenter(),
           territoryApi.list(),
@@ -130,6 +138,7 @@ export function useHomeGameplayData({
           eventApi.getPoliceStatus(),
           eventApi.getSeasonalStatus(),
           eventApi.getResults(),
+          propertyApi.list(),
         ]);
 
       if (roundCenter.status === 'fulfilled') {
@@ -167,10 +176,16 @@ export function useHomeGameplayData({
       } else {
         setEventResults([]);
       }
+
+      if (propertyCatalog.status === 'fulfilled') {
+        setPropertySlots(propertyCatalog.value.propertySlots);
+      } else {
+        setPropertySlots([]);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [eventApi, player?.hasCharacter, refreshPlayerProfile, roundApi, territoryApi]);
+  }, [eventApi, player?.hasCharacter, propertyApi, refreshPlayerProfile, roundApi, territoryApi]);
 
   useEffect(() => realtimeService.subscribe(setRealtimeSnapshot), [realtimeService]);
 
@@ -228,6 +243,7 @@ export function useHomeGameplayData({
     loadHomeData,
     realtimeSnapshot,
     relevantRemotePlayers,
+    propertySlots,
     roundInflation,
     roundLeaderboard,
     roundSummary,

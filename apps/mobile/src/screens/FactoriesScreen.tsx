@@ -1,7 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { type DrugFactorySummary } from '@cs-rio/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
 import {
@@ -15,12 +14,23 @@ import { factoryApi, formatApiError } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
 import { colors } from '../theme/colors';
+import {
+  Banner,
+  EmptyState,
+  MetricPill,
+  resolveFactoryTone,
+  StatusChip,
+  styles,
+  SummaryCard,
+} from './FactoriesScreen.parts';
 
 export function FactoriesScreen(): JSX.Element {
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
-  const [factoryBook, setFactoryBook] = useState<Awaited<ReturnType<typeof factoryApi.list>> | null>(null);
+  const [factoryBook, setFactoryBook] = useState<Awaited<
+    ReturnType<typeof factoryApi.list>
+  > | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedFactoryId, setSelectedFactoryId] = useState<string | null>(null);
   const [selectedComponentItemId, setSelectedComponentItemId] = useState<string | null>(null);
@@ -35,10 +45,7 @@ export function FactoriesScreen(): JSX.Element {
     setIsLoading(true);
 
     try {
-      const [nextFactoryBook] = await Promise.all([
-        factoryApi.list(),
-        refreshPlayerProfile(),
-      ]);
+      const [nextFactoryBook] = await Promise.all([factoryApi.list(), refreshPlayerProfile()]);
       setFactoryBook(nextFactoryBook);
     } catch (nextError) {
       setError(formatApiError(nextError).message);
@@ -185,7 +192,10 @@ export function FactoriesScreen(): JSX.Element {
       return;
     }
 
-    const quantity = sanitizeFactoryQuantity(componentQuantityInput, selectedComponentItem.quantity);
+    const quantity = sanitizeFactoryQuantity(
+      componentQuantityInput,
+      selectedComponentItem.quantity,
+    );
 
     setError(null);
     setIsSubmitting(true);
@@ -205,7 +215,13 @@ export function FactoriesScreen(): JSX.Element {
     } finally {
       setIsSubmitting(false);
     }
-  }, [componentQuantityInput, loadFactories, selectedComponentItem, selectedFactory, setBootstrapStatus]);
+  }, [
+    componentQuantityInput,
+    loadFactories,
+    selectedComponentItem,
+    selectedFactory,
+    setBootstrapStatus,
+  ]);
 
   const handleCollectOutput = useCallback(async () => {
     if (!selectedFactory) {
@@ -231,7 +247,10 @@ export function FactoriesScreen(): JSX.Element {
   }, [loadFactories, selectedFactory, setBootstrapStatus]);
 
   const createButtonDisabled =
-    !selectedRecipe || isLoading || isSubmitting || (player?.level ?? 0) < selectedRecipe.levelRequired;
+    !selectedRecipe ||
+    isLoading ||
+    isSubmitting ||
+    (player?.level ?? 0) < selectedRecipe.levelRequired;
   const stockButtonDisabled =
     !selectedFactory || !selectedComponentItem || isLoading || isSubmitting;
   const collectButtonDisabled =
@@ -246,11 +265,18 @@ export function FactoriesScreen(): JSX.Element {
         <SummaryCard label="Fábricas" tone={colors.accent} value={`${factories.length}`} />
         <SummaryCard label="Prontas" tone={colors.success} value={`${readyFactoriesCount}`} />
         <SummaryCard label="Estoque" tone={colors.info} value={`${totalStoredOutput}`} />
-        <SummaryCard label="Caixa" tone={colors.warning} value={formatFactoryCurrency(player?.resources.money ?? 0)} />
+        <SummaryCard
+          label="Caixa"
+          tone={colors.warning}
+          value={formatFactoryCurrency(player?.resources.money ?? 0)}
+        />
       </View>
 
       {blockedFactoriesCount > 0 ? (
-        <Banner copy={`${blockedFactoriesCount} fábrica(s) com produção travada por manutenção ou falta de componente.`} tone="warning" />
+        <Banner
+          copy={`${blockedFactoriesCount} fábrica(s) com produção travada por manutenção ou falta de componente.`}
+          tone="warning"
+        />
       ) : null}
       {error ? <Banner copy={error} tone="danger" /> : null}
       {feedback ? <Banner copy={feedback} tone="neutral" /> : null}
@@ -295,12 +321,18 @@ export function FactoriesScreen(): JSX.Element {
                         {formatFactoryCurrency(recipe.dailyMaintenanceCost)}/dia
                       </Text>
                     </View>
-                    <StatusChip label={isUnlocked ? 'Liberada' : 'Travada'} tone={isUnlocked ? 'success' : 'danger'} />
+                    <StatusChip
+                      label={isUnlocked ? 'Liberada' : 'Travada'}
+                      tone={isUnlocked ? 'success' : 'danger'}
+                    />
                   </View>
 
                   <View style={styles.requirementList}>
                     {recipe.requirements.map((requirement) => (
-                      <Text key={`${recipe.drugId}:${requirement.componentId}`} style={styles.requirementText}>
+                      <Text
+                        key={`${recipe.drugId}:${requirement.componentId}`}
+                        style={styles.requirementText}
+                      >
                         {requirement.componentName}: {requirement.quantityPerCycle}/ciclo
                       </Text>
                     ))}
@@ -310,7 +342,7 @@ export function FactoriesScreen(): JSX.Element {
             })}
           </View>
         ) : (
-          <EmptyState copy="Nenhuma receita foi liberada pelo server ainda. Rode o seed e verifique o endpoint /api/factories." />
+          <EmptyState copy="Nenhuma receita foi liberada ainda. Quando a primeira mistura abrir, ela aparece aqui." />
         )}
 
         <Pressable
@@ -324,8 +356,10 @@ export function FactoriesScreen(): JSX.Element {
             pressed ? styles.buttonPressed : null,
           ]}
         >
-            <Text style={styles.primaryButtonLabel}>
-            {isSubmitting ? 'Provisionando...' : `Abrir fábrica de ${selectedRecipe?.drugName ?? 'droga'}`}
+          <Text style={styles.primaryButtonLabel}>
+            {isSubmitting
+              ? 'Provisionando...'
+              : `Abrir fábrica de ${selectedRecipe?.drugName ?? 'droga'}`}
           </Text>
         </Pressable>
       </View>
@@ -355,8 +389,8 @@ export function FactoriesScreen(): JSX.Element {
                       <Text style={styles.cardEyebrow}>Output {factory.outputPerCycle}/ciclo</Text>
                       <Text style={styles.cardTitle}>{factory.drugName}</Text>
                       <Text style={styles.cardMeta}>
-                        {resolveFactoryStatus(factory)} - estoque {factory.storedOutput} - manutenção{' '}
-                        {formatFactoryCurrency(factory.dailyMaintenanceCost)}/dia
+                        {resolveFactoryStatus(factory)} - estoque {factory.storedOutput} -
+                        manutenção {formatFactoryCurrency(factory.dailyMaintenanceCost)}/dia
                       </Text>
                     </View>
                     <StatusChip
@@ -367,8 +401,14 @@ export function FactoriesScreen(): JSX.Element {
 
                   <View style={styles.metricRow}>
                     <MetricPill label="Ciclo" value={`${factory.cycleMinutes} min`} />
-                    <MetricPill label="Overdue" value={`${factory.maintenanceStatus.overdueDays} d`} />
-                    <MetricPill label="Sync" value={formatFactoryCurrency(factory.maintenanceStatus.moneySpentOnSync)} />
+                    <MetricPill
+                      label="Overdue"
+                      value={`${factory.maintenanceStatus.overdueDays} d`}
+                    />
+                    <MetricPill
+                      label="Sync"
+                      value={formatFactoryCurrency(factory.maintenanceStatus.moneySpentOnSync)}
+                    />
                   </View>
                 </Pressable>
               );
@@ -390,14 +430,23 @@ export function FactoriesScreen(): JSX.Element {
                 <Text style={styles.managementTitle}>{selectedFactory.drugName}</Text>
                 <Text style={styles.managementCopy}>{resolveFactoryStatus(selectedFactory)}</Text>
               </View>
-              <StatusChip label={`${selectedFactory.storedOutput} prontos`} tone={selectedFactory.storedOutput > 0 ? 'success' : 'info'} />
+              <StatusChip
+                label={`${selectedFactory.storedOutput} prontos`}
+                tone={selectedFactory.storedOutput > 0 ? 'success' : 'info'}
+              />
             </View>
 
             <View style={styles.metricRow}>
               <MetricPill label="Base" value={`${selectedFactory.baseProduction}`} />
               <MetricPill label="Output" value={`${selectedFactory.outputPerCycle}`} />
-              <MetricPill label="Impulso" value={`${selectedFactory.multipliers.impulse.toFixed(2)}x`} />
-              <MetricPill label="Vocação" value={`${selectedFactory.multipliers.vocation.toFixed(2)}x`} />
+              <MetricPill
+                label="Impulso"
+                value={`${selectedFactory.multipliers.impulse.toFixed(2)}x`}
+              />
+              <MetricPill
+                label="Vocação"
+                value={`${selectedFactory.multipliers.vocation.toFixed(2)}x`}
+              />
             </View>
 
             <View style={styles.requirementPanel}>
@@ -406,21 +455,28 @@ export function FactoriesScreen(): JSX.Element {
                 const hasEnough = requirement.availableQuantity >= requirement.quantityPerCycle;
 
                 return (
-                  <View key={`${selectedFactory.id}:${requirement.componentId}`} style={styles.requirementRow}>
+                  <View
+                    key={`${selectedFactory.id}:${requirement.componentId}`}
+                    style={styles.requirementRow}
+                  >
                     <View style={styles.requirementCopy}>
                       <Text style={styles.requirementName}>{requirement.componentName}</Text>
                       <Text style={styles.requirementSubcopy}>
-                        Necessário: {requirement.quantityPerCycle} - em estoque: {requirement.availableQuantity}
+                        Necessário: {requirement.quantityPerCycle} - em estoque:{' '}
+                        {requirement.availableQuantity}
                       </Text>
                     </View>
-                    <StatusChip label={hasEnough ? 'OK' : 'Falta'} tone={hasEnough ? 'success' : 'warning'} />
+                    <StatusChip
+                      label={hasEnough ? 'OK' : 'Falta'}
+                      tone={hasEnough ? 'success' : 'warning'}
+                    />
                   </View>
                 );
               })}
             </View>
 
             <View style={styles.requirementPanel}>
-                <Text style={styles.panelTitle}>Abastecer componentes</Text>
+              <Text style={styles.panelTitle}>Abastecer componentes</Text>
               {stockableItems.length > 0 ? (
                 <View style={styles.cardList}>
                   {stockableItems.map((item) => {
@@ -438,7 +494,9 @@ export function FactoriesScreen(): JSX.Element {
                           pressed ? styles.buttonPressed : null,
                         ]}
                       >
-                        <Text style={styles.compactCardTitle}>{item.itemName ?? 'Componente sem nome'}</Text>
+                        <Text style={styles.compactCardTitle}>
+                          {item.itemName ?? 'Componente sem nome'}
+                        </Text>
                         <Text style={styles.compactCardMeta}>
                           qtd. inventário {item.quantity} - peso {item.totalWeight}
                         </Text>
@@ -493,7 +551,9 @@ export function FactoriesScreen(): JSX.Element {
               ]}
             >
               <Text style={styles.collectButtonLabel}>
-                {isSubmitting ? 'Coletando...' : `Coletar ${selectedFactory.storedOutput} unidades prontas`}
+                {isSubmitting
+                  ? 'Coletando...'
+                  : `Coletar ${selectedFactory.storedOutput} unidades prontas`}
               </Text>
             </Pressable>
           </View>
@@ -504,431 +564,3 @@ export function FactoriesScreen(): JSX.Element {
     </InGameScreenLayout>
   );
 }
-
-function SummaryCard({
-  label,
-  tone,
-  value,
-}: {
-  label: string;
-  tone: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={[styles.summaryValue, { color: tone }]}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function MetricPill({ label, value }: { label: string; value: string }): JSX.Element {
-  return (
-    <View style={styles.metricPill}>
-      <Text style={styles.metricPillLabel}>{label}</Text>
-      <Text style={styles.metricPillValue}>{value}</Text>
-    </View>
-  );
-}
-
-function StatusChip({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: 'danger' | 'info' | 'success' | 'warning';
-}): JSX.Element {
-  return (
-    <View
-      style={[
-        styles.statusChip,
-        tone === 'danger'
-          ? styles.statusChipDanger
-          : tone === 'warning'
-            ? styles.statusChipWarning
-            : tone === 'success'
-              ? styles.statusChipSuccess
-              : styles.statusChipInfo,
-      ]}
-    >
-      <Text style={styles.statusChipLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Banner({
-  copy,
-  tone,
-}: {
-  copy: string;
-  tone: 'danger' | 'neutral' | 'warning';
-}): JSX.Element {
-  return (
-    <View
-      style={[
-        styles.banner,
-        tone === 'danger'
-          ? styles.bannerDanger
-          : tone === 'warning'
-            ? styles.bannerWarning
-            : styles.bannerNeutral,
-      ]}
-    >
-      <Text style={styles.bannerCopy}>{copy}</Text>
-    </View>
-  );
-}
-
-function EmptyState({ copy }: { copy: string }): JSX.Element {
-  return (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyCopy}>{copy}</Text>
-    </View>
-  );
-}
-
-function resolveFactoryTone(
-  factory: DrugFactorySummary,
-): 'danger' | 'info' | 'success' | 'warning' {
-  if (factory.blockedReason === 'maintenance') {
-    return 'danger';
-  }
-
-  if (factory.blockedReason === 'components') {
-    return 'warning';
-  }
-
-  if (factory.storedOutput > 0) {
-    return 'success';
-  }
-
-  return 'info';
-}
-
-const styles = StyleSheet.create({
-  summaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    flexBasis: '47%',
-    gap: 6,
-    padding: 14,
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  summaryLabel: {
-    color: colors.muted,
-    fontSize: 12,
-  },
-  section: {
-    gap: 10,
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  secondaryButton: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  secondaryButtonLabel: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  cardList: {
-    gap: 10,
-  },
-  card: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 10,
-    padding: 16,
-  },
-  cardSelected: {
-    backgroundColor: '#242016',
-    borderColor: colors.accent,
-  },
-  compactCard: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 4,
-    padding: 12,
-  },
-  compactCardSelected: {
-    backgroundColor: '#1c2515',
-    borderColor: colors.success,
-  },
-  cardHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  cardCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  cardEyebrow: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  cardMeta: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  requirementList: {
-    gap: 4,
-  },
-  requirementText: {
-    color: colors.text,
-    fontSize: 12,
-    lineHeight: 18,
-    opacity: 0.9,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 18,
-    justifyContent: 'center',
-    minHeight: 52,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.45,
-  },
-  primaryButtonLabel: {
-    color: '#1b160d',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  managementCard: {
-    backgroundColor: colors.panelAlt,
-    borderRadius: 24,
-    gap: 14,
-    padding: 16,
-  },
-  managementHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-  },
-  managementTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  managementCopy: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  metricPill: {
-    backgroundColor: '#161616',
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 4,
-    minWidth: 86,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  metricPillLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    textTransform: 'uppercase',
-  },
-  metricPillValue: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  requirementPanel: {
-    gap: 10,
-  },
-  panelTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  requirementRow: {
-    alignItems: 'center',
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'space-between',
-    padding: 12,
-  },
-  requirementCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  requirementName: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  requirementSubcopy: {
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  compactCardTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  compactCardMeta: {
-    color: colors.muted,
-    fontSize: 12,
-  },
-  inputRow: {
-    alignItems: 'flex-end',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  inputShell: {
-    flex: 1,
-    gap: 6,
-  },
-  inputLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  input: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 14,
-    borderWidth: 1,
-    color: colors.text,
-    minHeight: 48,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  inlineButton: {
-    minWidth: 120,
-  },
-  collectButton: {
-    alignItems: 'center',
-    backgroundColor: colors.success,
-    borderRadius: 18,
-    justifyContent: 'center',
-    minHeight: 54,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  collectButtonDisabled: {
-    opacity: 0.45,
-  },
-  collectButtonLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  statusChip: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusChipDanger: {
-    backgroundColor: '#3b1616',
-  },
-  statusChipInfo: {
-    backgroundColor: '#152234',
-  },
-  statusChipSuccess: {
-    backgroundColor: '#18361f',
-  },
-  statusChipWarning: {
-    backgroundColor: '#3a2910',
-  },
-  statusChipLabel: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  banner: {
-    borderRadius: 16,
-    padding: 14,
-  },
-  bannerDanger: {
-    backgroundColor: '#351a1a',
-    borderColor: '#5f2d2d',
-    borderWidth: 1,
-  },
-  bannerNeutral: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderWidth: 1,
-  },
-  bannerWarning: {
-    backgroundColor: '#35270f',
-    borderColor: '#5b4420',
-    borderWidth: 1,
-  },
-  bannerCopy: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  emptyState: {
-    backgroundColor: colors.panel,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-  },
-  emptyCopy: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  buttonPressed: {
-    opacity: 0.84,
-    transform: [{ scale: 0.99 }],
-  },
-});

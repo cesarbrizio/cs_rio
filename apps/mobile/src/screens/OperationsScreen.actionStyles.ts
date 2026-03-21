@@ -1,0 +1,108 @@
+import { colors } from '../theme/colors';
+
+export const operationsScreenActionStyles = {
+  banner: {
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  bannerCopy: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  bannerDanger: {
+    backgroundColor: 'rgba(217, 108, 108, 0.12)',
+    borderColor: 'rgba(217, 108, 108, 0.35)',
+    borderWidth: 1,
+  },
+  bannerNeutral: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+  buttonPressed: {
+    opacity: 0.88,
+  },
+  modalCard: {
+    backgroundColor: '#161616',
+    borderColor: colors.line,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    maxWidth: 420,
+    padding: 20,
+    width: '100%',
+  },
+  modalCopy: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalEyebrow: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  modalRoot: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 18,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  primaryButtonLabel: {
+    color: '#17120a',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  secondaryButtonLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  secondaryButtonWide: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+} as const;

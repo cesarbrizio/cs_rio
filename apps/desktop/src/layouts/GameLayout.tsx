@@ -25,8 +25,8 @@ export function GameLayout(): JSX.Element {
   const handleToggleWindowFullscreen = () => {
     if (!window.electronAPI) {
       pushToast({
-        description: 'Abra o shell pelo Electron para controlar a janela nativa.',
-        title: 'Bridge IPC indisponivel',
+        description: 'Abra a versao de desktop para controlar a janela deste aparelho.',
+        title: 'Controle da janela indisponivel',
         tone: 'danger',
       });
       return;
@@ -36,7 +36,7 @@ export function GameLayout(): JSX.Element {
       setShellDisplayMode(nextValue ? 'fullscreen' : 'windowed');
       pushToast({
         description: nextValue ? 'Janela enviada para fullscreen.' : 'Janela retornou ao modo janela.',
-        title: 'Shell desktop atualizado',
+        title: 'Janela atualizada',
         tone: 'info',
       });
     });
@@ -45,8 +45,8 @@ export function GameLayout(): JSX.Element {
   const handleLogout = async () => {
     await logout();
     pushToast({
-      description: 'Sessao removida do storage local e renderer voltou ao gate publico.',
-      title: 'Logout concluido',
+      description: 'Sua sessao foi encerrada neste aparelho.',
+      title: 'Sessao encerrada',
       tone: 'info',
     });
     setIsLogoutModalOpen(false);
@@ -60,7 +60,7 @@ export function GameLayout(): JSX.Element {
           footer={
             <div className="game-layout__sidebar-actions">
               <Button onClick={handleToggleWindowFullscreen} variant="secondary">
-                {isWindowFullscreen ? 'Sair do fullscreen' : 'Fullscreen'}
+                {isWindowFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
               </Button>
               <Button onClick={() => setIsLogoutModalOpen(true)} variant="ghost">
                 Encerrar sessao
@@ -84,7 +84,7 @@ export function GameLayout(): JSX.Element {
         <section className="game-layout__content">
           <header className="game-layout__header">
             <div>
-              <span className="eyebrow">Desktop jogavel</span>
+              <span className="eyebrow">CS Rio</span>
               <h1>{resolveHeaderTitle(location.pathname)}</h1>
             </div>
             <div className="game-layout__header-meta">
@@ -110,8 +110,7 @@ export function GameLayout(): JSX.Element {
         onClose={() => setIsLogoutModalOpen(false)}
         title="Encerrar sessao local?"
       >
-        Os tokens persistidos no Electron serao removidos e o app volta para a rota publica de
-        login.
+        Seu acesso sera removido deste aparelho e o jogo volta para a tela de entrada.
       </Modal>
     </>
   );
@@ -137,9 +136,13 @@ function PlayerSnapshot({ player }: { player: PlayerProfile }): JSX.Element {
 }
 
 function resolveHeaderTitle(pathname: string): string {
+  if (pathname.startsWith('/drug-use')) {
+    return 'Rave / Baile';
+  }
+
   const match = primaryNavigationItems.find((item) => pathname.startsWith(item.path));
 
-  return match?.label ?? 'CS Rio Desktop';
+  return match?.label ?? 'CS Rio';
 }
 
 function formatMoney(value: number): string {

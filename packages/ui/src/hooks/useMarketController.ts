@@ -344,7 +344,7 @@ export function useMarketController({
     async (inventoryItemId: string) => {
       await runMutation(async () => {
         await inventoryApi.repair(inventoryItemId);
-        setFeedback('Item reparado e inventario sincronizado.');
+        setFeedback('Item reparado e pronto para o corre.');
       });
     },
     [inventoryApi, runMutation],

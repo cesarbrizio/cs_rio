@@ -1,18 +1,18 @@
+import {
+  INVENTORY_EXPANSION_HINT,
+  INVENTORY_SCREEN_DESCRIPTION,
+  resolveInventoryItemTypeLabel,
+  type InventoryResolvedAction,
+  type InventoryStatusTone,
+  useInventoryController,
+} from '@cs-rio/ui/hooks';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { type RootStackParamList } from '../../App';
 import { InGameScreenLayout } from '../components/InGameScreenLayout';
-import {
-  buildInventoryBenefitLines,
-  resolveInventoryItemPresentation,
-  resolveInventoryItemTypeLabel,
-  type InventoryResolvedAction,
-  type InventoryStatusTone,
-} from '../features/inventory';
-import { formatApiError } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
 import { useInventoryStore } from '../stores/inventoryStore';
@@ -29,13 +29,26 @@ export function InventoryScreen(): JSX.Element {
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const setBootstrapStatus = useAppStore((state) => state.setBootstrapStatus);
-  const equipInventoryItem = useInventoryStore((state) => state.equipInventoryItem);
-  const repairInventoryItem = useInventoryStore((state) => state.repairInventoryItem);
-  const unequipInventoryItem = useInventoryStore((state) => state.unequipInventoryItem);
-  const items = useMemo(() => player?.inventory ?? [], [player?.inventory]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [submittingItemId, setSubmittingItemId] = useState<string | null>(null);
+  const inventoryActions = useInventoryStore();
   const [resultState, setResultState] = useState<InventoryResultState | null>(null);
+  const lastFeedbackRef = useRef<string | null>(null);
+  const lastErrorRef = useRef<string | null>(null);
+  const {
+    buildInventoryBenefitLines,
+    equippedCount,
+    error,
+    feedback,
+    items,
+    repairableCount,
+    resolveInventoryItemPresentation,
+    runAction,
+    selectedItemId,
+    setSelectedItemId,
+    submittingItemId,
+  } = useInventoryController({
+    actions: inventoryActions,
+    player,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -44,110 +57,62 @@ export function InventoryScreen(): JSX.Element {
   );
 
   useEffect(() => {
-    if (selectedItemId && !items.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId(null);
+    if (feedback && feedback !== lastFeedbackRef.current) {
+      lastFeedbackRef.current = feedback;
+      setResultState({
+        message: feedback,
+        title: 'Inventario atualizado',
+        tone: 'info',
+      });
+      setBootstrapStatus(feedback);
     }
-  }, [items, selectedItemId]);
-  const repairableCount = useMemo(
-    () =>
-      items.filter((item) => {
-        const presentation = resolveInventoryItemPresentation(item, player?.level ?? 1);
-        return (
-          presentation.primaryAction?.kind === 'repair' ||
-          presentation.secondaryAction?.kind === 'repair'
-        );
-      }).length,
-    [items, player?.level],
-  );
-  const equippedCount = useMemo(
-    () => items.filter((item) => item.isEquipped).length,
-    [items],
-  );
+  }, [feedback, setBootstrapStatus]);
 
-  const runAction = useCallback(
-    async (action: InventoryResolvedAction, inventoryItemId: string) => {
-      const selectedItem = items.find((item) => item.id === inventoryItemId) ?? null;
-      const selectedName = selectedItem?.itemName ?? selectedItem?.itemType ?? 'Item';
+  useEffect(() => {
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      setResultState({
+        message: error,
+        title: 'Acao nao concluida',
+        tone: 'danger',
+      });
+    }
+  }, [error]);
 
+  const handleActionPress = useCallback(
+    (action: InventoryResolvedAction, item: { id: string; itemName: string | null; itemType: string }) => {
       if (action.disabledReason) {
         setResultState({
           message: action.disabledReason,
-          title: 'Ação indisponível',
+          title: 'Acao indisponivel',
           tone: 'danger',
         });
         return;
       }
 
-      if (action.kind === 'use') {
-        navigation.navigate('DrugUse', {
-          initialInventoryItemId: inventoryItemId,
-          initialVenue: 'rave',
-        });
-        return;
-      }
-
-      setSubmittingItemId(inventoryItemId);
-
-      try {
-        let message = '';
-        let title = 'Inventário atualizado';
-
-        if (action.kind === 'equip') {
-          await equipInventoryItem(inventoryItemId);
-          message = `${selectedName} equipado. Loadout sincronizado com backend.`;
-          title = 'Loadout atualizado';
-        } else if (action.kind === 'unequip') {
-          await unequipInventoryItem(inventoryItemId);
-          message = `${selectedName} desequipado. Slot liberado.`;
-          title = 'Loadout atualizado';
-        } else {
-          const response = await repairInventoryItem(inventoryItemId);
-          message = `${selectedName} reparado por ${formatCurrency(response.repairCost)}.`;
-          title = 'Item reparado';
-        }
-
-        setResultState({
-          message,
-          title,
-          tone: 'info',
-        });
-        setBootstrapStatus(message);
-      } catch (error) {
-        setResultState({
-          message: formatApiError(error).message,
-          title: 'Ação não concluída',
-          tone: 'danger',
-        });
-      } finally {
-        setSubmittingItemId(null);
-      }
+      void runAction(action.kind, item.id, item.itemName ?? item.itemType);
     },
-    [
-      equipInventoryItem,
-      items,
-      navigation,
-      repairInventoryItem,
-      setBootstrapStatus,
-      unequipInventoryItem,
-    ],
+    [runAction],
   );
 
   return (
     <InGameScreenLayout
-      subtitle="Equipar, desequipar e reparar agora refletem o estado real do inventario. Cada arma e colete mostra o ganho pratico em crime, combate e guerra."
-      title="Inventario"
+      subtitle={INVENTORY_SCREEN_DESCRIPTION}
+      title="Equipar"
     >
       <View style={styles.summaryRow}>
         <SummaryCard label="Slots ocupados" value={`${items.length}`} />
         <SummaryCard label="Equipados" value={`${equippedCount}`} />
         <SummaryCard label="Pedindo reparo" value={`${repairableCount}`} />
+        <SummaryCard
+          label="Caixa atual"
+          value={formatCurrency(player?.resources.money ?? 0)}
+        />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Grade de Itens</Text>
-        <Text style={styles.sectionCopy}>
-          Toque em um item para expandir o card e agir dali mesmo, sem depender de outro painel.
-        </Text>
+        <Text style={styles.sectionCopy}>{INVENTORY_EXPANSION_HINT}</Text>
         {items.length > 0 ? (
           <View style={styles.grid}>
             {items.map((item) => {
@@ -237,7 +202,7 @@ export function InventoryScreen(): JSX.Element {
                             disabled={Boolean(presentation.primaryAction.disabledReason) || Boolean(submittingItemId)}
                             label={presentation.primaryAction.label}
                             onPress={() => {
-                              void runAction(presentation.primaryAction!, item.id);
+                              handleActionPress(presentation.primaryAction!, item);
                             }}
                             tone={presentation.statusTone}
                           />
@@ -248,7 +213,7 @@ export function InventoryScreen(): JSX.Element {
                             disabled={Boolean(submittingItemId)}
                             label={presentation.secondaryAction.label}
                             onPress={() => {
-                              void runAction(presentation.secondaryAction!, item.id);
+                              handleActionPress(presentation.secondaryAction!, item);
                             }}
                             tone="warning"
                           />
@@ -272,7 +237,7 @@ export function InventoryScreen(): JSX.Element {
                       {isSubmittingThisItem ? (
                         <View style={styles.loadingRow}>
                           <ActivityIndicator color={colors.accent} />
-                          <Text style={styles.loadingCopy}>Sincronizando inventário com o backend...</Text>
+                          <Text style={styles.loadingCopy}>Atualizando seu inventário...</Text>
                         </View>
                       ) : null}
                     </View>
@@ -436,6 +401,7 @@ function resolveToneColor(tone: InventoryStatusTone): string {
 const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   summaryCard: {
@@ -445,6 +411,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     gap: 6,
+    minWidth: '47%',
     padding: 14,
   },
   summaryValue: {

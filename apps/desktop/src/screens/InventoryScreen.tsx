@@ -1,4 +1,9 @@
-import { useInventoryController } from '@cs-rio/ui/hooks';
+import {
+  INVENTORY_EXPANSION_HINT,
+  INVENTORY_SCREEN_DESCRIPTION,
+  resolveInventoryItemTypeLabel,
+  useInventoryController,
+} from '@cs-rio/ui/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,6 +11,7 @@ import { Badge, Button, Card, ContextMenu, Modal } from '../components/ui';
 import { useAuthStore } from '../stores/authStore';
 import { useInventoryStore } from '../stores/inventoryStore';
 import {
+  EmptyStateCard,
   FeedbackCard,
   formatMoney,
   MetricCard,
@@ -21,6 +27,7 @@ interface InventoryModalState {
 export function InventoryScreen(): JSX.Element {
   const navigate = useNavigate();
   const player = useAuthStore((state) => state.player);
+  const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
   const actions = useInventoryStore();
   const [resultModal, setResultModal] = useState<InventoryModalState | null>(null);
   const lastFeedbackRef = useRef<string | null>(null);
@@ -42,13 +49,18 @@ export function InventoryScreen(): JSX.Element {
     actions,
     player,
   });
+  const hasConsumableDrugs = items.some((item) => item.itemType === 'drug' && item.quantity > 0);
+
+  useEffect(() => {
+    void refreshPlayerProfile();
+  }, [refreshPlayerProfile]);
 
   useEffect(() => {
     if (feedback && feedback !== lastFeedbackRef.current) {
       lastFeedbackRef.current = feedback;
       setResultModal({
         message: feedback,
-        title: 'Inventario atualizado',
+        title: 'Equipar atualizado',
         tone: 'info',
       });
     }
@@ -76,8 +88,13 @@ export function InventoryScreen(): JSX.Element {
           actions={
             <>
               <Button onClick={() => navigate('/market')} variant="secondary">
-                Abrir mercado
+                Negociar
               </Button>
+              {hasConsumableDrugs ? (
+                <Button onClick={() => navigate('/drug-use')} variant="ghost">
+                  Rave / Baile
+                </Button>
+              ) : null}
               <Button onClick={() => navigate('/profile')} variant="ghost">
                 Ver perfil
               </Button>
@@ -88,11 +105,11 @@ export function InventoryScreen(): JSX.Element {
             { label: `${equippedCount} equipados`, tone: 'success' },
             { label: `${repairableCount} pedindo reparo`, tone: 'warning' },
           ]}
-          description="O card do proprio item virou a superficie principal de acao. Equipar, desequipar, reparar e consumir agora disparam feedback imediato no desktop."
-          title="Inventario"
+          description={INVENTORY_SCREEN_DESCRIPTION}
+          title="Equipar"
         />
 
-        {feedback ? <FeedbackCard message={feedback} title="Estado sincronizado" tone="success" /> : null}
+        {feedback ? <FeedbackCard message={feedback} title="Equipar atualizado" tone="success" /> : null}
         {error ? <FeedbackCard message={error} title="Falha de inventario" tone="danger" /> : null}
 
         <div className="desktop-metric-grid">
@@ -101,6 +118,26 @@ export function InventoryScreen(): JSX.Element {
           <MetricCard label="Pedindo reparo" tone="warning" value={`${repairableCount}`} />
           <MetricCard label="Caixa atual" tone="info" value={formatMoney(player.resources.money)} />
         </div>
+
+        <Card className="desktop-panel">
+          <div className="desktop-panel__header">
+            <h3>Grade de Itens</h3>
+            <Badge tone="info">Acoes inline</Badge>
+          </div>
+          <p>{INVENTORY_EXPANSION_HINT}</p>
+        </Card>
+
+        {items.length === 0 ? (
+          <EmptyStateCard
+            action={{
+              label: 'Negociar',
+              onClick: () => navigate('/market'),
+              variant: 'secondary',
+            }}
+            description="O personagem ainda nao possui itens. Crimes, mercado negro e drops vao alimentar esta tela."
+            title="Sem itens no inventario"
+          />
+        ) : null}
 
         <div className="desktop-expand-grid">
           {items.map((item) => {
@@ -174,10 +211,26 @@ export function InventoryScreen(): JSX.Element {
                 {isSelected ? (
                   <div className="desktop-screen__stack">
                     <div className="desktop-grid-3">
+                      <MetricCard label="Durabilidade" value={resolveDurabilityValue(item)} />
+                      <MetricCard label="Proficiencia" value={`${item.proficiency}`} />
                       <MetricCard label="Nivel" value={item.levelRequired !== null ? `${item.levelRequired}` : 'Livre'} />
-                      <MetricCard label="Slot" value={item.equipSlot ?? 'Mochila'} />
-                      <MetricCard label="Tipo" value={item.itemType} />
                     </div>
+
+                    {item.equipment?.slot === 'weapon' && typeof item.equipment.power === 'number' ? (
+                      <div className="desktop-grid-3">
+                        <MetricCard label="Poder" value={`+${item.equipment.power}`} />
+                        <MetricCard label="Crime/Guerra" value={`+${item.equipment.power}`} />
+                        <MetricCard label="Combate" value={`+${item.equipment.power}`} />
+                      </div>
+                    ) : null}
+
+                    {item.equipment?.slot === 'vest' && typeof item.equipment.defense === 'number' ? (
+                      <div className="desktop-grid-3">
+                        <MetricCard label="Defesa" value={`+${item.equipment.defense}`} />
+                        <MetricCard label="Crime/Guerra" value={`+${item.equipment.defense * 6}`} />
+                        <MetricCard label="Combate" value={`+${item.equipment.defense}`} />
+                      </div>
+                    ) : null}
 
                     {benefitLines.length > 0 ? (
                       <div className="desktop-detail-list">
@@ -236,7 +289,7 @@ export function InventoryScreen(): JSX.Element {
                         onClick={() => navigate('/market')}
                         variant="ghost"
                       >
-                        Abrir mercado
+                        Negociar
                       </Button>
                     </div>
                   </div>
@@ -246,11 +299,11 @@ export function InventoryScreen(): JSX.Element {
           })}
         </div>
 
-        {selectedItem ? (
+        {selectedItemId && selectedItem ? (
           <Card className="desktop-panel">
             <div className="desktop-panel__header">
               <h3>Item em foco</h3>
-              <Badge tone="info">{selectedItem.itemType}</Badge>
+              <Badge tone="info">{resolveInventoryItemTypeLabel(selectedItem)}</Badge>
             </div>
             <p>
               {selectedItem.itemName ?? selectedItem.itemType} · quantidade {selectedItem.quantity} ·{' '}

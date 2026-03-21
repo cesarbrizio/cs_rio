@@ -9,13 +9,13 @@ import {
 } from '../features/character/characterOptions';
 import { GameCanvas } from '../renderer/GameCanvas';
 import type {
-  CombatNavigationState,
   MessagesNavigationState,
   ProfileNavigationState,
 } from '../router/navigationIntents';
 import type { RendererTelemetry } from '../renderer/types';
 import {
   eventApi,
+  propertyApi,
   roundApi,
   territoryApi,
 } from '../services/api';
@@ -36,7 +36,7 @@ const homeTabs = [
   {
     description: 'Resumo vivo da rodada, favela em foco e jogadores proximos.',
     id: 'overview',
-    label: 'Overview',
+    label: 'Panorama',
   },
   {
     description: 'Resultados recentes de eventos e pressao sistemica da regiao.',
@@ -44,9 +44,9 @@ const homeTabs = [
     label: 'Eventos',
   },
   {
-    description: 'Benchmark do renderer Canvas 2D antes de considerar Pixi.',
+    description: 'Leitura tatica do mapa, com destino marcado e noção da fluidez da cena.',
     id: 'renderer',
-    label: 'Renderer',
+    label: 'Mapa tatico',
   },
 ] as const;
 
@@ -65,6 +65,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
     eventRuntimeState,
     isLoading,
     loadHomeData,
+    propertySlots,
     relevantRemotePlayers,
     roundInflation,
     roundLeaderboard,
@@ -73,6 +74,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
   } = useHomeGameplayData({
     eventApi,
     player,
+    propertyApi,
     realtimeService: colyseusService,
     refreshPlayerProfile,
     roundApi,
@@ -121,10 +123,10 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
             actions={
               <>
                 <Button onClick={() => navigate('/inventory')} variant="secondary">
-                  Abrir inventario
+                  Equipar
                 </Button>
                 <Button onClick={() => navigate('/territory')} variant="ghost">
-                  Ver territorio
+                  Dominar area
                 </Button>
                 <Button onClick={() => navigate('/map/fullscreen')} variant="ghost">
                   Fullscreen
@@ -136,7 +138,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
               { label: `${player.level} LVL`, tone: 'neutral' },
               { label: player.faction ? player.faction.abbreviation : 'Sem faccao', tone: 'warning' },
             ]}
-            description={`${getVocationLabel(player.vocation)} pronto para o loop principal. A Home agora combina renderer, round, eventos e territorio real da regiao atual.`}
+            description={`${getVocationLabel(player.vocation)} em ${getRegionLabel(player.regionId)}. Daqui voce enxerga a rodada, a pressao da area e o que esta pegando ao seu redor.`}
             title={player.nickname}
           />
 
@@ -275,18 +277,8 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
                               }),
                           },
                           {
-                            id: 'open-combat',
-                            label: 'Atacar',
-                            onSelect: () =>
-                              navigate('/combat', {
-                                state: {
-                                  preselectedTargetId: entry.player.playerId,
-                                } satisfies CombatNavigationState,
-                              }),
-                          },
-                          {
                             id: 'open-message',
-                            label: 'Mandar mensagem',
+                            label: 'Abrir contatos',
                             onSelect: () =>
                               navigate('/messages', {
                                 state: {
@@ -311,7 +303,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
                   ) : (
                     <div className="desktop-list-row">
                       <strong>Sem jogadores relevantes por perto.</strong>
-                      <small>O renderer continua ativo e vai destacar novos contatos em tempo real.</small>
+                      <small>A cena continua rodando e destaca novos contatos assim que eles aparecem.</small>
                     </div>
                   )}
                 </div>
@@ -364,7 +356,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
                   ) : (
                     <div className="desktop-list-row">
                       <strong>Nenhum evento recente carregado.</strong>
-                      <small>Assim que o backend devolver resultados, eles aparecem aqui.</small>
+                      <small>Assim que a cidade girar de novo, os proximos desfechos aparecem aqui.</small>
                     </div>
                   )}
                 </div>
@@ -375,25 +367,25 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
           {activeTab === 'renderer' ? (
             <Card className="desktop-panel">
               <div className="desktop-panel__header">
-                <h3>Renderer Canvas 2D</h3>
-                <Badge tone="info">Fase 4A</Badge>
+                <h3>Cena do mapa</h3>
+                <Badge tone="info">Visao tatica</Badge>
               </div>
               <div className="desktop-grid-3">
-                <MetricCard label="FPS atual" value={telemetry ? telemetry.benchmark.currentFps.toFixed(1) : '--'} />
-                <MetricCard label="FPS medio" value={telemetry ? telemetry.benchmark.averageFps.toFixed(1) : '--'} />
-                <MetricCard label="Pior FPS" value={telemetry ? telemetry.benchmark.lowestFps.toFixed(1) : '--'} />
+                <MetricCard label="Fluidez agora" value={telemetry ? telemetry.benchmark.currentFps.toFixed(1) : '--'} />
+                <MetricCard label="Media recente" value={telemetry ? telemetry.benchmark.averageFps.toFixed(1) : '--'} />
+                <MetricCard label="Queda mais forte" value={telemetry ? telemetry.benchmark.lowestFps.toFixed(1) : '--'} />
               </div>
               <div className="desktop-detail-list">
                 <div>
-                  <strong>Recomendacao</strong>
+                  <strong>Leitura da cena</strong>
                   <small>{formatRecommendation(telemetry)}</small>
                 </div>
                 <div>
-                  <strong>Hover</strong>
+                  <strong>Ponto em foco</strong>
                   <small>{formatTile(telemetry?.hoveredTile ?? null)}</small>
                 </div>
                 <div>
-                  <strong>Destino</strong>
+                  <strong>Destino marcado</strong>
                   <small>{formatTile(telemetry?.selectedTile ?? null)}</small>
                 </div>
               </div>
@@ -409,11 +401,13 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
           eventRuntimeState={eventRuntimeState}
           onTelemetryChange={setTelemetry}
           playerFaction={player.faction ? { abbreviation: player.faction.abbreviation, id: player.faction.id } : null}
+          playerId={player.id}
           playerRegionId={player.regionId}
           playerSpawnPosition={playerSpawnPosition}
           relevantRemotePlayers={relevantRemotePlayers}
           selectedMapFavelaId={selectedFavela?.id ?? null}
           territoryOverview={territoryOverview}
+          propertySlots={propertySlots}
         />
         {mode === 'fullscreen' ? (
           <div className="desktop-home__floating">
@@ -423,7 +417,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
               <p>{getVocationLabel(player.vocation)}</p>
             </Card>
             <Button onClick={() => navigate('/home')} variant="secondary">
-              Voltar ao shell
+              Voltar ao painel
             </Button>
           </div>
         ) : null}
@@ -432,7 +426,7 @@ export function HomeScreen({ mode = 'default' }: HomeScreenProps): JSX.Element {
             <Card className="desktop-home__floating-card" padding="sm">
               <Badge tone="warning">Painel recolhido</Badge>
               <strong>Tab alterna o painel</strong>
-              <p>Use o atalho para voltar ao shell lateral sem sair do mapa.</p>
+              <p>Use o atalho para abrir o painel lateral sem sair do mapa.</p>
             </Card>
           </div>
         ) : null}
@@ -467,14 +461,14 @@ function resolveSeverityTone(
 
 function formatRecommendation(telemetry: RendererTelemetry | null): string {
   if (!telemetry || telemetry.benchmark.recommendation === 'warming') {
-    return 'Aquecendo benchmark do renderer.';
+    return 'A cena ainda esta aquecendo.';
   }
 
   if (telemetry.benchmark.recommendation === 'keep-canvas') {
-    return 'Canvas 2D sustentou a carga atual.';
+    return 'A leitura do mapa esta fluindo bem neste aparelho.';
   }
 
-  return 'Canvas 2D abaixo da meta. PixiJS vira o fallback.';
+  return 'A cena pesou um pouco; vale reduzir a pressao visual se sentir travar.';
 }
 
 function formatTile(tile: RendererTelemetry['hoveredTile']): string {

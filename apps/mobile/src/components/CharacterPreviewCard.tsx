@@ -104,8 +104,8 @@ export function CharacterPreviewCard({
         <View style={[styles.previewGlow, { backgroundColor: preview.accentSoftColor }]} />
         <Canvas style={styles.spriteCanvas}>
           <RoundedRect color="rgba(10, 10, 10, 0.12)" height={18} r={10} width={86} x={45} y={138} />
-          <RoundedRect color={preview.skinColor} height={46} r={7} width={14} x={63} y={pose.leftArmY} />
-          <RoundedRect color={preview.skinColor} height={46} r={7} width={14} x={99} y={pose.rightArmY} />
+          <RoundedRect color={preview.skinColor} height={46} r={7} width={14} x={46} y={pose.leftArmY} />
+          <RoundedRect color={preview.skinColor} height={46} r={7} width={14} x={98} y={pose.rightArmY} />
           <RoundedRect color={preview.skinColor} height={34} r={15} width={34} x={62} y={34} />
           <Rect color={preview.skinShadow} height={6} width={20} x={69} y={63} />
           <RoundedRect color={preview.outfitPrimary} height={50} r={10} width={42} x={58} y={74} />

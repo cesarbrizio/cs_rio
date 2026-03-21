@@ -73,17 +73,6 @@ export function renderMapEntityMarker(entity: GameEntity & { worldPoint: { x: nu
     );
   }
 
-  if (entity.kind === 'training') {
-    return (
-      <>
-        <Circle color={`${accent}22`} cx={x} cy={y} r={21} />
-        <Path color={`${accent}d2`} path={createRectPath(x - 9, y - 2, 18, 4)} />
-        <Circle color={`${accent}d8`} cx={x - 12} cy={y} r={4} />
-        <Circle color={`${accent}d8`} cx={x + 12} cy={y} r={4} />
-      </>
-    );
-  }
-
   if (entity.kind === 'university') {
     return (
       <>
@@ -347,7 +336,6 @@ function renderStructureDetails(
   if (
     definition.detailPreset === 'service' ||
     definition.detailPreset === 'prison' ||
-    definition.detailPreset === 'training' ||
     definition.detailPreset === 'university'
   ) {
     const left = centerX - width * 0.18;
@@ -387,9 +375,6 @@ function renderStructureDetails(
               />
             ))}
           </>
-        ) : null}
-        {definition.detailPreset === 'training' ? (
-          <Path color={detail} path={createRectPath(centerX - 12, centerY - structure.height + 20, 24, 4)} />
         ) : null}
       </>
     );

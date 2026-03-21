@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import { MAP_STRUCTURE_CATALOG } from '@shared/map/structureCatalog';
+import {
+  isMapStructurePurchasable,
+  listMapStructurePropertyTypeOptions,
+} from '@shared/map/structureCatalog';
 
 import {
   buildRegionMarkerDraft,
@@ -20,10 +24,13 @@ function buildEmptyStructureDraft(): StructurePropertyDraft {
   return {
     footprintH: 1,
     footprintW: 1,
+    favelaId: '',
     interactiveEntityId: '',
     kind: 'boca',
     label: '',
+    maxUnits: 1,
     name: '',
+    propertyType: 'boca',
   };
 }
 
@@ -74,6 +81,10 @@ export function PropertyPanel() {
   const [spawnDraft, setSpawnDraft] = useState<SpawnPointDraft>(buildEmptySpawnDraft());
   const [regionDraft, setRegionDraft] = useState<RegionMarkerDraft>(buildEmptyRegionDraft());
   const [error, setError] = useState<string | null>(null);
+  const selectedStructureOptions = selectedStructure
+    ? listMapStructurePropertyTypeOptions(structureDraft.kind)
+    : [];
+  const showPurchasableFields = isMapStructurePurchasable(structureDraft.kind);
 
   useEffect(() => {
     if (selectedStructure) {
@@ -134,10 +145,17 @@ export function PropertyPanel() {
             <select
               value={structureDraft.kind}
               onChange={(event) =>
-                setStructureDraft((currentDraft) => ({
-                  ...currentDraft,
-                  kind: event.target.value as StructurePropertyDraft['kind'],
-                }))
+                setStructureDraft((currentDraft) => {
+                  const nextKind = event.target.value as StructurePropertyDraft['kind'];
+                  const nextPropertyTypes = listMapStructurePropertyTypeOptions(nextKind);
+
+                  return {
+                    ...currentDraft,
+                    kind: nextKind,
+                    maxUnits: 1,
+                    propertyType: nextPropertyTypes[0] ?? '',
+                  };
+                })
               }
             >
               {Object.values(MAP_STRUCTURE_CATALOG).map((entry) => (
@@ -186,6 +204,62 @@ export function PropertyPanel() {
               }
             />
           </label>
+
+          {showPurchasableFields ? (
+            <>
+              <label className="property-field">
+                <span>Tipo de propriedade</span>
+                <select
+                  value={structureDraft.propertyType}
+                  onChange={(event) =>
+                    setStructureDraft((currentDraft) => ({
+                      ...currentDraft,
+                      propertyType: event.target.value as StructurePropertyDraft['propertyType'],
+                    }))
+                  }
+                >
+                  {selectedStructureOptions.map((propertyType) => (
+                    <option key={propertyType} value={propertyType}>
+                      {propertyType}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="property-field">
+                <span>Favela ID</span>
+                <input
+                  value={structureDraft.favelaId}
+                  onChange={(event) =>
+                    setStructureDraft((currentDraft) => ({
+                      ...currentDraft,
+                      favelaId: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="property-field">
+                <span>Max units</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={structureDraft.maxUnits}
+                  onChange={(event) =>
+                    setStructureDraft((currentDraft) => ({
+                      ...currentDraft,
+                      maxUnits: Number(event.target.value || 1),
+                    }))
+                  }
+                />
+              </label>
+
+              <div className="property-readonly">
+                <strong>Slots gerados</strong>
+                <span>Gerados automaticamente no export/seed a partir do objectId e de `maxUnits`.</span>
+              </div>
+            </>
+          ) : null}
 
           <div className="property-grid">
             <label className="property-field">

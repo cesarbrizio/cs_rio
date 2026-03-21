@@ -9,7 +9,7 @@ Contém:
 - `apps/editor`
 - `packages/*`
 
-O backend roda em outro repositório: [cs_rio_api](/home/cesar/projects/cs_rio_api/README.md).
+O backend roda em um repositório irmão: `../cs_rio_api`.
 
 ## Requisitos
 
@@ -20,10 +20,9 @@ O backend roda em outro repositório: [cs_rio_api](/home/cesar/projects/cs_rio_a
 
 ## `.env`
 
-Crie o `.env` na raiz:
+Na raiz do repositório:
 
 ```bash
-cd /home/cesar/projects/cs_rio
 cp .env.example .env
 ```
 
@@ -50,7 +49,6 @@ Regras:
 ## Instalação
 
 ```bash
-cd /home/cesar/projects/cs_rio
 npm install
 ```
 
@@ -59,12 +57,11 @@ npm install
 O frontend não sobe a API. Suba o backend em outro terminal:
 
 ```bash
-cd /home/cesar/projects/cs_rio_api
+cd ../cs_rio_api
 cp .env.example .env
 npm install
 docker compose -f docker-compose.dev.yml up -d
-npm run db:push
-npm run db:seed
+npm run db:fresh
 npm run dev
 ```
 
@@ -80,14 +77,12 @@ Referência comum:
 Sobe mobile, desktop, editor e watchers dos pacotes compartilhados:
 
 ```bash
-cd /home/cesar/projects/cs_rio
 npm run dev
 ```
 
 ### Só desktop
 
 ```bash
-cd /home/cesar/projects/cs_rio
 npm run dev --workspace @cs-rio/desktop
 ```
 
@@ -101,21 +96,20 @@ Importante:
 Sobe o Metro:
 
 ```bash
-cd /home/cesar/projects/cs_rio
 npm run dev --workspace @cs-rio/mobile
 ```
 
 Instala ou atualiza o app no device Android:
 
 ```bash
-cd /home/cesar/projects/cs_rio/apps/mobile
+cd apps/mobile
 node ./scripts/run-expo-with-root-env.mjs run:android --device
 ```
 
 Equivalente Expo, se quiser rodar direto:
 
 ```bash
-cd /home/cesar/projects/cs_rio/apps/mobile
+cd apps/mobile
 npx expo run:android --device
 ```
 
@@ -127,9 +121,18 @@ Preferência do projeto:
 ### Só editor
 
 ```bash
-cd /home/cesar/projects/cs_rio
 npm run dev --workspace @cs-rio/editor
 ```
+
+## Reset do backend local
+
+Se estiver trabalhando a partir da raiz deste monorepo, existe um proxy para resetar completamente o backend local no repositório irmão:
+
+```bash
+npm run db:fresh
+```
+
+Esse comando delega para o `cs_rio_api` e reseta banco + seed + Redis do ambiente de desenvolvimento.
 
 ## Comandos de qualidade
 

@@ -39,7 +39,7 @@ export function SettingsScreen(): JSX.Element {
   return (
     <InGameScreenLayout
       subtitle="Controles locais de áudio, qualidade e idioma, junto de gestão básica de conta e links de suporte."
-      title="Configurações"
+      title="Ajustar jogo"
     >
       {feedbackMessage ? (
         <View style={styles.feedbackBanner}>
@@ -113,7 +113,7 @@ export function SettingsScreen(): JSX.Element {
           Estado atual: {formatNotificationPermissionStatus(notificationSettings.permissionStatus)}.
         </Text>
         <Text style={styles.calloutCopy}>
-          No pré-alpha, o app usa notificações locais para eventos, contratos/ataques e fim de timer de prisão ou hospital.
+          Os alertas deste aparelho avisam sobre eventos importantes, guerra, promoção de facção e fim de timer de prisão ou hospital.
         </Text>
         <Pressable
           onPress={() => {
@@ -142,15 +142,14 @@ export function SettingsScreen(): JSX.Element {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Qualidade Gráfica</Text>
-        <MutedCallout copy="Ajuste visual completo entra na estabilização mobile-first. Por enquanto, a build usa o perfil padrão do device." />
+        <MutedCallout copy="O ajuste visual completo entra na próxima estabilização. Por enquanto, o jogo usa o perfil padrão deste aparelho." />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Diagnóstico local</Text>
         <Text style={styles.calloutCopy}>
-          Instrumentação leve para playtest. Sem SDK pesado e sem envio remoto automático:
-          o app guarda latência de API, estado do realtime, falhas de render e sinais básicos
-          de FPS para facilitar debug do time.
+          Painel local para revisar o que pesou nesta sessão:
+          tempo de resposta da API, sala do mapa, sala da facção, falhas visuais e quedas de FPS.
         </Text>
 
         <View style={styles.metricsGrid}>
@@ -163,11 +162,11 @@ export function SettingsScreen(): JSX.Element {
             value={`${diagnosticsApi.failedRequests}/${diagnosticsApi.requests}`}
           />
           <MetricCard
-            label="Mapa RT"
+            label="Mapa ao vivo"
             value={formatRealtimeStatus(diagnosticsRealtime.region.status)}
           />
           <MetricCard
-            label="Facção RT"
+            label="Facção ao vivo"
             value={formatRealtimeStatus(diagnosticsRealtime.faction.status)}
           />
           <MetricCard
@@ -175,7 +174,7 @@ export function SettingsScreen(): JSX.Element {
             value={diagnosticsPerformance.averageFps !== null ? `${diagnosticsPerformance.averageFps}` : '—'}
           />
           <MetricCard
-            label="Render fails"
+            label="Falhas visuais"
             value={`${diagnosticsRender.failures}`}
           />
         </View>
@@ -194,26 +193,26 @@ export function SettingsScreen(): JSX.Element {
             value={diagnosticsApi.lastErrorMessage ?? 'Nenhum erro recente.'}
           />
           <InlineStat
-            label="Realtime regional"
+            label="Sala do mapa"
             value={buildRealtimeSummary(
               diagnosticsRealtime.region.reconnectCount,
               diagnosticsRealtime.region.lastErrorMessage,
             )}
           />
           <InlineStat
-            label="Realtime facção"
+            label="Sala da facção"
             value={buildRealtimeSummary(
               diagnosticsRealtime.faction.reconnectCount,
               diagnosticsRealtime.faction.lastErrorMessage,
             )}
           />
           <InlineStat
-            label="Rastro de crash"
+            label="Rastro de queda"
             value={`${formatObservabilityEnvironment(diagnosticsRender.environment)} · ${diagnosticsRender.crashTrailMode}`}
           />
           <InlineStat
-            label="Último erro de render"
-            value={diagnosticsRender.lastErrorMessage ?? 'Nenhum erro de render capturado.'}
+            label="Última falha visual"
+            value={diagnosticsRender.lastErrorMessage ?? 'Nenhuma falha visual recente.'}
           />
           <InlineStat
             label="FPS mínimo / baixo FPS"
@@ -259,14 +258,14 @@ export function SettingsScreen(): JSX.Element {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Idioma</Text>
-        <MutedCallout copy="O pré-alpha está priorizando PT-BR. A troca completa de idioma volta no polish final." />
+        <MutedCallout copy="O jogo está fechado em PT-BR por enquanto. Outros idiomas entram no polish final." />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Conta e Suporte</Text>
         <Pressable
           onPress={() => {
-            handleFeedback('Fluxo de troca de senha será conectado ao backend em uma fase futura.');
+            handleFeedback('A troca de senha entra numa fase futura.');
           }}
           style={({ pressed }) => [styles.secondaryButton, pressed ? styles.buttonPressed : null]}
         >
@@ -372,22 +371,22 @@ function InlineStat({ label, value }: { label: string; value: string }): JSX.Ele
 
 function buildRealtimeSummary(reconnectCount: number, lastErrorMessage: string | null): string {
   if (lastErrorMessage) {
-    return `${reconnectCount} reconnect(s) · ${lastErrorMessage}`;
+    return `${reconnectCount} retomada(s) · ${lastErrorMessage}`;
   }
 
-  return `${reconnectCount} reconnect(s) · sem erro recente`;
+  return `${reconnectCount} retomada(s) · sem erro recente`;
 }
 
 function formatObservabilityEnvironment(value: 'development' | 'production' | 'staging' | 'test'): string {
   switch (value) {
     case 'development':
-      return 'dev';
+      return 'desenvolvimento';
     case 'production':
-      return 'prod';
+      return 'producao';
     case 'staging':
-      return 'staging';
+      return 'homologacao';
     default:
-      return 'test';
+      return 'teste';
   }
 }
 

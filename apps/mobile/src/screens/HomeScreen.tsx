@@ -61,6 +61,7 @@ export function HomeScreen(): JSX.Element {
   );
   const {
     eventRuntimeState,
+    propertySlots,
     realtimeSnapshot,
     refreshHomeMapData,
     roundInflation,
@@ -147,9 +148,11 @@ export function HomeScreen(): JSX.Element {
   } = useHomeMapScene({
     eventRuntimeState,
     hudPlayerPosition: hudPlayerState?.position,
+    playerId: player?.id,
     playerFaction: player?.faction,
     playerRegionId: player?.regionId,
     playerSpawnPosition: playerSpawnState?.position,
+    propertySlots,
     relevantRemotePlayers,
     selectedMapFavelaId,
     territoryOverview,
@@ -168,18 +171,20 @@ export function HomeScreen(): JSX.Element {
         x: realtimePlayer.x,
         y: realtimePlayer.y,
       })),
-      ...(player?.properties ?? []).map((property, index) => ({
-        id: property.id,
+      ...propertySlots
+        .filter((slot) => slot.ownerId === player?.id)
+        .map((slot) => ({
+          id: slot.id,
         kind: 'property' as const,
-        x:
-          PROPERTY_MARKER_MIN_X +
-          ((index * PROPERTY_MARKER_OFFSET_X) % Math.max(map.width - PROPERTY_MARKER_RESERVED_WIDTH, 1)),
-        y:
-          PROPERTY_MARKER_MIN_Y +
-          ((index * PROPERTY_MARKER_OFFSET_Y) % Math.max(map.height - PROPERTY_MARKER_RESERVED_HEIGHT, 1)),
-      })),
+          x:
+            PROPERTY_MARKER_MIN_X +
+            (slot.gridPosition.x % Math.max(map.width - PROPERTY_MARKER_RESERVED_WIDTH, 1)),
+          y:
+            PROPERTY_MARKER_MIN_Y +
+            (slot.gridPosition.y % Math.max(map.height - PROPERTY_MARKER_RESERVED_HEIGHT, 1)),
+        })),
     ],
-    [map.height, map.width, player?.properties, relevantRemotePlayers, staticWorldEntities],
+    [map.height, map.width, player?.id, propertySlots, relevantRemotePlayers, staticWorldEntities],
   );
   const controller = useHomeHudController({
     bootstrapTutorial,

@@ -57,7 +57,6 @@ Foi criada uma biblioteca SVG própria para o mapa, cobrindo os elementos centra
 - prisão
 - fábrica
 - mercado negro
-- treino
 - universidade
 - docas
 - desmanche

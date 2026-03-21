@@ -116,7 +116,7 @@ describe('hospital helpers', () => {
 
 function buildNpcInflationStub(): NpcInflationSummary {
   return {
-    affectedServices: ['hospital', 'training', 'university', 'black_market'],
+    affectedServices: ['hospital', 'university', 'black_market'],
     currentGameDay: 12,
     currentMultiplier: 1.12,
     currentSurchargePercent: 12,

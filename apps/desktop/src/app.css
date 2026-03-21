@@ -676,6 +676,10 @@ button {
   gap: 1rem;
 }
 
+.fullscreen-layout__header--compact {
+  justify-content: flex-end;
+}
+
 .fullscreen-layout__header h1 {
   margin: 0.45rem 0 0;
 }
@@ -1002,28 +1006,54 @@ button {
   gap: 1rem;
 }
 
-.character-screen__avatar {
+.character-preview {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 6.5rem;
-  height: 6.5rem;
+  width: 11rem;
+  min-width: 11rem;
+  height: 11rem;
   border-radius: 26px;
   background:
     radial-gradient(circle at top, rgba(244, 208, 111, 0.16), transparent 50%),
     rgba(243, 239, 223, 0.05);
+  overflow: hidden;
 }
 
-.character-screen__avatar span {
-  display: block;
-  width: 3.8rem;
-  height: 3.8rem;
+.character-preview__chip {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 1;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  color: #14110c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.character-preview__glow {
+  position: absolute;
+  top: 1.2rem;
+  width: 6.4rem;
+  height: 6.4rem;
   border-radius: 50%;
-  box-shadow: inset 0 -10px 24px rgba(0, 0, 0, 0.22);
+  filter: blur(10px);
+}
+
+.character-preview__canvas {
+  position: relative;
+  z-index: 1;
+  width: 9.4rem;
+  height: 9rem;
 }
 
 .character-screen__preview-copy {
   display: grid;
   gap: 0.3rem;
+  align-content: center;
 }
 
 .character-screen__preview-copy span,
@@ -1216,5 +1246,15 @@ button {
   .home-screen__floating {
     position: static;
     flex-direction: column;
+  }
+
+  .character-screen__preview {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .character-preview {
+    width: 100%;
+    min-width: 0;
   }
 }

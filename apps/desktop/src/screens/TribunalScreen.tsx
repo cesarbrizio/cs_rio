@@ -172,14 +172,14 @@ export function TribunalScreen(): JSX.Element {
         }
         badges={[
           { label: `${controlledFavelas.length} favelas`, tone: 'info' },
-          { label: `${cues?.cues.length ?? 0} cues`, tone: 'warning' },
+          { label: `${cues?.cues.length ?? 0} avisos`, tone: 'warning' },
           { label: activeCase ? 'Caso aberto' : 'Sem pauta', tone: activeCase ? 'danger' : 'success' },
         ]}
-        description="Tribunal das favelas controladas com geracao de caso, julgamento manual e leitura dos ultimos cues recebidos."
-        title="Tribunal"
+        description="Julgue os casos da favela, acompanhe os avisos recentes e decida o destino da pauta."
+        title="Julgar caso"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Tribunal sincronizado" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Tribunal atualizado" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha no tribunal" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">

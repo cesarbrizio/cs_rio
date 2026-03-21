@@ -34,33 +34,29 @@ function AppContent(): JSX.Element {
   const loadStoredAuth = useAuthStore((state) => state.loadStoredAuth);
   const { playSfx, syncRegionMusic } = useAudio();
   const {
-    notifyAttack,
     notifyEvent,
     notifyEventResult,
     notifyFactionPromotion,
     notifyPrivateMessage,
-    notifySabotageCue,
+    notifyTerritoryAlert,
     notifyTerritoryLoss,
     notifyTribunalCue,
     notifyWarResult,
     syncTimerNotifications,
-    syncTrainingNotifications,
     syncUniversityNotifications,
   } = useNotifications();
   const pollManager = usePollManager({
-    notifyAttack,
     notifyEvent,
     notifyEventResult,
     notifyFactionPromotion,
     notifyPrivateMessage,
-    notifySabotageCue,
+    notifyTerritoryAlert,
     notifyTerritoryLoss,
     notifyTribunalCue,
     notifyWarResult,
     playSfx,
     syncRegionMusic,
     syncTimerNotifications,
-    syncTrainingNotifications,
     syncUniversityNotifications,
   });
 
@@ -75,14 +71,12 @@ function AppContent(): JSX.Element {
         activeActivityCue={pollManager.activeActivityCue}
         activeEventResultCue={pollManager.activeEventResultCue}
         activeFactionPromotionCue={pollManager.activeFactionPromotionCue}
-        activeSabotageCue={pollManager.activeSabotageCue}
         activeTerritoryLossCue={pollManager.activeTerritoryLossCue}
         activeTribunalCue={pollManager.activeTribunalCue}
         activeWarResultCue={pollManager.activeWarResultCue}
         onCloseActivityCue={pollManager.closeActivityCue}
         onCloseEventResultCue={pollManager.closeEventResultCue}
         onCloseFactionPromotionCue={pollManager.closeFactionPromotionCue}
-        onCloseSabotageCue={pollManager.closeSabotageCue}
         onCloseTerritoryLossCue={pollManager.closeTerritoryLossCue}
         onCloseTribunalCue={pollManager.closeTribunalCue}
         onCloseWarResultCue={pollManager.closeWarResultCue}

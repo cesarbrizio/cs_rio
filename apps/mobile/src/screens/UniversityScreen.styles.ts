@@ -1,0 +1,320 @@
+import { StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
+
+export const styles = StyleSheet.create({
+  topActionRow: {
+    alignItems: 'flex-start',
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  summaryCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+    minWidth: '47%',
+    padding: 14,
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  loadingCard: {
+    alignItems: 'center',
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    padding: 18,
+  },
+  loadingTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  loadingCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  banner: {
+    borderRadius: 18,
+    gap: 10,
+    padding: 16,
+  },
+  bannerDanger: {
+    backgroundColor: 'rgba(217, 108, 108, 0.14)',
+    borderColor: 'rgba(217, 108, 108, 0.35)',
+    borderWidth: 1,
+  },
+  bannerInfo: {
+    backgroundColor: 'rgba(123, 178, 255, 0.12)',
+    borderColor: 'rgba(123, 178, 255, 0.28)',
+    borderWidth: 1,
+  },
+  bannerCopy: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  section: {
+    gap: 10,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  card: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+  },
+  cardHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  cardHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  cardTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cardSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  statusPillRunning: {
+    backgroundColor: 'rgba(123, 178, 255, 0.14)',
+  },
+  statusPillComplete: {
+    backgroundColor: 'rgba(63, 163, 77, 0.2)',
+  },
+  statusPillLocked: {
+    backgroundColor: 'rgba(217, 108, 108, 0.14)',
+  },
+  statusPillBlocked: {
+    backgroundColor: 'rgba(255, 184, 77, 0.18)',
+  },
+  statusPillAvailable: {
+    backgroundColor: 'rgba(224, 176, 75, 0.2)',
+  },
+  statusPillLabel: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  progressTrack: {
+    backgroundColor: colors.panelAlt,
+    borderRadius: 999,
+    height: 12,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    backgroundColor: colors.accent,
+    height: '100%',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  metricPill: {
+    backgroundColor: colors.panelAlt,
+    borderRadius: 16,
+    gap: 3,
+    minWidth: '47%',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  metricValue: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  metricLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    textTransform: 'uppercase',
+  },
+  detailCopy: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  helperCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  lockCopy: {
+    color: colors.warning,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  primaryButtonLabel: {
+    color: '#14110c',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  secondaryButtonLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  buttonPressed: {
+    opacity: 0.88,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  emptyCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    gap: 8,
+    padding: 18,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  emptyCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  courseCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  courseCardSelected: {
+    borderColor: colors.accent,
+  },
+  selectionCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.accent,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 10,
+    padding: 18,
+  },
+  selectionTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 9, 13, 0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: 22,
+    gap: 14,
+    padding: 20,
+    width: '100%',
+  },
+  modalCardDanger: {
+    backgroundColor: '#3b1f1f',
+    borderColor: 'rgba(220, 102, 102, 0.32)',
+    borderWidth: 1,
+  },
+  modalCardInfo: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalCopy: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  modalButtonLabel: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  passiveCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 8,
+    padding: 16,
+  },
+  passiveLine: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+});

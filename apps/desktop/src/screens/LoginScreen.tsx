@@ -40,7 +40,7 @@ export function LoginScreen(): JSX.Element {
   return (
     <Card className="auth-screen">
       <div className="auth-screen__copy">
-        <span className="eyebrow">/login</span>
+        <span className="eyebrow">Acesso</span>
         <h2>Entrar</h2>
         <p>Informe seu email e senha.</p>
       </div>

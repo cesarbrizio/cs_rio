@@ -53,7 +53,7 @@ export function EventsScreen(): JSX.Element {
         }),
       );
       setEventResultFeed(results);
-      setBootstrapStatus('Central de eventos sincronizada com ativos e resultados recentes.');
+      setBootstrapStatus('Central de eventos atualizada com ativos e resultados recentes.');
     } catch (error) {
       const message = formatApiError(error).message;
       setErrorMessage(message);
@@ -73,14 +73,14 @@ export function EventsScreen(): JSX.Element {
   return (
     <InGameScreenLayout
       subtitle="Acompanhe eventos em andamento, confira o desfecho dos eventos encerrados e revise o histórico recente quando voltar offline."
-      title="Eventos"
+      title="Ver eventos"
     >
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>Ativos agora</Text>
             <Text style={styles.sectionMeta}>
-              {lastEventSyncAt ? `Sincronizado ${formatEventResultResolvedLabel(lastEventSyncAt)}` : 'Sem sincronização ainda'}
+              {lastEventSyncAt ? `Atualizado ${formatEventResultResolvedLabel(lastEventSyncAt)}` : 'Sem atualização ainda'}
             </Text>
           </View>
           <Pressable
@@ -96,7 +96,7 @@ export function EventsScreen(): JSX.Element {
         {isLoading ? (
           <View style={styles.loadingCard}>
             <ActivityIndicator color={colors.accent} size="small" />
-            <Text style={styles.loadingCopy}>Sincronizando eventos e resultados...</Text>
+            <Text style={styles.loadingCopy}>Puxando eventos e resultados...</Text>
           </View>
         ) : null}
 
@@ -141,8 +141,8 @@ export function EventsScreen(): JSX.Element {
             <Text style={styles.sectionTitle}>Resultados recentes</Text>
             <Text style={styles.sectionMeta}>
               {lastEventResultSyncAt
-                ? `Histórico sincronizado ${formatEventResultResolvedLabel(lastEventResultSyncAt)}`
-                : 'Sem histórico sincronizado ainda'}
+                ? `Histórico atualizado ${formatEventResultResolvedLabel(lastEventResultSyncAt)}`
+                : 'Sem histórico atualizado ainda'}
             </Text>
           </View>
         </View>
@@ -181,7 +181,7 @@ export function EventsScreen(): JSX.Element {
             })}
           </View>
         ) : (
-          <EmptyState copy="Nenhum resultado recente de evento foi sincronizado ainda." />
+          <EmptyState copy="Nenhum resultado recente de evento apareceu ainda." />
         )}
       </View>
     </InGameScreenLayout>

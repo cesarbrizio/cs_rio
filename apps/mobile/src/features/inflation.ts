@@ -8,7 +8,6 @@ import {
 const SERVICE_LABELS: Record<NpcInflationAffectedService, string> = {
   black_market: 'Mercado Negro',
   hospital: 'Hospital',
-  training: 'Treino',
   university: 'Universidade',
 };
 
@@ -65,7 +64,7 @@ export function buildNpcInflationDecisionHint(summary: NpcInflationSummary): str
     return 'Se ainda precisar usar serviço de NPC nesta rodada, esse já é o preço mais caro possível.';
   }
 
-  return `Se pretende tratar HP, treinar, estudar ou comprar no fornecedor do Mercado Negro, fazer isso antes do dia ${summary.nextIncreaseGameDay} sai mais barato.`;
+  return `Se pretende tratar HP, estudar ou comprar no fornecedor do Mercado Negro, fazer isso antes do dia ${summary.nextIncreaseGameDay} sai mais barato.`;
 }
 
 export function formatNpcInflationRelativeDays(days: number): string {

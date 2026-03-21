@@ -1,0 +1,343 @@
+import { colors } from '../theme/colors';
+
+export const operationsScreenContentStyles = {
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cardList: {
+    gap: 10,
+  },
+  choiceChip: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  choiceChipCopy: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  choiceChipSelected: {
+    borderColor: colors.accent,
+  },
+  choiceChipTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  choiceRow: {
+    gap: 10,
+  },
+  detailCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+  },
+  detailCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  detailHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  detailMeta: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  detailTitle: {
+    color: colors.text,
+    fontSize: 21,
+    fontWeight: '800',
+  },
+  detailTitleWrap: {
+    flex: 1,
+    gap: 4,
+    paddingRight: 12,
+  },
+  emptyState: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+  },
+  emptyStateCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  formField: {
+    flexGrow: 1,
+    minWidth: '46%',
+  },
+  formLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  infoBlock: {
+    gap: 6,
+  },
+  infoBlockCopy: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  infoBlockTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  inlineManagementCard: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 10,
+    padding: 14,
+  },
+  inlineManagementCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  inlineManagementTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  metricCard: {
+    backgroundColor: colors.panelAlt,
+    borderRadius: 18,
+    flexGrow: 1,
+    minWidth: '46%',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  metricCardLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  metricCardValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricPill: {
+    backgroundColor: colors.panelAlt,
+    borderRadius: 14,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  metricPillLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  metricPillValue: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  numericInput: {
+    backgroundColor: '#111111',
+    borderColor: colors.line,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  propertyCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    padding: 16,
+  },
+  propertyCardCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  propertyCardHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  propertyCardMeta: {
+    color: colors.muted,
+    fontSize: 12,
+  },
+  propertyCardSelected: {
+    borderColor: colors.accent,
+  },
+  propertyCardTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  propertyCardTitleWrap: {
+    flex: 1,
+    gap: 4,
+    paddingRight: 10,
+  },
+  quantityChip: {
+    alignItems: 'center',
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  quantityChipLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  quantityChipSelected: {
+    borderColor: colors.accent,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  rosterCard: {
+    backgroundColor: colors.panelAlt,
+    borderRadius: 16,
+    gap: 4,
+    padding: 12,
+  },
+  rosterCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  rosterTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  section: {
+    gap: 12,
+  },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusBadgeAccent: {
+    backgroundColor: 'rgba(224, 176, 75, 0.16)',
+  },
+  statusBadgeDanger: {
+    backgroundColor: 'rgba(217, 108, 108, 0.16)',
+  },
+  statusBadgeLabel: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  summaryCard: {
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: '30%',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  tabButton: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  tabButtonCopy: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  tabButtonLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  tabButtonSelected: {
+    backgroundColor: colors.panelAlt,
+    borderColor: colors.accent,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+} as const;

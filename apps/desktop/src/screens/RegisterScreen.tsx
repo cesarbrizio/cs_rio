@@ -38,9 +38,9 @@ export function RegisterScreen(): JSX.Element {
   return (
     <Card className="auth-screen">
       <div className="auth-screen__copy">
-        <span className="eyebrow">/register</span>
+        <span className="eyebrow">Criar conta</span>
         <h2>Registro</h2>
-        <p>O backend autentica a conta nova e o desktop persiste os tokens no bridge IPC.</p>
+        <p>Crie sua conta para cair direto no fluxo do personagem.</p>
       </div>
 
       <form className="auth-screen__form" onSubmit={handleSubmit}>

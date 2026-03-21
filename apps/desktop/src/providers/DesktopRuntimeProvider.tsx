@@ -1,19 +1,20 @@
 import {
   NotificationOrchestrator,
   buildAsyncActivityNotificationDraft,
-  buildAttackNotificationDraft,
   buildEventFeed,
   buildEventNotificationDraft,
   buildEventResultNotificationDraft,
+  buildFactionPromotionCueFromSummary,
+  buildFactionPromotionNotificationDraft,
   buildPendingActivityCues,
   buildPendingEventResultCues,
   buildPendingPrivateMessageCues,
-  buildPendingSabotageCues,
+  buildPendingTerritoryAlertCues,
   buildPendingTerritoryLossCues,
   buildPendingTribunalCues,
   buildPendingWarResultCues,
   buildPrivateMessageNotificationDraft,
-  buildSabotageNotificationDraft,
+  buildTerritoryAlertNotificationDraft,
   buildTerritoryLossNotificationDraft,
   buildTimerNotificationDrafts,
   buildTribunalCueNotificationDraft,
@@ -22,15 +23,17 @@ import {
 import {
   loadSeenActivityResultKeys,
   loadSeenEventResultKeys,
+  loadSeenFactionPromotionKeys,
   loadSeenPrivateMessageIds,
-  loadSeenSabotageCueKeys,
+  loadSeenTerritoryAlertKeys,
   loadSeenTerritoryLossKeys,
   loadSeenTribunalCueKeys,
   loadSeenWarResultKeys,
   rememberSeenActivityResult,
   rememberSeenEventResult,
+  rememberSeenFactionPromotion,
   rememberSeenPrivateMessage,
-  rememberSeenSabotageCue,
+  rememberSeenTerritoryAlert,
   rememberSeenTerritoryLoss,
   rememberSeenTribunalCue,
   rememberSeenWarResult,
@@ -41,11 +44,9 @@ import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '../components/ui';
 import {
   eventApi,
+  factionApi,
   privateMessageApi,
-  propertyApi,
-  pvpApi,
   territoryApi,
-  trainingApi,
   tribunalApi,
   universityApi,
 } from '../services/api';
@@ -73,7 +74,6 @@ export function DesktopRuntimeProvider({
   const pushNotificationHistory = useDesktopRuntimeStore((state) => state.pushNotificationHistory);
   const setNotificationPermissionStatus = useDesktopRuntimeStore((state) => state.setNotificationPermissionStatus);
   const orchestrator = useMemo(() => new NotificationOrchestrator(platform.notify), [platform.notify]);
-  const seenContractNotificationIdsRef = useRef<Set<string>>(new Set());
   const seenEventNotificationIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -172,26 +172,22 @@ export function DesktopRuntimeProvider({
 
     const poll = async (): Promise<void> => {
       const [
-        trainingResult,
         universityResult,
         privateMessageResult,
+        factionResult,
         tribunalResult,
         eventResultsResult,
-        contractResult,
-        sabotageResult,
         territoryOverviewResult,
         territoryLossResult,
         docksResult,
         policeResult,
         seasonalResult,
       ] = await Promise.allSettled([
-        trainingApi.getCenter(),
         universityApi.getCenter(),
         privateMessageApi.listThreads(),
+        factionApi.list(),
         tribunalApi.getCues(),
         eventApi.getResults(),
-        pvpApi.listContracts(),
-        propertyApi.getSabotageCenter(),
         territoryApi.list(),
         territoryApi.getLosses(),
         eventApi.getDocksStatus(),
@@ -203,23 +199,20 @@ export function DesktopRuntimeProvider({
         return;
       }
 
-      const trainingCenter = trainingResult.status === 'fulfilled' ? trainingResult.value : null;
       const universityCenter = universityResult.status === 'fulfilled' ? universityResult.value : null;
 
       await orchestrator.syncScheduledDrafts({
         drafts: buildTimerNotificationDrafts({
           player,
-          trainingSession: trainingCenter?.activeSession,
           universityCourse: universityCenter?.activeCourse,
         }),
         enabled: notificationSettings.enabled && notificationSettings.permissionStatus === 'granted',
       });
 
-      if (trainingCenter || universityCenter) {
+      if (universityCenter) {
         const seenActivityKeys = await loadSeenActivityResultKeys(platform.storage, player.id);
         const activityCues = buildPendingActivityCues({
           seenKeys: seenActivityKeys,
-          trainingCenter,
           universityCenter,
         });
 
@@ -245,6 +238,26 @@ export function DesktopRuntimeProvider({
             tone: 'info',
           });
           await rememberSeenPrivateMessage(platform.storage, player.id, cue.messageId);
+        }
+      }
+
+      if (factionResult.status === 'fulfilled') {
+        const seenFactionPromotionKeys = await loadSeenFactionPromotionKeys(
+          platform.storage,
+          player.id,
+        );
+        const currentFaction =
+          factionResult.value.factions.find(
+            (entry) => entry.id === factionResult.value.playerFactionId,
+          ) ?? null;
+        const cue = buildFactionPromotionCueFromSummary(currentFaction);
+
+        if (cue && !seenFactionPromotionKeys.has(cue.key)) {
+          await emitDraft(buildFactionPromotionNotificationDraft(cue), {
+            kind: 'faction-promotion',
+            tone: 'success',
+          });
+          await rememberSeenFactionPromotion(platform.storage, player.id, cue.key);
         }
       }
 
@@ -280,20 +293,6 @@ export function DesktopRuntimeProvider({
         }
       }
 
-      if (contractResult.status === 'fulfilled') {
-        for (const notification of contractResult.value.notifications) {
-          if (seenContractNotificationIdsRef.current.has(notification.id)) {
-            continue;
-          }
-
-          await emitDraft(buildAttackNotificationDraft(notification), {
-            kind: 'contract',
-            tone: 'warning',
-          });
-          seenContractNotificationIdsRef.current.add(notification.id);
-        }
-      }
-
       if (
         docksResult.status === 'fulfilled' &&
         policeResult.status === 'fulfilled' &&
@@ -318,24 +317,25 @@ export function DesktopRuntimeProvider({
         }
       }
 
-      if (sabotageResult.status === 'fulfilled') {
-        const seenSabotageKeys = await loadSeenSabotageCueKeys(platform.storage, player.id);
-        const cues = buildPendingSabotageCues({
-          center: sabotageResult.value,
-          playerId: player.id,
-          seenKeys: seenSabotageKeys,
+      if (territoryOverviewResult.status === 'fulfilled') {
+        const seenTerritoryAlertKeys = await loadSeenTerritoryAlertKeys(
+          platform.storage,
+          player.id,
+        );
+        const territoryAlerts = buildPendingTerritoryAlertCues({
+          overview: territoryOverviewResult.value,
+          player,
+          seenKeys: seenTerritoryAlertKeys,
         });
 
-        for (const cue of cues) {
-          await emitDraft(buildSabotageNotificationDraft(cue), {
-            kind: 'sabotage',
-            tone: cue.outcomeTone,
+        for (const cue of territoryAlerts) {
+          await emitDraft(buildTerritoryAlertNotificationDraft(cue), {
+            kind: 'territory-alert',
+            tone: cue.tone,
           });
-          await rememberSeenSabotageCue(platform.storage, player.id, cue.key);
+          await rememberSeenTerritoryAlert(platform.storage, player.id, cue.key);
         }
-      }
 
-      if (territoryOverviewResult.status === 'fulfilled') {
         const seenWarKeys = await loadSeenWarResultKeys(platform.storage, player.id);
         const warCues = buildPendingWarResultCues({
           overview: territoryOverviewResult.value,

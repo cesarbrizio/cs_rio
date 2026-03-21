@@ -54,13 +54,14 @@ export function useInventoryController({ actions, player }: UseInventoryControll
       inventoryItemId: string,
       itemName: string,
     ) => {
+      setFeedback(null);
       setError(null);
       setSubmittingItemId(inventoryItemId);
 
       try {
         if (kind === 'equip') {
           await actions.equipInventoryItem(inventoryItemId);
-          setFeedback(`${itemName} equipado. Loadout sincronizado com o backend.`);
+          setFeedback(`${itemName} equipado. O item ja entrou no seu corre.`);
           return;
         }
 
@@ -72,7 +73,7 @@ export function useInventoryController({ actions, player }: UseInventoryControll
 
         if (kind === 'repair') {
           const response = await actions.repairInventoryItem(inventoryItemId);
-          setFeedback(`${itemName} reparado por ${response.repairCost.toLocaleString('pt-BR')}.`);
+          setFeedback(`${itemName} reparado por ${formatInventoryCurrency(response.repairCost)}.`);
           return;
         }
 
@@ -103,4 +104,12 @@ export function useInventoryController({ actions, player }: UseInventoryControll
     setSelectedItemId,
     submittingItemId,
   };
+}
+
+function formatInventoryCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+    style: 'currency',
+  }).format(value);
 }

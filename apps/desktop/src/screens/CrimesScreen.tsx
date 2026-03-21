@@ -47,11 +47,11 @@ export function CrimesScreen(): JSX.Element {
           { label: `${player.resources.conceito} conceito`, tone: 'warning' },
           { label: `${player.resources.money} caixa`, tone: 'info' },
         ]}
-        description="Crimes solo carregados do backend. A tela desktop agora trabalha com catalogo real, cooldown, poder minimo e retorno do crime executado."
-        title="Crimes"
+        description="Escolha o proximo corre, confira risco, equipe minima e retorno antes de apertar o gatilho."
+        title="Fazer corre"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Loop criminal sincronizado" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Corre atualizado" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha ao operar crimes" tone="danger" /> : null}
 
       <div className="desktop-crime-grid">

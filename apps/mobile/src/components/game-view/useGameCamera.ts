@@ -55,7 +55,7 @@ interface UseGameCameraResult {
   handleViewportLayout: (event: LayoutChangeEvent) => void;
   inertiaVelocityRef: MutableRefObject<ScreenPoint>;
   isPanningRef: MutableRefObject<boolean>;
-  onCameraModeChangeRef: MutableRefObject<((mode: CameraMode) => void) | undefined>;
+  notifyCameraModeChange: (mode: CameraMode) => void;
   playerBeaconYValue: ReturnType<typeof useSharedValue<number>>;
   playerFrameValue: ReturnType<typeof useSharedValue<SpriteFrameSnapshot>>;
   playerHaloYValue: ReturnType<typeof useSharedValue<number>>;
@@ -109,7 +109,6 @@ export function useGameCamera({
   const inertiaVelocityRef = useRef<ScreenPoint>({ x: 0, y: 0 });
   const isPanningRef = useRef(false);
   const lastCameraCommandTokenRef = useRef<number | null>(null);
-  const onCameraModeChangeRef = useRef(onCameraModeChange);
   const cameraMatrixValue = useSharedValue<number[]>(createCameraMatrix(initialCameraState));
   const playerWorldXValue = useSharedValue(initialWorldPosition.x);
   const playerWorldYValue = useSharedValue(initialWorldPosition.y);
@@ -129,8 +128,8 @@ export function useGameCamera({
     playerPosition: spawnTile,
   });
 
-  useEffect(() => {
-    onCameraModeChangeRef.current = onCameraModeChange;
+  const notifyCameraModeChange = useCallback((mode: CameraMode) => {
+    onCameraModeChange?.(mode);
   }, [onCameraModeChange]);
 
   const syncCameraDebug = useCallback((cameraState: CameraState) => {
@@ -163,7 +162,7 @@ export function useGameCamera({
       playerPosition: spawnTile,
     });
     lastCameraCommandTokenRef.current = null;
-    onCameraModeChangeRef.current?.(initialCameraState.mode ?? 'follow');
+    notifyCameraModeChange(initialCameraState.mode ?? 'follow');
   }, [
     cameraMatrixValue,
     initialCameraState,
@@ -171,6 +170,7 @@ export function useGameCamera({
     initialWorldPosition.x,
     initialWorldPosition.y,
     mapBounds,
+    notifyCameraModeChange,
     playerBeaconYValue,
     playerFrameValue,
     playerHaloYValue,
@@ -197,7 +197,7 @@ export function useGameCamera({
 
     if (cameraCommand.type === 'free') {
       syncCameraDebug(cameraRef.current.setMode('free'));
-      onCameraModeChangeRef.current?.('free');
+      notifyCameraModeChange('free');
       return;
     }
 
@@ -206,14 +206,14 @@ export function useGameCamera({
 
     if (cameraCommand.type === 'recenter') {
       syncCameraDebug(cameraRef.current.panTo(worldPoint));
-      onCameraModeChangeRef.current?.(cameraRef.current.getState().mode ?? 'free');
+      notifyCameraModeChange(cameraRef.current.getState().mode ?? 'free');
       return;
     }
 
     syncCameraDebug(cameraRef.current.setMode('follow'));
     syncCameraDebug(cameraRef.current.panTo(worldPoint));
-    onCameraModeChangeRef.current?.('follow');
-  }, [cameraCommand, movementRef, syncCameraDebug, tileSize]);
+    notifyCameraModeChange('follow');
+  }, [cameraCommand, movementRef, notifyCameraModeChange, syncCameraDebug, tileSize]);
 
   const handleViewportLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -234,7 +234,7 @@ export function useGameCamera({
     handleViewportLayout,
     inertiaVelocityRef,
     isPanningRef,
-    onCameraModeChangeRef,
+    notifyCameraModeChange,
     playerBeaconYValue,
     playerFrameValue,
     playerHaloYValue,

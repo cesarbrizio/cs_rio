@@ -1,3 +1,5 @@
+import type { PropertyType, RegionId } from '../types.js';
+
 export type MapEntityKind =
   | 'boca'
   | 'docks'
@@ -6,7 +8,6 @@ export type MapEntityKind =
   | 'market'
   | 'party'
   | 'scrapyard'
-  | 'training'
   | 'university';
 
 export type MapStructureKind =
@@ -23,7 +24,6 @@ export type MapStructureKind =
   | 'prison'
   | 'factory'
   | 'mercado-negro'
-  | 'treino'
   | 'universidade'
   | 'docas'
   | 'desmanche'
@@ -39,3 +39,17 @@ export type MapStructureKind =
   | 'casa-residencial-simples-2'
   | 'casa-residencial-moderna-1'
   | 'casa-residencial-moderna-2';
+
+export interface MapPropertySlot {
+  favelaId: string | null;
+  gridPosition: {
+    x: number;
+    y: number;
+  };
+  ownerId?: string | null;
+  propertyType: PropertyType;
+  regionId: RegionId;
+  slotId: string;
+  status: 'free' | 'occupied';
+  structureId: string;
+}

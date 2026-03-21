@@ -1,5 +1,9 @@
 import { REGIONS } from '@cs-rio/shared';
 import { useNavigation } from '@react-navigation/native';
+import {
+  estimateMacroRegionTravel,
+  getMacroRegionMeta,
+} from '@cs-rio/ui/hooks';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,52 +21,6 @@ import { colors } from '../theme/colors';
 import rjMapSource from '../../assets/maps/rj.webp';
 import { type RootStackParamList } from '../../App';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
-
-interface MacroRegionMeta {
-  accent: string;
-  note: string;
-  x: number;
-  y: number;
-}
-
-const REGION_META: Record<string, MacroRegionMeta> = {
-  baixada: {
-    accent: '#8fb7ff',
-    note: 'Entrada densa, pressão logística e rotas de expansão pela Baixada.',
-    x: 54,
-    y: 2,
-  },
-  centro: {
-    accent: colors.accent,
-    note: 'Coração político e comercial, melhor leitura para mercado, hospital e universidade.',
-    x: 74,
-    y: 38,
-  },
-  zona_norte: {
-    accent: '#4fd597',
-    note: 'Alta densidade, grandes complexos e disputa faccional pesada.',
-    x: 60,
-    y: 20,
-  },
-  zona_oeste: {
-    accent: '#ff9d6e',
-    note: 'Expansão horizontal, áreas grandes e deslocamento mais caro.',
-    x: 28,
-    y: 29,
-  },
-  zona_sudoeste: {
-    accent: '#f4d77c',
-    note: 'Conexão entre litoral, renda alta e leitura turística/comercial.',
-    x: 30,
-    y: 59,
-  },
-  zona_sul: {
-    accent: '#ff7db2',
-    note: 'Renda alta, pressão policial sazonal e eventos premium.',
-    x: 70,
-    y: 58,
-  },
-};
 
 export function MapScreen(): JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -82,14 +40,14 @@ export function MapScreen(): JSX.Element {
     [selectedRegionId],
   );
   const routeEstimate = useMemo(
-    () => estimateRegionalTravel(currentRegionId, selectedRegionId),
+    () => estimateMacroRegionTravel(currentRegionId, selectedRegionId),
     [currentRegionId, selectedRegionId],
   );
 
   return (
     <InGameScreenLayout
       subtitle="Macro mapa do Rio para deslocamento regional. Veja onde você está, escolha o destino e viaje sem perder a leitura da cidade."
-      title="Mapa do Rio"
+      title="Mapa"
     >
       <View style={styles.mapBoard}>
         <ImageBackground imageStyle={styles.mapImage} source={rjMapSource} style={styles.mapImageFrame}>
@@ -103,8 +61,8 @@ export function MapScreen(): JSX.Element {
 
           {selectedRegionId !== currentRegionId ? (
             <RouteRibbon
-              from={REGION_META[currentRegionId] ?? REGION_META.centro}
-              to={REGION_META[selectedRegionId] ?? REGION_META.centro}
+              from={getMacroRegionMeta(currentRegionId)}
+              to={getMacroRegionMeta(selectedRegionId)}
             />
           ) : null}
 
@@ -117,8 +75,8 @@ export function MapScreen(): JSX.Element {
               style={({ pressed }) => [
                 styles.regionNode,
                 {
-                  left: `${REGION_META[region.id]?.x ?? 50}%`,
-                  top: `${REGION_META[region.id]?.y ?? 50}%`,
+                  left: `${getMacroRegionMeta(region.id).x}%`,
+                  top: `${getMacroRegionMeta(region.id).y}%`,
                 },
                 player?.regionId === region.id ? styles.regionNodeCurrent : null,
                 selectedRegionId === region.id ? styles.regionNodeSelected : null,
@@ -128,7 +86,7 @@ export function MapScreen(): JSX.Element {
               <View
                 style={[
                   styles.regionNodeHalo,
-                  { backgroundColor: `${REGION_META[region.id]?.accent ?? colors.accent}22` },
+                  { backgroundColor: `${getMacroRegionMeta(region.id).accent}22` },
                   selectedRegionId === region.id ? styles.regionNodeHaloSelected : null,
                 ]}
               />
@@ -154,7 +112,7 @@ export function MapScreen(): JSX.Element {
           Densidade: {selectedRegion?.density ?? '--'} · Riqueza: {selectedRegion?.wealth ?? '--'}
         </Text>
         <Text style={styles.cardCopy}>
-          {REGION_META[selectedRegionId]?.note ??
+          {getMacroRegionMeta(selectedRegionId).note ??
             'Use este mapa para entender a macro-região atual e preparar deslocamento, domínio e expansão.'}
         </Text>
       </View>
@@ -182,7 +140,7 @@ export function MapScreen(): JSX.Element {
             <Text style={styles.regionCardCopy}>
               {player?.regionId === region.id
                 ? 'Região atual da rodada'
-                : `Mototáxi: R$ ${estimateRegionalTravel(currentRegionId, region.id).cost} · ${estimateRegionalTravel(currentRegionId, region.id).minutes} min`}
+                : `Mototáxi: R$ ${estimateMacroRegionTravel(currentRegionId, region.id).cost} · ${estimateMacroRegionTravel(currentRegionId, region.id).minutes} min`}
             </Text>
           </Pressable>
         ))}
@@ -236,32 +194,6 @@ export function MapScreen(): JSX.Element {
       </Pressable>
     </InGameScreenLayout>
   );
-}
-
-function estimateRegionalTravel(
-  fromRegionId: string,
-  toRegionId: string,
-): {
-  cost: number;
-  minutes: number;
-} {
-  if (fromRegionId === toRegionId) {
-    return {
-      cost: 0,
-      minutes: 0,
-    };
-  }
-
-  const from = REGION_META[fromRegionId] ?? REGION_META.centro;
-  const to = REGION_META[toRegionId] ?? REGION_META.centro;
-  const dx = from.x - to.x;
-  const dy = from.y - to.y;
-  const distance = Math.hypot(dx, dy);
-
-  return {
-    cost: Math.max(90, Math.round(distance * 7.2)),
-    minutes: Math.max(6, Math.round(distance * 0.34)),
-  };
 }
 
 const styles = StyleSheet.create({
@@ -485,8 +417,8 @@ const styles = StyleSheet.create({
 });
 
 interface RouteRibbonProps {
-  from: MacroRegionMeta;
-  to: MacroRegionMeta;
+  from: ReturnType<typeof getMacroRegionMeta>;
+  to: ReturnType<typeof getMacroRegionMeta>;
 }
 
 function RouteRibbon({ from, to }: RouteRibbonProps): JSX.Element {

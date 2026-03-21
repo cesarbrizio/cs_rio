@@ -102,11 +102,11 @@ export function PrisonScreen(): JSX.Element {
           { label: `calor ${livePrison.heatScore}`, tone: 'warning' },
           { label: formatPrisonHeatTier(livePrison.heatTier), tone: 'info' },
         ]}
-        description="Centro prisional com timer real da pena, calor policial e opcoes de soltura ligadas ao backend do jogador."
+        description="Acompanhe a pena, o calor da policia e as saidas que podem te colocar de volta na rua."
         title="Prisao"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Centro prisional sincronizado" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Prisao atualizada" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha na prisao" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">

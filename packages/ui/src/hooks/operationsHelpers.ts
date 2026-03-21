@@ -25,6 +25,25 @@ import {
   type SlotMachineSummary,
 } from '@cs-rio/shared';
 
+import {
+  estimateSlotMachineHourlyRevenue,
+  formatOperationsCurrency,
+  roundOperationsCurrency,
+  resolvePropertyRegionLabel,
+  resolveSlotMachineCapacity,
+} from './operationsHelpersPresentation';
+
+export {
+  formatOperationsCurrency,
+  formatPercent,
+  resolvePropertyAssetClassLabel,
+  resolvePropertyOperationSnapshot,
+  resolvePropertyRegionLabel,
+  resolvePropertyStockLabel,
+  resolvePropertyTypeLabel,
+  resolvePropertyUtilityLines,
+  resolvePuteiroWorkerStatusLabel,
+} from './operationsHelpersPresentation';
 export type OperationsTab = 'business' | 'patrimony';
 
 export interface OperationsDashboardData {
@@ -114,7 +133,7 @@ export function resolveOperationsTabDescription(tab: OperationsTab): string {
 }
 
 export function isBusinessProperty(property: OwnedPropertySummary): boolean {
-  return property.definition.assetClass === 'business';
+  return property.definition.category === 'business';
 }
 
 export function sumPropertyDailyUpkeep(properties: OwnedPropertySummary[]): number {
@@ -175,6 +194,7 @@ export function buildSlotMachineAcquisitionState(input: {
   const isOwned = ownedCount > 0;
   const isUnlocked = definition ? input.playerLevel >= definition.unlockLevel : false;
   const canAfford = definition ? input.playerMoney >= definition.basePrice : false;
+  const hasStock = definition ? definition.stockAvailable === null || definition.stockAvailable > 0 : false;
   const purchaseInput =
     definition && currentRegionId
       ? {
@@ -191,13 +211,15 @@ export function buildSlotMachineAcquisitionState(input: {
   let blockerLabel: string | null = null;
 
   if (!definition) {
-    blockerLabel = 'Maquininha indisponivel no catalogo autoritativo.';
+    blockerLabel = 'Esse ponto de maquininha nao esta liberado agora.';
   } else if (isOwned) {
     blockerLabel = 'Voce ja possui uma maquininha. Use o card do ativo para instalar, configurar e coletar.';
   } else if (!currentRegionId) {
     blockerLabel = 'Defina uma regiao valida antes de comprar a maquininha.';
   } else if (!isUnlocked) {
     blockerLabel = `Nivel ${definition.unlockLevel} necessario para liberar esta compra.`;
+  } else if (!hasStock) {
+    blockerLabel = 'Sem slot livre para maquininha nesta regiao agora.';
   } else if (!canAfford) {
     blockerLabel = `Faltam ${formatOperationsCurrency(definition.basePrice - input.playerMoney)} para comprar agora.`;
   }
@@ -206,7 +228,7 @@ export function buildSlotMachineAcquisitionState(input: {
     baseCapacity,
     blockerLabel,
     canAfford,
-    canPurchase: Boolean(definition && purchaseInput && !isOwned && isUnlocked && canAfford),
+    canPurchase: Boolean(definition && purchaseInput && !isOwned && isUnlocked && hasStock && canAfford),
     currentRegionId,
     currentRegionLabel: currentRegionId ? resolvePropertyRegionLabel(currentRegionId) : null,
     definition,
@@ -234,6 +256,7 @@ export function buildPuteiroAcquisitionState(input: {
   const isOwned = ownedCount > 0;
   const isUnlocked = definition ? input.playerLevel >= definition.unlockLevel : false;
   const canAfford = definition ? input.playerMoney >= definition.basePrice : false;
+  const hasStock = definition ? definition.stockAvailable === null || definition.stockAvailable > 0 : false;
   const purchaseInput =
     definition && currentRegionId
       ? {
@@ -263,15 +286,17 @@ export function buildPuteiroAcquisitionState(input: {
   let blockerLabel: string | null = null;
 
   if (!definition) {
-    blockerLabel = 'Puteiro indisponivel no catalogo autoritativo.';
+    blockerLabel = 'Esse puteiro nao esta liberado agora.';
   } else if (input.gpTemplates.length === 0) {
-    blockerLabel = 'Catalogo de GPs indisponivel. Aguarde o backend liberar os templates.';
+    blockerLabel = 'As GPs ainda nao apareceram para este puteiro.';
   } else if (isOwned) {
     blockerLabel = 'Voce ja possui um puteiro. Use o painel abaixo para contratar GPs e coletar o caixa.';
   } else if (!currentRegionId) {
     blockerLabel = 'Defina uma regiao valida antes de comprar o puteiro.';
   } else if (!isUnlocked) {
     blockerLabel = `Nivel ${definition.unlockLevel} necessario para liberar esta compra.`;
+  } else if (!hasStock) {
+    blockerLabel = 'Sem slot livre para puteiro nesta regiao agora.';
   } else if (!canAfford) {
     blockerLabel = `Faltam ${formatOperationsCurrency(definition.basePrice - input.playerMoney)} para comprar agora.`;
   }
@@ -285,6 +310,7 @@ export function buildPuteiroAcquisitionState(input: {
         purchaseInput &&
         !isOwned &&
         isUnlocked &&
+        hasStock &&
         canAfford
     ),
     capacity: PUTEIRO_MAX_ACTIVE_GPS,
@@ -336,304 +362,4 @@ export function buildPuteiroDashboardSnapshot(puteiro: PuteiroSummary): PuteiroD
     operatingHeadline,
     workerStatusSummary: `${activeRosterCount} ativas · ${activeWorkersWithDst} GPs com DST · ${escapedRosterCount} fugiram · ${deceasedRosterCount} morreram`,
   };
-}
-
-export function formatOperationsCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    currency: 'BRL',
-    maximumFractionDigits: 0,
-    style: 'currency',
-  }).format(value);
-}
-
-export function formatPercent(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-export function resolvePropertyRegionLabel(regionId: string): string {
-  return REGIONS.find((region) => region.id === regionId)?.label ?? regionId;
-}
-
-export function resolvePropertyAssetClassLabel(definition: PropertyDefinitionSummary): string {
-  switch (definition.assetClass) {
-    case 'business':
-      return 'Negocio';
-    case 'real_estate':
-      return 'Imovel';
-    case 'vehicle':
-      return 'Veiculo';
-    case 'luxury':
-    default:
-      return 'Ativo especial';
-  }
-}
-
-export function resolvePropertyUtilityLines(definition: PropertyDefinitionSummary): string[] {
-  const lines: string[] = [];
-
-  if (definition.utility.inventorySlotsBonus > 0) {
-    lines.push(`+${definition.utility.inventorySlotsBonus} slots no inventario`);
-  }
-
-  if (definition.utility.inventoryWeightBonus > 0) {
-    lines.push(`+${definition.utility.inventoryWeightBonus} de carga`);
-  }
-
-  if (definition.utility.cansacoRecoveryPerHourBonus > 0) {
-    lines.push(`+${definition.utility.cansacoRecoveryPerHourBonus}/h de recuperacao de cansaco`);
-  }
-
-  if (definition.utility.travelMode === 'ground') {
-    lines.push('Mobilidade terrestre');
-  } else if (definition.utility.travelMode === 'sea') {
-    lines.push('Mobilidade maritima');
-  } else if (definition.utility.travelMode === 'air') {
-    lines.push('Mobilidade aerea');
-  }
-
-  if (lines.length === 0) {
-    lines.push('Ativo patrimonial voltado a protecao, logistica e conforto.');
-  }
-
-  return lines;
-}
-
-export function resolvePropertyOperationSnapshot(
-  property: OwnedPropertySummary,
-  book: OperationsDashboardData,
-): PropertyOperationSnapshot | null {
-  if (property.type === 'factory') {
-    const factory = book.factoryBook.factories.find((entry) => entry.id === property.id);
-
-    if (!factory) {
-      return null;
-    }
-
-    return {
-      actionLabel: 'Coletar producao',
-      availableToCollect: factory.storedOutput,
-      collectTone: 'inventory',
-      collectableLabel: `${factory.storedOutput}x ${factory.drugName}`,
-      detailLines: [
-        `Producao por ciclo: ${factory.outputPerCycle}x`,
-        `Bloqueio: ${factory.blockedReason ?? 'livre'}`,
-        `Multiplicador total: x${(factory.multipliers.impulse * factory.multipliers.intelligence * factory.multipliers.vocation).toFixed(2)}`,
-      ],
-      estimatedHourlyLabel: `${Number.parseFloat(((60 / factory.cycleMinutes) * factory.outputPerCycle).toFixed(1))}x/h`,
-      readyToCollect: factory.storedOutput > 0,
-      statusLabel: factory.blockedReason ? 'Cadeia produtiva pressionada' : 'Linha operando',
-    };
-  }
-
-  if (property.type === 'boca') {
-    const boca = book.bocaBook.bocas.find((entry) => entry.id === property.id);
-    return boca ? resolveCashOperationSnapshot(boca, 'Coletar caixa', 'cash') : null;
-  }
-
-  if (property.type === 'rave') {
-    const rave = book.raveBook.raves.find((entry) => entry.id === property.id);
-    return rave ? resolveCashOperationSnapshot(rave, 'Coletar bilheteria', 'cash') : null;
-  }
-
-  if (property.type === 'puteiro') {
-    const puteiro = book.puteiroBook.puteiros.find((entry) => entry.id === property.id);
-    return puteiro ? resolveCashOperationSnapshot(puteiro, 'Coletar caixa', 'cash') : null;
-  }
-
-  if (property.type === 'front_store') {
-    const frontStore = book.frontStoreBook.frontStores.find((entry) => entry.id === property.id);
-
-    if (!frontStore) {
-      return null;
-    }
-
-    return {
-      actionLabel: 'Coletar limpo',
-      availableToCollect: frontStore.cashbox.availableToCollect,
-      collectTone: 'bank',
-      collectableLabel: formatOperationsCurrency(frontStore.cashbox.availableToCollect),
-      detailLines: [
-        `Lavado: ${formatOperationsCurrency(frontStore.cashbox.totalLaunderedClean)}`,
-        `Capacidade restante: ${formatOperationsCurrency(frontStore.economics.launderingCapacityRemaining)}`,
-        `Investigacao ativa: ${frontStore.investigation.isUnderInvestigation ? 'Sim' : 'Nao'}`,
-      ],
-      estimatedHourlyLabel: formatOperationsCurrency(frontStore.economics.estimatedHourlyLegitRevenue),
-      readyToCollect: frontStore.cashbox.availableToCollect > 0,
-      statusLabel: frontStore.status === 'investigation_blocked' ? 'Investigacao em curso' : 'Fachada operando',
-    };
-  }
-
-  if (property.type === 'slot_machine') {
-    const slotMachine = book.slotMachineBook.slotMachines.find((entry) => entry.id === property.id);
-
-    if (!slotMachine) {
-      return null;
-    }
-
-    return {
-      actionLabel: 'Coletar caixa',
-      availableToCollect: slotMachine.cashbox.availableToCollect,
-      collectTone: 'cash',
-      collectableLabel: formatOperationsCurrency(slotMachine.cashbox.availableToCollect),
-      detailLines: [
-        `Maquinas instaladas: ${slotMachine.economics.installedMachines}/${slotMachine.economics.capacity}`,
-        `House edge: ${formatPercent(slotMachine.config.houseEdge)}`,
-        `Jackpot: ${formatPercent(slotMachine.config.jackpotChance)}`,
-      ],
-      estimatedHourlyLabel: formatOperationsCurrency(slotMachine.economics.estimatedHourlyGrossRevenue),
-      readyToCollect: slotMachine.cashbox.availableToCollect > 0,
-      statusLabel: slotMachine.status === 'installation_required' ? 'Instalacao pendente' : 'Sala operando',
-    };
-  }
-
-  return null;
-}
-
-export function resolvePuteiroWorkerStatusLabel(worker: PuteiroSummary['roster'][number]): string {
-  if (worker.status === 'deceased') {
-    return 'Falecida';
-  }
-
-  if (worker.status === 'escaped') {
-    return 'Fugiu';
-  }
-
-  if (worker.hasDst) {
-    return 'Ativa com DST';
-  }
-
-  return 'Ativa';
-}
-
-export function resolvePropertyTypeLabel(type: PropertyType): string {
-  return {
-    airplane: 'Aviao',
-    art: 'Arte',
-    beach_house: 'Casa de Praia',
-    boca: 'Boca',
-    boat: 'Barco',
-    car: 'Carro',
-    factory: 'Fabrica',
-    front_store: 'Loja de Fachada',
-    helicopter: 'Helicoptero',
-    house: 'Casa',
-    jet_ski: 'Jet Ski',
-    jewelry: 'Joias',
-    luxury: 'Luxo',
-    mansion: 'Mansao',
-    puteiro: 'Puteiro',
-    rave: 'Rave',
-    slot_machine: 'Maquininha',
-    yacht: 'Iate',
-  }[type];
-}
-
-function resolveCashOperationSnapshot(
-  operation: BocaSummary | FrontStoreSummary | PuteiroSummary | RaveSummary | SlotMachineSummary,
-  actionLabel: string,
-  collectTone: 'bank' | 'cash',
-): PropertyOperationSnapshot {
-  return {
-    actionLabel,
-    availableToCollect: operation.cashbox.availableToCollect,
-    collectTone,
-    collectableLabel: formatOperationsCurrency(operation.cashbox.availableToCollect),
-    detailLines: resolveCashOperationDetailLines(operation),
-    estimatedHourlyLabel: formatOperationsCurrency(resolveEstimatedHourlyValue(operation)),
-    readyToCollect: operation.cashbox.availableToCollect > 0,
-    statusLabel: resolveBusinessStatusLabel(operation.status),
-  };
-}
-
-function resolveCashOperationDetailLines(
-  operation: BocaSummary | FrontStoreSummary | PuteiroSummary | RaveSummary | SlotMachineSummary,
-): string[] {
-  if ('stock' in operation) {
-    return [
-      `Estoque total: ${operation.stockUnits} un`,
-      `Demanda por ciclo: ${operation.economics.npcDemandPerCycle}`,
-      `Comissao faccional: ${formatPercent(operation.economics.effectiveFactionCommissionRate)}`,
-    ];
-  }
-
-  if ('lineup' in operation) {
-    return [
-      `Itens no lineup: ${operation.lineup.length}`,
-      `Fluxo por ciclo: ${operation.economics.visitorFlowPerCycle}`,
-      `Comissao faccional: ${formatPercent(operation.economics.effectiveFactionCommissionRate)}`,
-    ];
-  }
-
-  if ('roster' in operation) {
-    return [
-      `GPs ativos: ${operation.economics.activeGps}/${operation.economics.capacity}`,
-      `DST ativas nas GPs: ${operation.incidents.activeDstCases}`,
-      `Comissao faccional: ${formatPercent(operation.economics.effectiveFactionCommissionRate)}`,
-    ];
-  }
-
-  if ('investigation' in operation) {
-    return [
-      `Capacidade de lavagem: ${formatOperationsCurrency(operation.economics.launderingCapacityRemaining)}`,
-      `Investigacoes totais: ${operation.investigation.investigationsTotal}`,
-      `Comissao faccional: ${formatPercent(operation.economics.effectiveFactionCommissionRate)}`,
-    ];
-  }
-
-  return [
-    `Maquinas: ${operation.economics.installedMachines}/${operation.economics.capacity}`,
-    `Trafego local: x${operation.economics.playerTrafficMultiplier.toFixed(2)}`,
-    `Comissao faccional: ${formatPercent(operation.economics.effectiveFactionCommissionRate)}`,
-  ];
-}
-
-function resolveEstimatedHourlyValue(
-  operation: BocaSummary | FrontStoreSummary | PuteiroSummary | RaveSummary | SlotMachineSummary,
-): number {
-  if ('investigation' in operation) {
-    return operation.economics.estimatedHourlyLegitRevenue;
-  }
-
-  return operation.economics.estimatedHourlyGrossRevenue;
-}
-
-function resolveBusinessStatusLabel(status: string): string {
-  if (status.includes('maintenance')) {
-    return 'Manutencao travando a operacao';
-  }
-
-  if (status.includes('stock') || status.includes('lineup') || status.includes('gps')) {
-    return 'Operacao pedindo reposicao';
-  }
-
-  if (status.includes('investigation')) {
-    return 'Operacao travada por investigacao';
-  }
-
-  if (status.includes('installation')) {
-    return 'Instalacao pendente';
-  }
-
-  return 'Operacao estavel';
-}
-
-function estimateSlotMachineHourlyRevenue(installedMachines: number): number {
-  const averageBet = Math.sqrt(
-    Math.max(100, SLOT_MACHINE_DEFAULT_MIN_BET) * Math.max(SLOT_MACHINE_DEFAULT_MIN_BET, SLOT_MACHINE_DEFAULT_MAX_BET),
-  );
-  const playsPerMachine = 1.15;
-  const grossHandle = averageBet * installedMachines * playsPerMachine;
-  const expectedGrossRevenuePerCycle = grossHandle * SLOT_MACHINE_DEFAULT_HOUSE_EDGE;
-
-  return roundOperationsCurrency(
-    expectedGrossRevenuePerCycle * (60 / SLOT_MACHINE_OPERATION_CYCLE_MINUTES),
-  );
-}
-
-function resolveSlotMachineCapacity(level: number): number {
-  return 3 + level * 2;
-}
-
-function roundOperationsCurrency(value: number): number {
-  return Math.round(value * 100) / 100;
 }

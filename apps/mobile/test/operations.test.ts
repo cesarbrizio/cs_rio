@@ -18,16 +18,6 @@ import {
   type OperationsDashboardData,
 } from '../src/features/operations';
 
-const NORMAL_SABOTAGE_STATUS = {
-  blocked: false,
-  operationalMultiplier: 1,
-  recoveryCost: null,
-  recoveryReady: false,
-  recoveryReadyAt: null,
-  resolvedAt: null,
-  state: 'normal' as const,
-};
-
 describe('operations helpers', () => {
   it('splits business and patrimony properties while summing daily upkeep', () => {
     const boca = buildOwnedProperty('boca');
@@ -174,6 +164,7 @@ describe('operations helpers', () => {
       propertyBook: {
         availableProperties: [],
         ownedProperties: [puteiro],
+        propertySlots: [],
         soldierTemplates: [],
       },
       puteiroBook: {
@@ -240,7 +231,6 @@ describe('operations helpers', () => {
               overdueDays: 0,
             },
             regionId: RegionId.Centro,
-            sabotageStatus: NORMAL_SABOTAGE_STATUS,
             status: 'active',
             stock: [],
             stockUnits: 45,
@@ -273,7 +263,6 @@ describe('operations helpers', () => {
             outputPerCycle: 4,
             regionId: RegionId.Centro,
             requirements: [],
-            sabotageStatus: NORMAL_SABOTAGE_STATUS,
             storedOutput: 8,
           },
         ],
@@ -285,6 +274,7 @@ describe('operations helpers', () => {
       propertyBook: {
         availableProperties: [],
         ownedProperties: [boca, factory],
+        propertySlots: [],
         soldierTemplates: [],
       },
       puteiroBook: {
@@ -329,6 +319,8 @@ function buildOwnedProperty(
     createdAt: '2026-03-10T12:00:00.000Z',
     definition,
     economics: {
+      dailyExpense: definition.baseDailyMaintenanceCost,
+      dailyIncome: definition.baseDailyIncome,
       effectiveFactionCommissionRate: definition.factionCommissionRate,
       profitable: definition.profitable,
       totalDailyUpkeep: definition.baseDailyMaintenanceCost,
@@ -356,7 +348,7 @@ function buildOwnedProperty(
       ...overrides.protection,
     },
     regionId: RegionId.Centro,
-    sabotageStatus: NORMAL_SABOTAGE_STATUS,
+    slotId: null,
     soldierRoster: [],
     soldiersCount: 0,
     status: 'active',
@@ -456,7 +448,6 @@ function buildPuteiroSummary(propertyId: string) {
         type: 'experiente' as const,
       },
     ],
-    sabotageStatus: NORMAL_SABOTAGE_STATUS,
     status: 'active' as const,
   };
 }

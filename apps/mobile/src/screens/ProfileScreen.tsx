@@ -52,7 +52,7 @@ export function ProfileScreen(): JSX.Element {
   return (
     <InGameScreenLayout
       subtitle="Veja seus atributos, recursos e o caminho de progressão da rodada sem misturar tudo no mesmo bloco."
-      title="Perfil"
+      title="Ver perfil"
     >
       <View style={styles.heroCard}>
         <Text style={styles.nickname}>{player?.nickname ?? '--'}</Text>

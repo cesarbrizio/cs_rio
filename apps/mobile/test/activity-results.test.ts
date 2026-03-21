@@ -3,50 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildPendingActivityCues,
-  buildPendingTrainingCompletionCue,
   buildPendingUniversityCompletionCues,
 } from '../src/features/activity-results';
 
 describe('activity result helpers', () => {
-  it('builds a training completion cue for ready sessions', () => {
-    const cue = buildPendingTrainingCompletionCue({
-      center: {
-        activeSession: {
-          claimedAt: null,
-          costMoney: 1200,
-          costCansaco: 14,
-          diminishingMultiplier: 1.2,
-          endsAt: '2026-03-14T12:00:00.000Z',
-          id: 'training-1',
-          progressRatio: 1,
-          projectedGains: {
-            carisma: 0,
-            forca: 3,
-            inteligencia: 0,
-            resistencia: 2,
-          },
-          readyToClaim: true,
-          remainingSeconds: 0,
-          startedAt: '2026-03-14T11:30:00.000Z',
-          streakIndex: 1,
-          type: 'advanced',
-        },
-        catalog: [],
-        completedBasicSessions: 0,
-        nextDiminishingMultiplier: 1,
-        npcInflation: buildNpcInflationStub(),
-        player: {} as never,
-      },
-      nowMs: new Date('2026-03-14T12:05:00.000Z').getTime(),
-      seenKeys: new Set(),
-    });
-
-    expect(cue?.kind).toBe('training');
-    expect(cue?.title).toContain('pronto para resgatar');
-    expect(cue?.gainsLabel).toContain('+3 Forca');
-    expect(cue?.streakLabel).toBe('2');
-  });
-
   it('builds university completion cues from completed courses', () => {
     const cues = buildPendingUniversityCompletionCues({
       center: {
@@ -87,40 +47,13 @@ describe('activity result helpers', () => {
     expect(cues[0]?.passiveLabel).toContain('Sucesso em crimes solo');
   });
 
-  it('combines unseen training and university cues sorted by latest timestamp', () => {
+  it('returns unseen university cues sorted by latest completion timestamp', () => {
     const cues = buildPendingActivityCues({
       nowMs: new Date('2026-03-14T12:20:00.000Z').getTime(),
-      seenKeys: new Set(),
-      trainingCenter: {
-        activeSession: {
-          claimedAt: null,
-          costMoney: 1000,
-          costCansaco: 10,
-          diminishingMultiplier: 1.1,
-          endsAt: '2026-03-14T12:05:00.000Z',
-          id: 'training-2',
-          progressRatio: 1,
-          projectedGains: {
-            carisma: 0,
-            forca: 1,
-            inteligencia: 0,
-            resistencia: 1,
-          },
-          readyToClaim: true,
-          remainingSeconds: 0,
-          startedAt: '2026-03-14T11:35:00.000Z',
-          streakIndex: 0,
-          type: 'basic',
-        },
-        catalog: [],
-        completedBasicSessions: 0,
-        nextDiminishingMultiplier: 1,
-        npcInflation: buildNpcInflationStub(),
-        player: {} as never,
-      },
+      seenKeys: new Set(['university:mao_leve:2026-03-14T12:10:00.000Z']),
       universityCenter: {
         activeCourse: null,
-        completedCourseCodes: ['mao_leve'],
+        completedCourseCodes: ['mao_leve', 'mercado_paralelo'],
         courses: [
           {
             attributeRequirements: {},
@@ -141,6 +74,25 @@ describe('activity result helpers', () => {
             unlockLevel: 2,
             vocation: VocationType.Cria,
           },
+          {
+            attributeRequirements: {},
+            code: 'mercado_paralelo',
+            completedAt: '2026-03-14T12:18:00.000Z',
+            durationHours: 16,
+            effectSummary: 'Melhora negociações e leitura de preço.',
+            endsAt: '2026-03-14T12:18:00.000Z',
+            isCompleted: true,
+            isInProgress: false,
+            isLocked: false,
+            isUnlocked: true,
+            label: 'Mercado Paralelo',
+            lockReason: null,
+            moneyCost: 120000,
+            prerequisiteCourseCodes: [],
+            startedAt: '2026-03-13T20:18:00.000Z',
+            unlockLevel: 6,
+            vocation: VocationType.Empreendedor,
+          },
         ],
         npcInflation: buildNpcInflationStub(),
         passiveProfile: {} as never,
@@ -149,15 +101,15 @@ describe('activity result helpers', () => {
       },
     });
 
-    expect(cues).toHaveLength(2);
+    expect(cues).toHaveLength(1);
     expect(cues[0]?.kind).toBe('university');
-    expect(cues[1]?.kind).toBe('training');
+    expect(cues[0]?.courseLabel).toBe('Mercado Paralelo');
   });
 });
 
 function buildNpcInflationStub(): NpcInflationSummary {
   return {
-    affectedServices: ['hospital', 'training', 'university', 'black_market'],
+    affectedServices: ['hospital', 'university', 'black_market'],
     currentGameDay: 12,
     currentMultiplier: 1.12,
     currentSurchargePercent: 12,

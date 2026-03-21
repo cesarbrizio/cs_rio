@@ -28,6 +28,5 @@ export const AVAILABLE_SVG_KINDS = [
   "predio-residencial-simples-2",
   "prison",
   "rave",
-  "treino",
   "universidade"
 ] as const satisfies readonly MapStructureKind[];

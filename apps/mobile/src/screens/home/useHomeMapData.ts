@@ -1,6 +1,7 @@
 import {
   type NpcInflationSummary,
   type PlayerProfile,
+  type PropertySlotSummary,
   type RoundSummary,
 } from '@cs-rio/shared';
 import { useCallback, useEffect, useState } from 'react';
@@ -9,7 +10,7 @@ import {
   colyseusService,
   type RealtimeSnapshot,
 } from '../../services/colyseus';
-import { eventApi, roundApi, territoryApi } from '../../services/api';
+import { eventApi, propertyApi, roundApi, territoryApi } from '../../services/api';
 import { type EventRuntimeState } from './homeTypes';
 
 type TerritoryOverview = Awaited<ReturnType<typeof territoryApi.list>>;
@@ -24,6 +25,7 @@ interface UseHomeMapDataResult {
   eventRuntimeState: EventRuntimeState | null;
   realtimeSnapshot: RealtimeSnapshot;
   refreshHomeMapData: (cancelled?: () => boolean) => Promise<void>;
+  propertySlots: PropertySlotSummary[];
   roundInflation: NpcInflationSummary | null;
   roundSummary: RoundSummary | null;
   territoryOverview: TerritoryOverview | null;
@@ -41,6 +43,7 @@ export function useHomeMapData({
   );
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
   const [roundInflation, setRoundInflation] = useState<NpcInflationSummary | null>(null);
+  const [propertySlots, setPropertySlots] = useState<PropertySlotSummary[]>([]);
 
   const loadRoundSummary = useCallback(async (cancelled?: () => boolean) => {
     try {
@@ -94,15 +97,30 @@ export function useHomeMapData({
     }
   }, []);
 
+  const loadPropertySlots = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      const response = await propertyApi.list();
+
+      if (!cancelled?.()) {
+        setPropertySlots(response.propertySlots);
+      }
+    } catch {
+      if (!cancelled?.()) {
+        setPropertySlots([]);
+      }
+    }
+  }, []);
+
   const refreshHomeMapData = useCallback(
     async (cancelled?: () => boolean) => {
       await Promise.all([
         loadRoundSummary(cancelled),
         loadTerritoryOverview(cancelled),
         loadEventRuntimeState(cancelled),
+        loadPropertySlots(cancelled),
       ]);
     },
-    [loadEventRuntimeState, loadRoundSummary, loadTerritoryOverview],
+    [loadEventRuntimeState, loadPropertySlots, loadRoundSummary, loadTerritoryOverview],
   );
 
   useEffect(() => colyseusService.subscribe(setRealtimeSnapshot), []);
@@ -126,6 +144,7 @@ export function useHomeMapData({
     eventRuntimeState,
     realtimeSnapshot,
     refreshHomeMapData,
+    propertySlots,
     roundInflation,
     roundSummary,
     territoryOverview,

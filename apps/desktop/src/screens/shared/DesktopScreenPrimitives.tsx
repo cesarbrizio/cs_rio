@@ -46,7 +46,7 @@ export function ScreenHero({
   actions,
   badges = [],
   description,
-  eyebrow = 'Desktop jogavel',
+  eyebrow = 'CS Rio',
   title,
 }: ScreenHeroProps): JSX.Element {
   return (

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 
 import {
   buildPendingActivityCues,
   type AsyncActivityCue,
 } from '../features/activity-results';
 import {
-  loadSeenActivityResultKeys,
   rememberSeenActivityResult,
 } from '../features/activity-result-storage';
 import {
@@ -13,7 +12,6 @@ import {
   type EventResultCue,
 } from '../features/event-results';
 import {
-  loadSeenEventResultKeys,
   rememberSeenEventResult,
 } from '../features/event-result-storage';
 import { buildEventFeed } from '../features/events';
@@ -22,26 +20,19 @@ import {
   type FactionPromotionCue,
 } from '../features/faction-promotion';
 import {
-  buildPendingPrivateMessageCues,
-} from '../features/private-messages';
+  rememberSeenFactionPromotion,
+} from '../features/faction-promotion-storage';
 import {
-  loadSeenPrivateMessageIds,
-  rememberSeenPrivateMessage,
-} from '../features/private-message-storage';
+  buildPendingTerritoryAlertCues,
+} from '../features/territory-alerts';
 import {
-  buildPendingSabotageCues,
-  type SabotageCue,
-} from '../features/sabotage';
-import {
-  loadSeenSabotageCueKeys,
-  rememberSeenSabotageCue,
-} from '../features/sabotage-storage';
+  rememberSeenTerritoryAlert,
+} from '../features/territory-alert-storage';
 import {
   buildPendingTerritoryLossCues,
   type TerritoryLossCue,
 } from '../features/territory-loss';
 import {
-  loadSeenTerritoryLossKeys,
   rememberSeenTerritoryLoss,
 } from '../features/territory-loss-storage';
 import { canPlayerLeadTribunal } from '../features/tribunal';
@@ -50,7 +41,6 @@ import {
   type TribunalCue,
 } from '../features/tribunal-results';
 import {
-  loadSeenTribunalCueKeys,
   rememberSeenTribunalCue,
 } from '../features/tribunal-result-storage';
 import {
@@ -58,7 +48,6 @@ import {
   type WarResultCue,
 } from '../features/war-results';
 import {
-  loadSeenWarResultKeys,
   rememberSeenWarResult,
 } from '../features/war-result-storage';
 import { type useAudio } from '../audio/AudioProvider';
@@ -66,35 +55,36 @@ import { type useNotifications } from '../notifications/NotificationProvider';
 import {
   eventApi,
   factionApi,
-  privateMessageApi,
-  propertyApi,
-  pvpApi,
   territoryApi,
-  trainingApi,
   tribunalApi,
   universityApi,
 } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useEventFeedStore } from '../stores/eventFeedStore';
 import { useUIStore } from '../stores/uiStore';
+import {
+  pollEventFeedTask,
+  pollPrivateMessagesTask,
+} from './pollManagerTasks';
+import { usePollCueState } from './usePollCueState';
+import { usePollManagerLifecycle } from './usePollManagerLifecycle';
+import { usePollSeenState } from './usePollSeenState';
 
 type AudioApi = ReturnType<typeof useAudio>;
 type NotificationsApi = ReturnType<typeof useNotifications>;
 
 interface PollManagerInput {
-  notifyAttack: NotificationsApi['notifyAttack'];
   notifyEvent: NotificationsApi['notifyEvent'];
   notifyEventResult: NotificationsApi['notifyEventResult'];
   notifyFactionPromotion: NotificationsApi['notifyFactionPromotion'];
   notifyPrivateMessage: NotificationsApi['notifyPrivateMessage'];
-  notifySabotageCue: NotificationsApi['notifySabotageCue'];
+  notifyTerritoryAlert: NotificationsApi['notifyTerritoryAlert'];
   notifyTerritoryLoss: NotificationsApi['notifyTerritoryLoss'];
   notifyTribunalCue: NotificationsApi['notifyTribunalCue'];
   notifyWarResult: NotificationsApi['notifyWarResult'];
   playSfx: AudioApi['playSfx'];
   syncRegionMusic: AudioApi['syncRegionMusic'];
   syncTimerNotifications: NotificationsApi['syncTimerNotifications'];
-  syncTrainingNotifications: NotificationsApi['syncTrainingNotifications'];
   syncUniversityNotifications: NotificationsApi['syncUniversityNotifications'];
 }
 
@@ -102,33 +92,29 @@ interface PollManagerResult {
   activeActivityCue: AsyncActivityCue | null;
   activeEventResultCue: EventResultCue | null;
   activeFactionPromotionCue: FactionPromotionCue | null;
-  activeSabotageCue: SabotageCue | null;
   activeTerritoryLossCue: TerritoryLossCue | null;
   activeTribunalCue: TribunalCue | null;
   activeWarResultCue: WarResultCue | null;
   closeActivityCue: () => void;
   closeEventResultCue: () => void;
   closeFactionPromotionCue: () => void;
-  closeSabotageCue: () => void;
   closeTerritoryLossCue: () => void;
   closeTribunalCue: () => void;
   closeWarResultCue: () => void;
 }
 
 export function usePollManager({
-  notifyAttack,
   notifyEvent,
   notifyEventResult,
   notifyFactionPromotion,
   notifyPrivateMessage,
-  notifySabotageCue,
+  notifyTerritoryAlert,
   notifyTerritoryLoss,
   notifyTribunalCue,
   notifyWarResult,
   playSfx,
   syncRegionMusic,
   syncTimerNotifications,
-  syncTrainingNotifications,
   syncUniversityNotifications,
 }: PollManagerInput): PollManagerResult {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -141,183 +127,20 @@ export function usePollManager({
   const setPrivateMessageFeed = useEventFeedStore((state) => state.setPrivateMessageFeed);
   const showEventToast = useEventFeedStore((state) => state.showEventToast);
   const setBootstrapStatus = useUIStore((state) => state.setBootstrapStatus);
-  const seenContractNotificationIdsRef = useRef<Set<string>>(new Set());
-  const contractFeedPrimedRef = useRef(false);
-  const seenEventIdsRef = useRef<Set<string>>(new Set());
-  const eventFeedPrimedRef = useRef(false);
-  const privateMessageFeedPrimedRef = useRef(false);
-  const seenActivityResultKeysRef = useRef<Set<string>>(new Set());
-  const seenActivityResultPlayerIdRef = useRef<string | null>(null);
-  const seenEventResultKeysRef = useRef<Set<string>>(new Set());
-  const seenEventResultPlayerIdRef = useRef<string | null>(null);
-  const seenPrivateMessageIdsRef = useRef<Set<string>>(new Set());
-  const seenPrivateMessagePlayerIdRef = useRef<string | null>(null);
-  const seenSabotageCueKeysRef = useRef<Set<string>>(new Set());
-  const seenTerritoryLossKeysRef = useRef<Set<string>>(new Set());
-  const seenTerritoryLossPlayerIdRef = useRef<string | null>(null);
-  const seenTribunalCueKeysRef = useRef<Set<string>>(new Set());
-  const seenTribunalCuePlayerIdRef = useRef<string | null>(null);
-  const seenWarResultKeysRef = useRef<Set<string>>(new Set());
-  const seenWarResultPlayerIdRef = useRef<string | null>(null);
-  const [activeActivityCue, setActiveActivityCue] = useState<AsyncActivityCue | null>(null);
-  const [activeEventResultCue, setActiveEventResultCue] = useState<EventResultCue | null>(null);
-  const [activeFactionPromotionCue, setActiveFactionPromotionCue] = useState<FactionPromotionCue | null>(null);
-  const [activeSabotageCue, setActiveSabotageCue] = useState<SabotageCue | null>(null);
-  const [activeTerritoryLossCue, setActiveTerritoryLossCue] = useState<TerritoryLossCue | null>(null);
-  const [activeTribunalCue, setActiveTribunalCue] = useState<TribunalCue | null>(null);
-  const [activeWarResultCue, setActiveWarResultCue] = useState<WarResultCue | null>(null);
-
-  const hasBlockingCue = Boolean(
-    activeEventResultCue ||
-      activeWarResultCue ||
-      activeActivityCue ||
-      activeFactionPromotionCue ||
-      activeSabotageCue ||
-      activeTerritoryLossCue ||
-      activeTribunalCue,
-  );
-
-  const ensureSeenEventResultsLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenEventResultKeysRef.current = new Set();
-      seenEventResultPlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenEventResultPlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenEventResultKeysRef.current = await loadSeenEventResultKeys(player.id);
-    seenEventResultPlayerIdRef.current = player.id;
-  }, [player?.id]);
-
-  const ensureSeenTerritoryLossesLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenTerritoryLossKeysRef.current = new Set();
-      seenTerritoryLossPlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenTerritoryLossPlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenTerritoryLossKeysRef.current = await loadSeenTerritoryLossKeys(player.id);
-    seenTerritoryLossPlayerIdRef.current = player.id;
-  }, [player?.id]);
-
-  const ensureSeenPrivateMessagesLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenPrivateMessageIdsRef.current = new Set();
-      seenPrivateMessagePlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenPrivateMessagePlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenPrivateMessageIdsRef.current = await loadSeenPrivateMessageIds(player.id);
-    seenPrivateMessagePlayerIdRef.current = player.id;
-    privateMessageFeedPrimedRef.current = false;
-  }, [player?.id]);
-
-  const refreshSeenSabotageCues = useCallback(async () => {
-    if (!player?.id) {
-      seenSabotageCueKeysRef.current = new Set();
-      return;
-    }
-
-    seenSabotageCueKeysRef.current = await loadSeenSabotageCueKeys(player.id);
-  }, [player?.id]);
-
-  const ensureSeenTribunalCuesLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenTribunalCueKeysRef.current = new Set();
-      seenTribunalCuePlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenTribunalCuePlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenTribunalCueKeysRef.current = await loadSeenTribunalCueKeys(player.id);
-    seenTribunalCuePlayerIdRef.current = player.id;
-  }, [player?.id]);
-
-  const ensureSeenWarResultsLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenWarResultKeysRef.current = new Set();
-      seenWarResultPlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenWarResultPlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenWarResultKeysRef.current = await loadSeenWarResultKeys(player.id);
-    seenWarResultPlayerIdRef.current = player.id;
-  }, [player?.id]);
-
-  const ensureSeenActivityResultsLoaded = useCallback(async () => {
-    if (!player?.id) {
-      seenActivityResultKeysRef.current = new Set();
-      seenActivityResultPlayerIdRef.current = null;
-      return;
-    }
-
-    if (seenActivityResultPlayerIdRef.current === player.id) {
-      return;
-    }
-
-    seenActivityResultKeysRef.current = await loadSeenActivityResultKeys(player.id);
-    seenActivityResultPlayerIdRef.current = player.id;
-  }, [player?.id]);
+  const cueState = usePollCueState();
+  const seenState = usePollSeenState(player?.id);
 
   const pollEventFeed = useCallback(async () => {
-    if (!isAuthenticated || !player?.hasCharacter) {
-      return;
-    }
-
-    const [docks, police, seasonal] = await Promise.all([
-      eventApi.getDocksStatus(),
-      eventApi.getPoliceStatus(),
-      eventApi.getSeasonalStatus(),
-    ]);
-    const feed = buildEventFeed({
-      docks,
-      police,
-      seasonal,
+    await pollEventFeedTask({
+      eventFeedPrimedRef: seenState.eventFeedPrimedRef,
+      isAuthenticated,
+      notifyEvent,
+      playSfx,
+      playerHasCharacter: player?.hasCharacter,
+      seenEventIdsRef: seenState.seenEventIdsRef,
+      setEventFeed,
+      showEventToast,
     });
-
-    setEventFeed(feed);
-
-    if (!eventFeedPrimedRef.current) {
-      for (const notification of feed.notifications) {
-        seenEventIdsRef.current.add(notification.id);
-      }
-      eventFeedPrimedRef.current = true;
-      return;
-    }
-
-    const newNotifications = feed.notifications.filter(
-      (notification) => !seenEventIdsRef.current.has(notification.id),
-    );
-
-    if (newNotifications.length === 0) {
-      return;
-    }
-
-    for (const notification of newNotifications) {
-      seenEventIdsRef.current.add(notification.id);
-    }
-
-    showEventToast(newNotifications[0]);
-    void playSfx('notification');
-    void notifyEvent(newNotifications[0]);
   }, [isAuthenticated, notifyEvent, playSfx, player?.hasCharacter, setEventFeed, showEventToast]);
 
   const pollEventResults = useCallback(async () => {
@@ -325,18 +148,18 @@ export function usePollManager({
       return;
     }
 
-    await ensureSeenEventResultsLoaded();
+    await seenState.ensureSeenEventResultsLoaded();
 
     const results = await eventApi.getResults();
     setEventResultFeed(results);
 
-    if (hasBlockingCue) {
+    if (cueState.hasBlockingCue) {
       return;
     }
 
     const cues = buildPendingEventResultCues({
       results,
-      seenKeys: seenEventResultKeysRef.current,
+      seenKeys: seenState.seenEventResultKeysRef.current,
     });
     const nextCue = cues[0];
 
@@ -344,98 +167,40 @@ export function usePollManager({
       return;
     }
 
-    seenEventResultKeysRef.current = await rememberSeenEventResult(player.id, nextCue.key);
-    setActiveEventResultCue(nextCue);
+    seenState.seenEventResultKeysRef.current = await rememberSeenEventResult(player.id, nextCue.key);
+    cueState.setActiveEventResultCue(nextCue);
     setBootstrapStatus(nextCue.body);
     void notifyEventResult(nextCue);
   }, [
-    ensureSeenEventResultsLoaded,
-    hasBlockingCue,
+    cueState,
     isAuthenticated,
     notifyEventResult,
     player,
+    seenState,
     setBootstrapStatus,
     setEventResultFeed,
   ]);
 
   const pollPrivateMessages = useCallback(async () => {
-    if (!isAuthenticated || !player?.hasCharacter || !player.id) {
-      return;
-    }
-
-    await ensureSeenPrivateMessagesLoaded();
-
-    const feed = await privateMessageApi.listThreads();
-    setPrivateMessageFeed(feed);
-
-    const pendingCues = buildPendingPrivateMessageCues({
-      feed,
-      seenMessageIds: seenPrivateMessageIdsRef.current,
+    await pollPrivateMessagesTask({
+      ensureSeenPrivateMessagesLoaded: seenState.ensureSeenPrivateMessagesLoaded,
+      isAuthenticated,
+      notifyPrivateMessage,
+      playerHasCharacter: player?.hasCharacter,
+      playerId: player?.id,
+      privateMessageFeedPrimedRef: seenState.privateMessageFeedPrimedRef,
+      seenPrivateMessageIdsRef: seenState.seenPrivateMessageIdsRef,
+      setBootstrapStatus,
+      setPrivateMessageFeed,
     });
-
-    if (!privateMessageFeedPrimedRef.current) {
-      for (const cue of pendingCues) {
-        seenPrivateMessageIdsRef.current = await rememberSeenPrivateMessage(player.id, cue.messageId);
-      }
-      privateMessageFeedPrimedRef.current = true;
-      return;
-    }
-
-    const nextCue = pendingCues[0];
-
-    if (!nextCue) {
-      return;
-    }
-
-    seenPrivateMessageIdsRef.current = await rememberSeenPrivateMessage(player.id, nextCue.messageId);
-    setBootstrapStatus(`${nextCue.contactNickname} te mandou uma mensagem privada.`);
-    void notifyPrivateMessage(nextCue);
   }, [
-    ensureSeenPrivateMessagesLoaded,
     isAuthenticated,
     notifyPrivateMessage,
     player?.hasCharacter,
     player?.id,
+    seenState,
     setBootstrapStatus,
     setPrivateMessageFeed,
-  ]);
-
-  const pollSabotageCues = useCallback(async () => {
-    if (!isAuthenticated || !player?.hasCharacter || !player.id) {
-      return;
-    }
-
-    await refreshSeenSabotageCues();
-
-    if (hasBlockingCue) {
-      return;
-    }
-
-    const center = await propertyApi.getSabotageCenter();
-    const nextCue = buildPendingSabotageCues({
-      center,
-      playerId: player.id,
-      seenKeys: seenSabotageCueKeysRef.current,
-    })[0];
-
-    if (!nextCue) {
-      return;
-    }
-
-    seenSabotageCueKeysRef.current = await rememberSeenSabotageCue(player.id, nextCue.key);
-    setActiveSabotageCue(nextCue);
-    setBootstrapStatus(nextCue.body);
-    void notifySabotageCue(nextCue);
-    void refreshPlayerProfile();
-  }, [
-    hasBlockingCue,
-    isAuthenticated,
-    notifySabotageCue,
-    player?.hasCharacter,
-    player?.id,
-    refreshPlayerProfile,
-    refreshSeenSabotageCues,
-    setBootstrapStatus,
   ]);
 
   const pollTribunalCues = useCallback(async () => {
@@ -448,24 +213,24 @@ export function usePollManager({
       return;
     }
 
-    await ensureSeenTribunalCuesLoaded();
+    await seenState.ensureSeenTribunalCuesLoaded();
 
-    if (hasBlockingCue) {
+    if (cueState.hasBlockingCue) {
       return;
     }
 
     const feed = await tribunalApi.getCues();
     const nextCue = buildPendingTribunalCues({
       feed,
-      seenKeys: seenTribunalCueKeysRef.current,
+      seenKeys: seenState.seenTribunalCueKeysRef.current,
     })[0];
 
     if (!nextCue) {
       return;
     }
 
-    seenTribunalCueKeysRef.current = await rememberSeenTribunalCue(player.id, nextCue.key);
-    setActiveTribunalCue(nextCue);
+    seenState.seenTribunalCueKeysRef.current = await rememberSeenTribunalCue(player.id, nextCue.key);
+    cueState.setActiveTribunalCue(nextCue);
     setBootstrapStatus(nextCue.body);
     void notifyTribunalCue(nextCue);
 
@@ -473,77 +238,70 @@ export function usePollManager({
       void refreshPlayerProfile();
     }
   }, [
-    ensureSeenTribunalCuesLoaded,
-    hasBlockingCue,
+    cueState,
     isAuthenticated,
     notifyTribunalCue,
     player,
     refreshPlayerProfile,
+    seenState,
     setBootstrapStatus,
   ]);
-
-  const pollAttackNotifications = useCallback(async () => {
-    if (!isAuthenticated || !player?.hasCharacter) {
-      return;
-    }
-
-    const contractsBook = await pvpApi.listContracts();
-
-    if (!contractFeedPrimedRef.current) {
-      for (const notification of contractsBook.notifications) {
-        seenContractNotificationIdsRef.current.add(notification.id);
-      }
-      contractFeedPrimedRef.current = true;
-      return;
-    }
-
-    const freshNotifications = contractsBook.notifications.filter(
-      (notification) => !seenContractNotificationIdsRef.current.has(notification.id),
-    );
-
-    if (freshNotifications.length === 0) {
-      return;
-    }
-
-    for (const notification of freshNotifications) {
-      seenContractNotificationIdsRef.current.add(notification.id);
-    }
-
-    void notifyAttack(freshNotifications[0]);
-  }, [isAuthenticated, notifyAttack, player?.hasCharacter]);
 
   const pollWarResults = useCallback(async () => {
     if (!isAuthenticated || !player?.hasCharacter || !player?.faction?.id || !player.id) {
       return;
     }
 
-    await ensureSeenWarResultsLoaded();
+    await Promise.all([
+      seenState.ensureSeenTerritoryAlertsLoaded(),
+      seenState.ensureSeenWarResultsLoaded(),
+    ]);
 
-    if (hasBlockingCue) {
+    const overview = await territoryApi.list();
+    const territoryAlert = buildPendingTerritoryAlertCues({
+      overview,
+      player,
+      seenKeys: seenState.seenTerritoryAlertKeysRef.current,
+    })[0];
+
+    if (territoryAlert) {
+      seenState.seenTerritoryAlertKeysRef.current = await rememberSeenTerritoryAlert(
+        player.id,
+        territoryAlert.key,
+      );
+
+      if (!cueState.hasBlockingCue) {
+        setBootstrapStatus(territoryAlert.body);
+      }
+
+      void notifyTerritoryAlert(territoryAlert);
+    }
+
+    if (cueState.hasBlockingCue) {
       return;
     }
 
-    const overview = await territoryApi.list();
     const nextCue = buildPendingWarResultCues({
       overview,
       player,
-      seenKeys: seenWarResultKeysRef.current,
+      seenKeys: seenState.seenWarResultKeysRef.current,
     })[0];
 
     if (!nextCue) {
       return;
     }
 
-    seenWarResultKeysRef.current = await rememberSeenWarResult(player.id, nextCue.key);
-    setActiveWarResultCue(nextCue);
+    seenState.seenWarResultKeysRef.current = await rememberSeenWarResult(player.id, nextCue.key);
+    cueState.setActiveWarResultCue(nextCue);
     setBootstrapStatus(nextCue.body);
     void notifyWarResult(nextCue);
   }, [
-    ensureSeenWarResultsLoaded,
-    hasBlockingCue,
+    cueState,
     isAuthenticated,
+    notifyTerritoryAlert,
     notifyWarResult,
     player,
+    seenState,
     setBootstrapStatus,
   ]);
 
@@ -552,15 +310,18 @@ export function usePollManager({
       return;
     }
 
-    await Promise.all([ensureSeenTerritoryLossesLoaded(), ensureSeenWarResultsLoaded()]);
+    await Promise.all([
+      seenState.ensureSeenTerritoryLossesLoaded(),
+      seenState.ensureSeenWarResultsLoaded(),
+    ]);
 
     if (
-      activeEventResultCue ||
-      activeWarResultCue ||
-      activeActivityCue ||
-      activeFactionPromotionCue ||
-      activeTerritoryLossCue ||
-      activeTribunalCue
+      cueState.activeEventResultCue ||
+      cueState.activeWarResultCue ||
+      cueState.activeActivityCue ||
+      cueState.activeFactionPromotionCue ||
+      cueState.activeTerritoryLossCue ||
+      cueState.activeTribunalCue
     ) {
       return;
     }
@@ -569,11 +330,11 @@ export function usePollManager({
     const warCues = buildPendingWarResultCues({
       overview,
       player,
-      seenKeys: seenWarResultKeysRef.current,
+      seenKeys: seenState.seenWarResultKeysRef.current,
     });
     const nextResult = buildPendingTerritoryLossCues({
       feed,
-      seenKeys: seenTerritoryLossKeysRef.current,
+      seenKeys: seenState.seenTerritoryLossKeysRef.current,
       warCues,
     })[0];
 
@@ -581,7 +342,7 @@ export function usePollManager({
       return;
     }
 
-    seenTerritoryLossKeysRef.current = await rememberSeenTerritoryLoss(
+    seenState.seenTerritoryLossKeysRef.current = await rememberSeenTerritoryLoss(
       player.id,
       nextResult.cue.key,
     );
@@ -590,21 +351,15 @@ export function usePollManager({
       return;
     }
 
-    setActiveTerritoryLossCue(nextResult.cue);
+    cueState.setActiveTerritoryLossCue(nextResult.cue);
     setBootstrapStatus(nextResult.cue.body);
     void notifyTerritoryLoss(nextResult.cue);
   }, [
-    activeActivityCue,
-    activeEventResultCue,
-    activeFactionPromotionCue,
-    activeTerritoryLossCue,
-    activeTribunalCue,
-    activeWarResultCue,
-    ensureSeenTerritoryLossesLoaded,
-    ensureSeenWarResultsLoaded,
+    cueState,
     isAuthenticated,
     notifyTerritoryLoss,
     player,
+    seenState,
     setBootstrapStatus,
   ]);
 
@@ -613,32 +368,24 @@ export function usePollManager({
       return;
     }
 
-    await ensureSeenActivityResultsLoaded();
+    await seenState.ensureSeenActivityResultsLoaded();
 
-    const [trainingCenter, universityCenter] = await Promise.all([
-      trainingApi.getCenter(),
-      universityApi.getCenter(),
-    ]);
+    const universityCenter = await universityApi.getCenter();
 
-    await Promise.all([
-      syncTrainingNotifications(trainingCenter.activeSession),
-      syncUniversityNotifications(universityCenter.activeCourse),
-    ]);
+    await syncUniversityNotifications(universityCenter.activeCourse);
 
     if (
-      activeEventResultCue ||
-      activeWarResultCue ||
-      activeActivityCue ||
-      activeSabotageCue ||
-      activeTerritoryLossCue ||
-      activeTribunalCue
+      cueState.activeEventResultCue ||
+      cueState.activeWarResultCue ||
+      cueState.activeActivityCue ||
+      cueState.activeTerritoryLossCue ||
+      cueState.activeTribunalCue
     ) {
       return;
     }
 
     const nextCue = buildPendingActivityCues({
-      seenKeys: seenActivityResultKeysRef.current,
-      trainingCenter,
+      seenKeys: seenState.seenActivityResultKeysRef.current,
       universityCenter,
     })[0];
 
@@ -646,30 +393,26 @@ export function usePollManager({
       return;
     }
 
-    seenActivityResultKeysRef.current = await rememberSeenActivityResult(player.id, nextCue.key);
-    setActiveActivityCue(nextCue);
+    seenState.seenActivityResultKeysRef.current = await rememberSeenActivityResult(player.id, nextCue.key);
+    cueState.setActiveActivityCue(nextCue);
     setBootstrapStatus(nextCue.body);
   }, [
-    activeActivityCue,
-    activeEventResultCue,
-    activeSabotageCue,
-    activeTerritoryLossCue,
-    activeTribunalCue,
-    activeWarResultCue,
-    ensureSeenActivityResultsLoaded,
+    cueState,
     isAuthenticated,
     player,
+    seenState,
     setBootstrapStatus,
-    syncTrainingNotifications,
     syncUniversityNotifications,
   ]);
 
   const pollFactionPromotionResults = useCallback(async () => {
-    if (!isAuthenticated || !player?.hasCharacter || !player?.faction?.id) {
+    if (!isAuthenticated || !player?.hasCharacter || !player?.faction?.id || !player.id) {
       return;
     }
 
-    if (hasBlockingCue) {
+    await seenState.ensureSeenFactionPromotionsLoaded();
+
+    if (cueState.hasBlockingCue) {
       return;
     }
 
@@ -682,148 +425,76 @@ export function usePollManager({
       return;
     }
 
-    setActiveFactionPromotionCue(cue);
+    if (seenState.seenFactionPromotionKeysRef.current.has(cue.key)) {
+      return;
+    }
+
+    seenState.seenFactionPromotionKeysRef.current = await rememberSeenFactionPromotion(player.id, cue.key);
+    cueState.setActiveFactionPromotionCue(cue);
     setBootstrapStatus(cue.body);
     void notifyFactionPromotion(cue);
     void refreshPlayerProfile();
   }, [
-    hasBlockingCue,
+    cueState,
     isAuthenticated,
     notifyFactionPromotion,
+    player?.id,
     player?.faction?.id,
     player?.hasCharacter,
     refreshPlayerProfile,
+    seenState,
     setBootstrapStatus,
   ]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !player?.hasCharacter) {
-      void syncRegionMusic(null);
-      return;
-    }
-
-    void syncRegionMusic(player.regionId);
-  }, [isAuthenticated, player?.hasCharacter, player?.regionId, syncRegionMusic]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !player?.hasCharacter) {
-      contractFeedPrimedRef.current = false;
-      eventFeedPrimedRef.current = false;
-      privateMessageFeedPrimedRef.current = false;
-      seenActivityResultKeysRef.current.clear();
-      seenActivityResultPlayerIdRef.current = null;
-      seenContractNotificationIdsRef.current.clear();
-      seenEventIdsRef.current.clear();
-      seenEventResultKeysRef.current.clear();
-      seenEventResultPlayerIdRef.current = null;
-      seenPrivateMessageIdsRef.current.clear();
-      seenPrivateMessagePlayerIdRef.current = null;
-      seenSabotageCueKeysRef.current.clear();
-      seenTerritoryLossKeysRef.current.clear();
-      seenTerritoryLossPlayerIdRef.current = null;
-      seenTribunalCueKeysRef.current.clear();
-      seenTribunalCuePlayerIdRef.current = null;
-      seenWarResultKeysRef.current.clear();
-      seenWarResultPlayerIdRef.current = null;
-      setActiveActivityCue(null);
-      setActiveEventResultCue(null);
-      setActiveFactionPromotionCue(null);
-      setActiveSabotageCue(null);
-      setActiveTerritoryLossCue(null);
-      setActiveTribunalCue(null);
-      setActiveWarResultCue(null);
-      resetEventFeed();
-      resetPrivateMessageFeed();
-      void syncTimerNotifications(null);
-      void syncTrainingNotifications(null);
-      void syncUniversityNotifications(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        await Promise.all([
-          pollAttackNotifications(),
-          pollAsyncActivityResults(),
-          pollEventFeed(),
-          pollEventResults(),
-          pollFactionPromotionResults(),
-          pollPrivateMessages(),
-          pollSabotageCues(),
-          pollTerritoryLosses(),
-          pollTribunalCues(),
-          pollWarResults(),
-        ]);
-      } catch {
-        if (!cancelled) {
-          // Silent fail in pre-alpha: the banner should not block auth or map boot.
-        }
-      }
-    };
-
-    void load();
-    const intervalId = setInterval(() => {
-      void load();
-    }, 45_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
+  const pollAll = useCallback(async () => {
+    await Promise.all([
+      pollAsyncActivityResults(),
+      pollEventFeed(),
+      pollEventResults(),
+      pollFactionPromotionResults(),
+      pollPrivateMessages(),
+      pollTerritoryLosses(),
+      pollTribunalCues(),
+      pollWarResults(),
+    ]);
   }, [
-    isAuthenticated,
-    player?.hasCharacter,
-    pollAttackNotifications,
     pollAsyncActivityResults,
     pollEventFeed,
     pollEventResults,
     pollFactionPromotionResults,
     pollPrivateMessages,
-    pollSabotageCues,
     pollTerritoryLosses,
     pollTribunalCues,
     pollWarResults,
-    resetEventFeed,
-    resetPrivateMessageFeed,
-    syncTimerNotifications,
-    syncTrainingNotifications,
-    syncUniversityNotifications,
   ]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !player?.hasCharacter) {
-      void syncTimerNotifications(null);
-      return;
-    }
-
-    void syncTimerNotifications(player);
-  }, [
+  usePollManagerLifecycle({
+    clearState: () => {
+      seenState.resetSeenState();
+      cueState.clearAllCues();
+    },
     isAuthenticated,
     player,
-    player?.hasCharacter,
-    player?.hospitalization?.endsAt,
-    player?.hospitalization?.isHospitalized,
-    player?.prison?.endsAt,
-    player?.prison?.isImprisoned,
+    pollAll,
+    resetEventFeed,
+    resetPrivateMessageFeed,
+    syncRegionMusic,
     syncTimerNotifications,
-  ]);
+    syncUniversityNotifications,
+  });
 
   return {
-    activeActivityCue,
-    activeEventResultCue,
-    activeFactionPromotionCue,
-    activeSabotageCue,
-    activeTerritoryLossCue,
-    activeTribunalCue,
-    activeWarResultCue,
-    closeActivityCue: () => setActiveActivityCue(null),
-    closeEventResultCue: () => setActiveEventResultCue(null),
-    closeFactionPromotionCue: () => setActiveFactionPromotionCue(null),
-    closeSabotageCue: () => setActiveSabotageCue(null),
-    closeTerritoryLossCue: () => setActiveTerritoryLossCue(null),
-    closeTribunalCue: () => setActiveTribunalCue(null),
-    closeWarResultCue: () => setActiveWarResultCue(null),
+    activeActivityCue: cueState.activeActivityCue,
+    activeEventResultCue: cueState.activeEventResultCue,
+    activeFactionPromotionCue: cueState.activeFactionPromotionCue,
+    activeTerritoryLossCue: cueState.activeTerritoryLossCue,
+    activeTribunalCue: cueState.activeTribunalCue,
+    activeWarResultCue: cueState.activeWarResultCue,
+    closeActivityCue: cueState.closeActivityCue,
+    closeEventResultCue: cueState.closeEventResultCue,
+    closeFactionPromotionCue: cueState.closeFactionPromotionCue,
+    closeTerritoryLossCue: cueState.closeTerritoryLossCue,
+    closeTribunalCue: cueState.closeTribunalCue,
+    closeWarResultCue: cueState.closeWarResultCue,
   };
 }

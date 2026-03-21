@@ -212,24 +212,5 @@ export function summarizeUniversityPassives(profile: UniversityPassiveProfile): 
     lines.push(`Aura de carisma faccional +${Math.round(profile.faction.factionCharismaAura * 100)}%`);
   }
 
-  if (profile.pvp.damageDealtMultiplier !== UNIVERSITY_EMPTY_PASSIVE_PROFILE.pvp.damageDealtMultiplier) {
-    lines.push(`Dano PvP x${profile.pvp.damageDealtMultiplier.toFixed(2)}`);
-  }
-
-  if (profile.pvp.ambushPowerMultiplier !== UNIVERSITY_EMPTY_PASSIVE_PROFILE.pvp.ambushPowerMultiplier) {
-    lines.push(`Poder de emboscada x${profile.pvp.ambushPowerMultiplier.toFixed(2)}`);
-  }
-
-  if (profile.pvp.assaultPowerMultiplier !== UNIVERSITY_EMPTY_PASSIVE_PROFILE.pvp.assaultPowerMultiplier) {
-    lines.push(`Poder de assalto x${profile.pvp.assaultPowerMultiplier.toFixed(2)}`);
-  }
-
-  if (
-    profile.pvp.lowHpDamageTakenMultiplier !==
-    UNIVERSITY_EMPTY_PASSIVE_PROFILE.pvp.lowHpDamageTakenMultiplier
-  ) {
-    lines.push(`Dano recebido em baixo HP x${profile.pvp.lowHpDamageTakenMultiplier.toFixed(2)}`);
-  }
-
   return lines;
 }

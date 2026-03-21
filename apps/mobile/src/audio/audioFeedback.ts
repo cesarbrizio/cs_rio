@@ -1,13 +1,13 @@
-import type {
-  CrimeAttemptResponse,
-  PvpAmbushResponse,
-  PvpAssaultResponse,
-  PvpContractExecutionResponse,
-} from '@cs-rio/shared';
+import type { CrimeAttemptResponse } from '@cs-rio/shared';
 
 import type { AudioSfxKey } from './audioCatalog';
 
-type CombatLikeResult = PvpAmbushResponse | PvpAssaultResponse | PvpContractExecutionResponse;
+interface CombatLikeResult {
+  fatality: {
+    defenderDied: boolean;
+  };
+  success: boolean;
+}
 
 export function resolveCrimeResultSfx(result: CrimeAttemptResponse): AudioSfxKey {
   if (result.arrested) {

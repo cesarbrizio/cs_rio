@@ -2,8 +2,9 @@
 
 > Jogo de RPG criminal multiplayer ambientado no Rio de Janeiro, com visual isométrico 2D.
 > Inspirado em The Crims, adaptado para a realidade carioca.
-> Última atualização operacional: **2026-03-15**.
+> Última atualização operacional: **2026-03-19**.
 > Este documento combina intenção de design com estado real aprovado do Pré-Alpha. Quando houver divergência, prevalece o estado já consolidado no produto, em [PRODUCT_STATUS.md](./PRODUCT_STATUS.md), [MAPA.md](./MAPA.md), [TODO.md](./TODO.md), [CHEATS.md](./CHEATS.md) e [HARDENING.md](./HARDENING.md).
+> Nota beta `2026-03-19`: `Centro de Treino`, `Combate PvP`, `Assassinato por Encomenda` e `Sabotagem` sairam do recorte beta atual. Qualquer mencao residual abaixo deve ser lida como design legado, nao como contrato ativo do produto.
 
 ---
 
@@ -58,9 +59,10 @@ Algumas regras estruturais do jogo orientam toda a economia e a politica do mapa
 
 - **Toda propriedade pertence ao jogador.** A faccao nunca vira dona direta do ativo.
 - **Faccao funciona como camada de protecao e arrecadacao.** Se o jogador fizer parte de uma faccao, seus negocios lucrativos operam sob protecao dela e repassam comissao fixa para o caixa faccional.
-- **Patrimonio e negocio sao categorias diferentes.**
-  - Patrimonio: casa, carro, barco, iate, joias, obra de arte, helicoptero, aviao, luxo em geral. Nao gera renda direta, mas entrega conforto, logistica, mobilidade, capacidade e despesas.
-  - Negocio: boca, rave, fabrica, puteiro, loja de fachada, maquininha e outros ativos operacionais. Gera receita, mas tambem custo, risco e comissao faccional.
+- **Negocio, imovel e artigo de luxo sao categorias diferentes.**
+  - Negocio: boca, rave, fabrica, puteiro, loja de fachada, maquininha e outros ativos operacionais. Gera receita, tambem gera custo, risco e comissao faccional.
+  - Imovel: casa, casa de praia e mansao. Nao gera renda direta, mas amplia recuperacao, capacidade e protecao, com manutencao recorrente.
+  - Artigo de luxo: carro, barco, iate, jet ski, joias, arte, helicoptero e aviao. Nao gera renda direta nem despesa diaria base; entrega mobilidade, status e utilidade patrimonial com estoque limitado por rodada.
 - **Troca de faccao nao transfere posse.** Os ativos continuam com o jogador, mas passam a obedecer a nova camada de protecao/comissao apos um periodo de transicao.
 - **Dominio territorial fortalece, nao blinda.** Controlar todas as favelas de uma regiao reduz risco de invasao, roubo e tomada, melhora protecao e eficiencia, mas nunca torna um ativo invulneravel.
 
@@ -116,7 +118,7 @@ Ao criar o personagem, o jogador escolhe uma **vocação** que define seus bônu
 |---|---|---|---|
 | **Cria** | Força | Resistência | Roubos e assaltos de rua, crimes físicos |
 | **Gerente** | Inteligência | Resistência | Gestão de bocas, fábricas e logística de drogas |
-| **Soldado** | Força | Inteligência | Combate PvP, defesa territorial, execuções |
+| **Soldado** | Força | Inteligência | Confronto armado, defesa territorial e guerra de facção |
 | **Político** | Carisma | Inteligência | Negociação com PM, influência social, cafetinagem, lavagem |
 | **Empreendedor** | Inteligência | Carisma | Negócios ilícitos, lavagem de dinheiro, investimentos |
 
@@ -132,7 +134,7 @@ Quatro atributos core determinam todas as capacidades do personagem:
 | Atributo | Efeito |
 |---|---|
 | **Força** | Dano em combate, sucesso em roubos físicos, capacidade de carga de armas pesadas |
-| **Inteligência** | Produção em fábricas, planejamento de golpes, sucesso em crimes complexos, eficiência de treino |
+| **Inteligência** | Produção em fábricas, planejamento de golpes, sucesso em crimes complexos e eficiência de progressão na universidade |
 | **Resistência** | Vida máxima (HP), absorção de dano, capacidade de gestão de propriedades, recuperação de cansaço passiva |
 | **Carisma** | Lucro com GPs, recrutamento, negociação com PM, desconto em compras, influência em julgamentos |
 
@@ -147,7 +149,7 @@ Quatro atributos core determinam todas as capacidades do personagem:
 | Empreendedor | 10 | 25 | 10 | 25 |
 
 Atributos aumentam através de:
-- Treinos (principal fonte)
+- Cursos e passivos da Universidade do Crime (principal fonte de progressão permanente)
 - Crimes bem-sucedidos (ganho menor, constante)
 - Itens consumíveis (impulsos temporários e permanentes)
 - Equipamentos (bônus enquanto equipado)
@@ -169,10 +171,13 @@ Atributos aumentam através de:
 
 **Conceito** é a métrica central de status e progressão do jogo. É o que define o ranking do jogador e determina o vencedor da rodada.
 
+**Contrato atual do produto:**
+- o ranking da rodada possui tela dedicada em mobile e desktop
+- a leitura principal expõe leaderboard, dia atual, prazo da rodada e premio em creditos para o top 10
+
 **Ganha-se Conceito ao:**
 - Completar crimes com sucesso
 - Ganhar dinheiro (qualquer fonte)
-- Vencer combates PvP
 - Conquistar favelas
 - Subir de nível
 - Doar para a facção
@@ -184,12 +189,11 @@ Atributos aumentam através de:
 **Perde-se Conceito ao:**
 - Ser preso
 - Morrer (hospitalização)
-- Perder combate PvP
 - Ser delatado (X9)
 - Falhar em crimes
 - Perder território
 - Julgar mal no Tribunal do Tráfico (revolta popular ou da facção)
-- Ter propriedade sabotada
+- Perder guerras ou sofrer tomada operacional relevante
 
 ### 3.2 Níveis de Progressão
 
@@ -197,11 +201,11 @@ Atributos aumentam através de:
 |---|---|---|---|
 | 1 | **Pivete** | 0 | Crimes básicos de rua, mercado negro (compra) |
 | 2 | **Aviãozinho** | 50 | Venda de drogas, mercado negro (venda), tráfico |
-| 3 | **Fogueteiro** | 200 | Treinos, armas médias, porrada (PvP), fábricas de drogas |
+| 3 | **Fogueteiro** | 200 | Armas médias, crimes mais pesados e fábricas de drogas |
 | 4 | **Vapor** | 500 | Raves, bocas de fumo, tráfico nas docas |
-| 5 | **Soldado** | 1.500 | Criar facção, crimes de facção, sabotagem, maquininha de caça-níquel |
+| 5 | **Soldado** | 1.500 | Criar facção, crimes de facção e maquininha de caça-níquel |
 | 6 | **Gerente de Boca** | 5.000 | Gestão de puteiros (GPs), lojas de fachada, lavagem de dinheiro |
-| 7 | **Frente** | 15.000 | Crimes complexos (elite), Universidade do Crime, assassinato por encomenda |
+| 7 | **Frente** | 15.000 | Crimes complexos (elite), Universidade do Crime |
 | 8 | **Dono da Boca** | 50.000 | Domínio de favelas, organizar baile funk, armas pesadas |
 | 9 | **Líder da Facção** | 150.000 | Guerras de facção, negociação de propina com PM, Tribunal do Tráfico |
 | 10 | **Prefeito** | 500.000 | Todas as mecânicas, status lendário, bônus passivos exclusivos |
@@ -220,9 +224,8 @@ O **Cansaço** é o recurso principal do jogo. Determina a capacidade de executa
 | Crimes solo (médios) | 15–30% |
 | Crimes solo (difíceis) | 30–50% |
 | Crimes de facção | 30% (fixo) |
-| Combate PvP (porrada) | 20% |
-| Sabotagem | 40% |
-| Treinamento | 15% |
+| Guerra territorial (preparo / round) | 20-35% |
+| Gestão pesada de ativos | 10-20% |
 | Tráfico de drogas | 5% |
 | Visitar GP | 10% |
 
@@ -273,7 +276,7 @@ A **Disposição** é um recurso secundário que limita crimes mais arriscados. 
 ### 3.5 Vida (HP)
 
 - Base: 100 HP (aumenta com Resistência: +1 HP por ponto de Resistência)
-- Perde vida em combate PvP, falhas em crimes violentos, incursões policiais, overdose
+- Perde vida em falhas em crimes violentos, rounds de guerra territorial, incursões policiais e overdose
 - Recupera: passivamente (lento), no Hospital (pago), com itens (Transfusão, Viagra)
 - Se chegar a 0: personagem fica **hospitalizado** (2-12 horas de jogo)
 - Com Plano de Saúde: hospitalização reduzida em 75%, com mínimo de 15 minutos de jogo
@@ -576,6 +579,16 @@ Coletes aumentam a **Resistência** efetiva. Funcionam como armadura.
 - Perdem durabilidade ao absorver dano (1-5 pontos por hit)
 - Podem ser reparados no Mercado Negro (mesma lógica das armas)
 
+### 5.2.1 Contrato Atual do Inventario
+
+No produto atual, o inventario de mobile e desktop segue a mesma leitura:
+
+- a superficie canonica da feature aparece como `Equipar`
+- cada item expande no proprio card
+- `Equipar`, `Desequipar`, `Reparar` e `Usar` acontecem inline no card
+- o resultado aparece em feedback imediato, sem depender de painel lateral separado
+- armas e coletes mostram impacto real em confronto, crimes e guerra territorial no proprio detalhe do item
+
 ### 5.3 Soldados (Guardas de Propriedade)
 
 Soldados protegem suas propriedades (bocas, fábricas, puteiros, raves) e territórios de favela. Cada soldado tem:
@@ -698,7 +711,7 @@ Impulsos são itens temporários que potencializam atividades específicas. Dura
 
 | Impulso | Efeito | Nome Original (The Crims) |
 |---|---|---|
-| **Impulso de Milico** | +30% ganho de atributos em treinos | Reforço de treinamento |
+| **Impulso de Milico** | +30% ganho de atributos em progressão pessoal | Reforço de treinamento |
 | **Impulso de Conceito Alto** | Dobra o Conceito ganho em todas atividades | Big Brother |
 | **Impulso de Cria** | +50% recompensa em crimes solo | Amor ao Trabalho |
 | **Impulso de Jogo do Bicho** | +30% chance de vitória na maquininha/bicho | Bingo |
@@ -746,6 +759,10 @@ Disponível a partir do nível 6 (Gerente de Boca).
 ### 7.1 Tipos de Drogas
 
 Drogas são consumidas em raves/bailes para recuperar cansaço e elevar o brisa. Também podem ser produzidas em fábricas e vendidas para lucro. São a **espinha dorsal da economia** do jogo.
+
+**Contrato atual do produto:**
+- `Rave / Baile` existe como tela propria em mobile e desktop
+- a tela dedicada mostra droga selecionada, leitura de risco, alertas de overdose e retorno imediato da dose aplicada
 
 | Droga | Recuperação de Cansaço | Aumento de Brisa | Preço Base | Nível para Produzir | Bônus de Disposição |
 |---|---|---|---|---|---|
@@ -822,7 +839,7 @@ Produção = Base da Droga × (1 + Inteligência/1000) × Bônus de Impulso × B
 
 Todo ativo comprado no jogo pertence ao jogador. A faccao nunca adquire a propriedade do bem, mas pode:
 
-- proteger o ativo contra invasao, roubo, sabotagem e tomada operacional
+- proteger o ativo contra invasao, roubo e tomada operacional
 - receber comissao fixa sobre negocios lucrativos
 - projetar poder territorial ao redor do ativo quando domina a favela ou a regiao
 
@@ -830,13 +847,17 @@ Todo ativo comprado no jogo pertence ao jogador. A faccao nunca adquire a propri
 
 | Categoria | Exemplos | Renda Direta | Despesa | Protecao da Faccao |
 |---|---|---|---|---|
-| **Patrimonial** | Casa, carro, joias, barco, iate, lancha, jet ski, casa de praia, mansao, aviao, helicoptero, arte, luxo | Nao | Sim | Sim, se o jogador for faccionado |
-| **Operacional** | Boca, rave, fabrica, puteiro, loja de fachada, maquininha | Sim | Sim | Sim, se o jogador for faccionado |
+| **Negocio** | Boca, rave, fabrica, puteiro, loja de fachada, maquininha | Sim | Sim | Sim, se o jogador for faccionado |
+| **Imovel** | Casa, casa de praia, mansao | Nao | Sim | Sim, se o jogador for faccionado |
+| **Artigo de luxo** | Carro, barco, iate, jet ski, aviao, helicoptero, joias, arte | Nao | Nao | Sim, se o jogador for faccionado |
 
 **Regras estruturais:**
 - Negocios lucrativos repassam comissao fixa para a faccao do dono.
 - `Jogo do Bicho` nao entra nessa camada de comissao, porque e tratado como mini-game manual de aposta, nao como ativo operacional do jogador.
-- Patrimonio pessoal nao gera retorno economico direto; entrega conforto, stash, deslocamento, acesso a canais especiais e protecao.
+- Imoveis nao geram retorno economico direto; entregam conforto, recuperacao, stash e protecao.
+- Artigos de luxo nao geram retorno economico direto; entregam mobilidade, status e utilidade patrimonial sem manutencao diaria base.
+- Negocios e imoveis so podem ser comprados quando existe slot livre correspondente no mapa da regiao.
+- Artigos de luxo usam estoque limitado no backend por rodada, sem depender de slot no mapa.
 - Se o jogador mudar de faccao, os ativos continuam sendo dele.
 - Ao trocar de faccao, a camada de protecao/comissao migra junto apos um cooldown de transicao.
 - "Tomada" de propriedade deve afetar primeiro a **operacao**, o **estoque** e a **seguranca** do ativo; perda definitiva do bem e um evento raro.
@@ -861,7 +882,7 @@ Ponto fixo de venda de drogas. Disponível a partir do nível 4 (Vapor).
 - O dono define quais drogas estocar e o preço
 - Lucro depende de: localização (favela/região), variedade de drogas, preços, fluxo de jogadores
 - Pode ser protegida por soldados
-- Pode ser sabotada ou tomada por rivais
+- Pode sofrer pressao rival e tentativa de tomada operacional
 - Pode ser apreendida pela PM em incursões
 - **Bônus de localização**: bocas em favelas mais populosas vendem mais
 
@@ -900,7 +921,7 @@ Casas com **Garotas do Job (GPs)**. Disponível a partir do nível 6 (Gerente de
 **Riscos com GPs:**
 - Podem fugir (chance diária baixa, reduzida com Carisma alto)
 - Podem morrer (evento raro)
-- Podem ser "roubadas" por rivais (sabotagem)
+- Podem ser perdidas por incidentes operacionais e pressao rival
 - Podem contrair DSTs, reduzindo rendimento e pressionando a operacao ate a recuperacao
 - DST fica restrita as GPs e ao rendimento do puteiro; o jogador nao entra em estado de DST por usar esse servico
 
@@ -936,7 +957,7 @@ Os dois sistemas existem no jogo, mas cumprem papéis diferentes e hoje a UX tra
 - Aposta em animais (1-25)
 - Sorteio a cada 2 horas de jogo (`30 min` reais)
 - Pode apostar na cabeça, no grupo ou na dezena
-- Fica exposto no mobile como **tela própria de ação**, não como propriedade
+- Fica exposto em mobile e desktop como **tela própria de ação**, não como propriedade
 - Funciona como **mini-game puro de aposta**, sem repasse fixo para facção nem posse territorial do sistema
 - O resultado é tratado como ação imediata: seleção inline, confirmação no próprio card e feedback claro no fluxo
 
@@ -959,38 +980,35 @@ Os dois sistemas existem no jogo, mas cumprem papéis diferentes e hoje a UX tra
 
 ### 8.6 Imoveis e Patrimonio Pessoal
 
-Jogadores podem comprar imoveis para moradia e ativos patrimoniais para conforto, logistica e utilidade. Esses bens **nao geram renda direta**, mas:
+Jogadores podem comprar imoveis para moradia e artigos de luxo para conforto, logistica e utilidade. Esses bens **nao geram renda direta**, mas:
 
-- exigem manutencao recorrente
+- imoveis exigem manutencao recorrente
 - podem ser protegidos por soldados e pela faccao do jogador
 - liberam cofres, descansos, canais de transporte, stash e acesso a oportunidades especiais
 - ampliam capacidade, mobilidade, recuperacao e protecao operacional conforme o tipo do ativo
+- negocios e imoveis dependem de um POI/slot livre no mapa para poderem ser comprados
+- artigos de luxo usam estoque limitado da rodada e nao ocupam POI no mapa
 
 **Imoveis residenciais:**
 
-Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
+Jogadores podem comprar imoveis para moradia. No beta atual, os tipos jogaveis sao:
 
-| Tipo | Preço | Bônus Cansaço | Cofre | Localização Típica |
+| Tipo | Preço | Manutenção | Utilidade principal | Aquisição |
 |---|---|---|---|---|
-| Barraco | $5.000 | +10% recuperação | $50.000 | Favelas |
-| Kitnet | $20.000 | +15% recuperação | $100.000 | Centro, Z. Norte |
-| Apartamento | $100.000 | +25% recuperação | $500.000 | Z. Sul, Z. Sudoeste |
-| Casa | $300.000 | +35% recuperação | $1.000.000 | Z. Oeste, Z. Sudoeste |
-| Cobertura | $1.000.000 | +45% recuperação | $5.000.000 | Z. Sul |
-| Mansão | $5.000.000 | +50% recuperação | $20.000.000 | Z. Sudoeste |
+| Casa | $5.000 | Sim | Recuperacao basica, inventario e base pessoal | Slot residencial no mapa |
+| Casa de praia | $85.000 | Sim | Recuperacao premium, inventario expandido e base secundaria | Slot residencial no mapa |
+| Mansao | $250.000 | Sim | Maior protecao, capacidade e conforto patrimonial | Slot residencial no mapa |
 
-- Bônus de Cansaço: melhora a regeneração passiva quando "em casa"
-- Cofre: dinheiro guardado está protegido de apreensão e roubo (limite do cofre)
-- Localização afeta preço, conveniência logística e exposição a risco
+- Os bonus de recuperacao e capacidade variam por tipo do imovel
+- A localizacao do slot afeta protecao territorial, conveniencia logistica e exposicao a risco
 - Pode ser invadida por rivais se sem proteção (soldados)
 - Pode guardar itens (inventário extra)
 
-**Outros ativos patrimoniais:**
-- **Carros, motos e vans**: deslocamento, fuga, entrega, logistica urbana
-- **Barcos, lanchas, iates e jet skis**: operacoes em docas, fuga maritima e mobilidade
-- **Casa de praia**: descanso premium e stash secundario
+**Artigos de luxo e mobilidade:**
+- **Carros**: deslocamento terrestre, fuga e mobilidade urbana
+- **Barcos, iates e jet skis**: operacoes em docas, fuga maritima e mobilidade
 - **Avioes e helicopteros**: logistica de alto nivel, mobilidade, status
-- **Joias, arte e artigos de luxo**: alto custo de manutencao/seguranca, alto risco de roubo e uso patrimonial de luxo
+- **Joias, arte e outros artigos de luxo**: sem manutencao diaria base, com alto risco de roubo e uso patrimonial de prestígio
 
 **Protecao de patrimonio:**
 - Jogador sem faccao depende apenas de soldados, cofre, upgrades e discricao
@@ -1004,34 +1022,9 @@ Jogadores podem comprar imóveis para moradia. Cada tipo dá bônus diferentes:
 
 ### 9.1 Centro de Treino
 
-Disponível a partir do nível 3 (Fogueteiro). Principal forma de aumentar atributos permanentemente.
+Removido do beta em `2026-03-19`.
 
-| Tipo de Treino | Duração | Atributos Ganhos | Desbloqueio |
-|---|---|---|---|
-| Treino Básico | 30 min reais | Base conforme vocação | Nível 3 |
-| Treino Avançado | 1h real | 2x base | Após 30 treinos básicos |
-| Treino Intensivo | 2h reais | 3x base | Nível 7 (Frente) |
-
-**Distribuição de ganho por vocação:**
-
-| Vocação | Força | Inteligência | Resistência | Carisma |
-|---|---|---|---|---|
-| Cria | 40% | 15% | 30% | 15% |
-| Gerente | 15% | 40% | 30% | 15% |
-| Soldado | 35% | 25% | 25% | 15% |
-| Político | 10% | 25% | 15% | 50% |
-| Empreendedor | 10% | 35% | 15% | 40% |
-
-**Ganho base por sessão de treino básico:** 2.400 pontos no atributo principal + 600 nos secundários (por 30 min reais).
-
-- Custa cansaço (15%) e dinheiro ($1.000 a $50.000 dependendo do tipo)
-- Com **Impulso de Milico**: +30% em todos os atributos ganhos
-- Treinos em sequência sem descanso dão rendimento decrescente (-10% por treino consecutivo)
-- Descanso de 1h real entre treinos restaura o rendimento total
-- Ao terminar, o jogo trata isso como **resultado assíncrono**:
-  - notificação local quando fizer sentido
-  - modal de retorno ao abrir o app
-  - persistência do que já foi visto para não repetir alerta indefinidamente
+O recorte beta atual mantém apenas a `Universidade do Crime` dentro do bloco de progressão de estudo/especialização. Este subtópico permanece como design legado até eventual redefinição de produto.
 
 ### 9.2 Universidade do Crime
 
@@ -1040,7 +1033,7 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 - Cada vocação tem **cursos exclusivos** organizados em módulos
 - Cursos dão **habilidades passivas permanentes**
 - Cada curso tem pré-requisitos (nível, atributos mínimos, dinheiro)
-- Dura de 1 a 5 dias de jogo para completar (não pode treinar durante)
+- Dura de 1 a 5 dias de jogo para completar (não pode iniciar outro curso durante)
 - Ao concluir, o jogo precisa deixar claro:
   - qual curso terminou
   - qual passivo foi liberado
@@ -1072,8 +1065,8 @@ Sistema avançado de especialização. Desbloqueado no nível 7 (Frente).
 **Soldado — Escola PQD (Paraquedista):**
 | Curso | Efeito | Pré-requisito |
 |---|---|---|
-| Tiro Certeiro | +15% dano em PvP | Nível 7 |
-| Emboscada Perfeita | +20% poder em emboscadas | Nível 7, Força 500 |
+| Tiro Certeiro | +15% poder ofensivo em crimes violentos e rounds de guerra | Nível 7 |
+| Investida Perfeita | +20% poder em ofensivas territoriais | Nível 7, Força 500 |
 | Instinto de Sobrevivência | -30% dano recebido quando HP < 25% | Nível 8 |
 | Máquina de Guerra | +25% em Poder de Assalto total | Nível 9, todos anteriores |
 
@@ -1135,7 +1128,7 @@ Estas facções **sempre existem** no jogo e não podem ser dissolvidas. Elas po
   - gera notificação e feedback claro ao jogador
 - Liderança pode ser disputada internamente:
   - **Eleição**: votação entre membros (1x por rodada, se solicitada por 30%+ dos membros)
-  - **Desafio**: combate direto com o líder (PvP, requer nível 9+)
+  - **Desafio**: disputa sistêmica direta pela liderança (requer nível 9+)
 - Se nenhum jogador estiver na liderança, a facção é controlada por NPCs (com IA básica)
 - Cada rodada também reaplica um conjunto de **territórios iniciais** para as facções fixas, garantindo que o mapa não comece totalmente neutro.
 
@@ -1417,7 +1410,7 @@ Cada favela tem um índice de **Satisfação** de 0% a 100%. Inicia em 50% ao se
 
 O jogo possui dois tipos de calor policial:
 
-- **Calor do jogador**: ligado a crimes e PvP do personagem.
+- **Calor do jogador**: ligado a crimes e ocorrências pessoais do personagem.
 - **Calor policial territorial**: ligado ao volume de roubos e operacoes criminosas produzidas por uma favela.
 
 O **calor policial territorial** pertence a cada favela e cresce principalmente com:
@@ -1514,9 +1507,16 @@ Todo evento sistêmico relevante do jogo segue um padrão forte de retorno ao jo
   - qual evento aconteceu
   - onde aconteceu
   - qual foi o resultado
-  - qual foi o impacto prático no jogador, faccao ou territorio
+- qual foi o impacto prático no jogador, faccao ou territorio
 - banner/toast pode existir como apoio, mas nao substitui o modal de resultado
 - eventos encerrados devem continuar consultaveis em historico recente
+
+No beta atual, esse fluxo ja respeita **relevancia por jogador** no backend:
+
+- o feed `/events/*` so retorna eventos que afetaram o proprio jogador, uma propriedade dele, a favela/faccao dele ou um tribunal sob responsabilidade dele
+- guerras da propria faccao geram aviso quando entram em declaracao/preparacao/combate e tambem quando terminam
+- `X9`, `Faca na Caveira`, perda territorial, tribunal pendente/resolvido, promocao automatica na faccao e timers proprios de prisao/hospital entram como notificacao contextual relevante
+- eventos de faccoes alheias, guerras sem participacao do jogador e ruído territorial fora do seu escopo nao devem aparecer no feed/notificacao
 
 ### 11.7 Propina para PM (Arrego)
 
@@ -1793,75 +1793,9 @@ O jogador ganha ou perde Conceito pessoal baseado na percepção geral:
 
 ## 13. Combate PvP
 
-### 13.1 Porrada (1v1)
+Removido do beta em `2026-03-19`.
 
-- Jogador ataca outro jogador diretamente (precisa estar na mesma região do mapa)
-- Custo: 20% cansaço
-- Nível mínimo: 3 (Fogueteiro)
-- Restrições:
-  - não pode atacar jogador com proteção de novato
-  - não pode atacar jogador hospitalizado ou preso
-  - não pode atacar membro da própria facção por este sistema (isso fica para duelo/desafio específico)
-  - mesmo alvo só pode ser atacado novamente após `6h` de jogo
-- Fórmula de poder:
-  ```
-  Poder = Força + (Resistência / 2) + Arma + Colete + Bônus de Vocação(Soldado: +10%)
-  ```
-- Resolução por faixa de poder:
-
-| Razão Atacante/Defensor | Resultado |
-|---|---|
-| `< 0,90x` | Falha dura: atacante perde 20% HP e ganha `+10` de calor |
-| `0,90x - 1,19x` | Vitória apertada: defensor hospitalizado, sem loot financeiro |
-| `1,20x - 1,99x` | Vitória clara: defensor hospitalizado, atacante rouba `10-25%` do dinheiro carregado |
-| `>= 2,00x` | Abate total: alvo cai em hospitalização pesada e pode sofrer prisão em sequência se estiver quente |
-
-- Recompensa de atributo:
-  - vitória clara ou abate total concede `1-5%` de um atributo primário do perdedor, com teto de `50` pontos por combate
-- Abate total também pode gerar:
-  - conceito
-  - chance de dropar `1` item consumível/carregado
-  - roubo de parte do dinheiro que a vítima carrega
-
-### 13.2 Emboscada (Facção vs. Jogador)
-
-- Grupo de 2-5 membros da facção ataca um jogador
-- Poder combinado vs. poder individual
-- Maior chance de matar, mas divide a recompensa
-- Custo: 15% cansaço por membro (desconto por grupo)
-- Conceito do grupo é dividido igualmente
-- Regras:
-  - todos os participantes precisam estar na mesma região do alvo
-  - requer autorização de `Soldado` ou superior para participar e de `Gerente` ou superior para iniciar
-  - mesmo alvo não pode sofrer nova emboscada por `12h` de jogo
-- Fórmula de poder do grupo:
-  ```
-  Poder do Grupo = Soma dos poderes individuais × Fator de Coordenação
-  ```
-  - `Fator de Coordenação = 1,00 + 0,05 por membro adicional`, até máximo de `1,20`
-- Recompensas financeiras são divididas proporcionalmente ao poder contribuído
-- Se a emboscada falhar por larga margem (`< 0,85x`), `1-2` membros podem ser hospitalizados ou presos
-
-### 13.3 Assassinato por Encomenda
-
-Disponível a partir do nível 7 (Frente).
-
-- Jogadores podem colocar **contrato** na cabeça de outro jogador
-- Custo: valor da recompensa + 10% de taxa
-- Qualquer jogador nível 5+ pode aceitar o contrato
-- Recompensa em dinheiro ao completar + conceito
-- O alvo **não sabe** que tem contrato (a menos que tenha informantes — parceiros com nível 7+ podem avisá-lo)
-- Se o assassino falhar: alvo é notificado e pode contra-atacar
-
-**Regras operacionais:**
-- Apenas `1` contrato ativo por alvo ao mesmo tempo
-- A taxa de `10%` é sumidouro do sistema e não é devolvida
-- O valor da recompensa fica retido pelo sistema até sucesso, cancelamento ou expiração
-- Contrato dura `3 dias de jogo`
-- Se ninguém aceitar no prazo, o valor principal volta ao contratante e a taxa é perdida
-- Para contar como execução do contrato, o assassino precisa causar `abate total` no alvo
-- Se falhar, o alvo é notificado de que existe um contrato ativo contra ele, mas não do contratante
-- Após uma falha, o contrato volta ao mural em estado `queimado`, mantendo a recompensa retida até execução ou expiração
+`Porrada`, `Emboscada` e `Assassinato por Encomenda` sairam do recorte beta atual. Esta seção permanece apenas como design legado até eventual rediscussão de produto.
 
 ---
 
@@ -1871,17 +1805,17 @@ Disponível a partir do nível 7 (Frente).
 
 - Falhar em crimes (probabilidade baseada na dificuldade do crime)
 - Ser pego em incursão policial na favela
-- Matar muitos jogadores em sequência (calor da polícia)
+- Acumular violência em crimes pesados e guerras (calor da polícia)
 - Ser delatado (X9 de favela pode prender membros)
 - Overdose em local público (recolhido pela PM)
-- Perder combate PvP drasticamente (PM encontra inconsciente)
+- Ser encontrado ferido após confronto armado grave
 
 ### 14.2 Calor da Polícia
 
 Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 - Cada crime aumenta o "calor" um pouco
 - Crimes em sequência sem descanso acumulam calor rapidamente
-- Matar jogadores gera muito calor
+- Guerras e confrontos armados graves geram muito calor
 - Calor diminui com o tempo (inatividade criminal)
 - Calor alto: chance de prisão mesmo em crimes fáceis
 
@@ -1906,8 +1840,8 @@ Mecânica invisível que mede o quanto a polícia está de olho no jogador:
 | Crime médio falho | 4-8h |
 | Crime pesado falho | 8-12h |
 | Incursão policial | 4-6h |
-| Homicídio (PvP) | 6-10h |
-| Múltiplos homicídios | 12-24h |
+| Confronto armado grave | 6-10h |
+| Violência reincidente | 12-24h |
 
 **Modificadores de pena:**
 - Carisma: `-10%` no tempo por cada `100` pontos completos de Carisma, até máximo de `-30%`
@@ -1934,7 +1868,7 @@ Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
 **Regras detalhadas:**
 - **Suborno**:
   - disponível apenas para crimes leves, médios, blitz e prisões comuns
-  - indisponível para múltiplos homicídios, guerra de facção e operações BOPE
+  - indisponível para violência reincidente, guerra de facção e operações BOPE
   - chance de aceitação:
     ```
     35% + (Carisma / 20) + bônus de Político (+10%) - penalidade de calor
@@ -1969,7 +1903,7 @@ Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
 
 | Motivo | Tempo Base (horas de jogo) |
 |---|---|
-| Derrota em PvP comum | 2-4h |
+| Confronto armado comum | 2-4h |
 | Falha grave em crime violento | 3-6h |
 | Guerra de facção | 4-8h |
 | Overdose | 6-12h |
@@ -1994,7 +1928,7 @@ Tempo Final = Tempo Base × Modificador de Calor × Modificador Social
 | **Compra de Stats** | Consumíveis que aumentam atributos permanentes | Varia (caro) |
 | **Plano de Saúde** | Reduz hospitalização em 75% (mínimo 15min de jogo) | 10 créditos/rodada |
 
-> **Nota de implementação atual:** os custos monetários de serviços de NPC devem ser lidos como **custos-base**. Hospital, treino, universidade e ofertas sistêmicas do Mercado Negro já sofrem multiplicador de inflação ao longo da rodada.
+> **Nota de implementação atual:** os custos monetários de serviços de NPC devem ser lidos como **custos-base**. Hospital, universidade e ofertas sistêmicas do Mercado Negro já sofrem multiplicador de inflação ao longo da rodada.
 
 ### 15.2 Consumíveis de Stat (Hospital)
 
@@ -2018,11 +1952,11 @@ No estado atual do produto:
 - o **mapa local** prioriza POIs interativos e leitura rápida
 - construções passivas e ruas decorativas não são o foco principal da UX
 - o **macro mapa do Rio** é o principal fluxo de deslocamento entre regiões
+- o **macro mapa do Rio** possui leitura visual em mobile e desktop, com seleção de região e estimativa de deslocamento antes da viagem
 - o jogador deve identificar imediatamente:
   - favela
   - mercado
   - hospital
-  - treino
   - universidade
   - QG da facção
   - operações e pontos relevantes da região
@@ -2036,10 +1970,9 @@ Presentes em todas as regiões do mapa:
 - **Porto/Docas** — venda de drogas em larga escala quando navio atraca (apenas Centro)
 - **Banco** — guardar dinheiro (protege de apreensão), rende juros
 - **Banca do Bicho** — apostas no jogo do bicho
-- **Centro de Treino** — academia para treinar atributos
 - **Universidade do Crime** — cursos de especialização (apenas 1, no Centro)
 - **Tribunal** — onde se paga fiança e se resolve questões legais
-- **Macro mapa do Rio** — deslocamento regional e comparação entre zonas
+- **Macro mapa do Rio** — deslocamento regional, comparação entre zonas e prévia visual da rota em mobile e desktop
 - **Ponto de Mototáxi** — transporte rápido entre regiões do mapa
 - **Bar/Boteco** — local social, maquininhas de caça-níquel, informações
 
@@ -2150,6 +2083,10 @@ O mapa é dividido em 6 grandes regiões, cada uma com características socioeco
 
 Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou regiões específicas.
 
+No produto atual, mobile e desktop exibem apenas os eventos relevantes que chegam filtrados pelo backend. O feed de eventos cobre docas, policia e sazonais; alertas territoriais e cues dedicados complementam o recorte de guerra, `X9`, tribunal, promocao de faccao e resultados recentes.
+
+Em ambas as plataformas, a superficie canonica desse feed aparece para o jogador como `Ver eventos`.
+
 ### 17.1 Eventos Programados
 
 | Evento | Frequência | Efeito |
@@ -2255,7 +2192,6 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 - Organização de bailes
 - Desintoxicação no hospital
 - Tratamento no hospital
-- Treinos
 - Compra de propriedades e upgrades
 - Prejuízo em crimes falhos
 - Suborno para sair da prisão
@@ -2266,7 +2202,7 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 
 - Dinheiro no banco é protegido de:
   - Apreensão policial
-  - Roubo em combate PvP
+  - Perda direta em conflitos sistêmicos
   - Perda por morte
 - Rende juros diários: **1% ao dia de jogo** (sobre saldo)
 - Limite de depósito diário: $500.000 (aumenta com nível)
@@ -2278,7 +2214,6 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 - A inflação atual do jogo é **inflação de serviços de NPC**, não inflação geral de toda a economia
 - Ela afeta hoje:
   - hospital
-  - treino
   - universidade
   - ofertas sistêmicas do Mercado Negro
 - O multiplicador começa em `1.00x` no início da rodada
@@ -2293,15 +2228,15 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
   - tabela completa de progressão por dia
 - Objetivo de design:
   - pressionar decisão de tempo
-  - evitar que todo mundo deixe hospital, treino, universidade e fornecedor sistêmico para o fim
+  - evitar que todo mundo deixe hospital, universidade e fornecedor sistêmico para o fim
   - criar dreno monetário no late game
 - Exemplo didático:
   - hospital de `R$ 2.000` com inflação `1.30x` custa `R$ 2.600`
-  - treino de `R$ 10.000` com inflação `1.50x` custa `R$ 15.000`
+  - curso de `R$ 10.000` com inflação `1.50x` custa `R$ 15.000`
 - O ganho do jogador é indireto:
   - resolver cedo = paga menos
   - deixar para depois = paga mais
-- Novos jogadores têm "proteção de novato": 3 dias de jogo sem poder ser atacado por PvP
+- O onboarding do beta atual segue a diretriz da seção `22.3`, sem camadas de PvP ou sabotagem porque essas superfícies foram removidas do recorte.
 
 ---
 
@@ -2329,7 +2264,7 @@ Eventos são ocorrências periódicas que afetam a gameplay de toda a cidade ou 
 
 ### 19.2 Lista de Contatos
 
-`Contatos` já existem de ponta a ponta no produto atual. O backend segue autoritativo, e o mobile agora entrega uma tela dedicada para gerir a rede e abrir DMs.
+`Contatos` ja existem de ponta a ponta no produto atual. O backend segue autoritativo, e mobile e desktop agora entregam uma tela dedicada para gerir a rede e abrir DMs.
 
 Hoje o produto cobre:
 - leitura da lista de contatos
@@ -2372,7 +2307,7 @@ Continuam como backlog do social MVP:
 - tela dedicada de perfil público no mobile
 - integração mais ampla com a camada social
 - estatísticas sociais ampliadas, como:
-  - número de assassinatos (PvP)
+  - número de crimes coletivos concluídos
   - guerras vencidas
   - favelas conquistadas
   - maior golpe realizado
@@ -2383,42 +2318,9 @@ Continuam como backlog do social MVP:
 
 ## 20. Sabotagem
 
-> Escopo congelado em `2026-03-16`: `Sabotagem` já está entregue no produto atual com backend autoritativo, central dedicada no mobile, fila de replay offline, modal imediato de resultado e notificação local para atacante e alvo.
+Removido do beta em `2026-03-19`.
 
-Jogadores podem destruir propriedades rivais. Disponível a partir do nível 5 (Soldado).
-
-- Custo: 40% cansaço + 20 disposição
-- Pode destruir: bocas, fábricas, puteiros, raves, maquininhas
-- Não gera lucro direto, apenas prejudica o rival
-- Sucesso depende de: poder do atacante vs. poder dos soldados que guardam a propriedade
-- Risco de prisão se falhar
-- Risco de retaliação (o dono é notificado, mas não sabe quem sabotou se o atacante tiver sucesso)
-- Pode gerar guerra de facção se o alvo for membro de uma
-- Propriedade destruída precisa ser reconstruída (custo = 50% do valor original)
-
-**Regras de elegibilidade:**
-- O atacante precisa estar na mesma região da propriedade
-- Não pode sabotar propriedade de jogador com proteção de novato
-- Não pode sabotar membro da própria facção ou aliado formal
-- A mesma propriedade só pode sofrer `1` tentativa de sabotagem a cada `12h` de jogo
-
-**Resolução por poder ofensivo vs. defesa da propriedade:**
-
-| Razão Ataque/Defesa | Resultado |
-|---|---|
-| `< 0,85x` | Falha dura: atacante pode ser preso e o dono recebe alerta completo |
-| `0,85x - 1,14x` | Falha limpa: sem dano, mas o dono recebe alerta de tentativa |
-| `1,15x - 1,49x` | **Avaria**: propriedade opera a `50%` até reparo |
-| `>= 1,50x` | **Destruição**: propriedade para em `0%` até reconstrução |
-
-**Custos de recuperação do alvo:**
-- `Avaria`: reparo por `20%` do valor original + `6h` de jogo
-- `Destruição`: reconstrução por `50%` do valor original + `12h` de jogo
-
-**Consequências adicionais:**
-- Falha dura gera `+10` de calor no atacante
-- Sucesso total pode gerar `+5` de calor e `-3% a -8%` de satisfação dos moradores da favela se houver fogo cruzado
-- Se a propriedade sabotada estiver em favela dominada, a facção dona pode tratar o ato como gatilho de retaliação ou guerra
+Sabotagem de propriedades saiu do recorte beta atual. Esta seção permanece apenas como design legado até eventual rediscussão de produto.
 
 ---
 
@@ -2443,7 +2345,7 @@ O jogo é **free-to-play** com monetização cosmética e de conveniência. **N�
 
 **Regras de monetização de conveniência:**
 - Itens comprados com créditos nunca podem ser revendidos a outros jogadores
-- Itens comprados com créditos nunca entram como loot de PvP
+- Itens comprados com créditos nunca entram como perda em conflitos sistêmicos
 - `Fiança instantânea` não funciona contra eventos especiais explicitamente marcados como sem fiança
 - `Mudança de vocação` mantém cooldown global de `24h` de jogo para nova troca
 - `Expansão de inventário` é cumulativa até máximo de `+100` slots por conta
@@ -2461,7 +2363,7 @@ O jogo é **free-to-play** com monetização cosmética e de conveniência. **N�
 - Drogas
 - Bandidos adicionais
 - Proteção contra guerra, X9 ou BOPE
-- Vantagem oculta em chance de crime, roubo ou PvP
+- Vantagem oculta em chance de crime, roubo ou guerra territorial
 
 ### 21.4 Obtenção Gratuita de Créditos
 
@@ -2502,11 +2404,11 @@ Jogadores free-to-play podem obter créditos limitados:
 
 ### 22.3 Proteção de Novatos
 
-- Primeiros 3 dias de jogo: não pode ser atacado em PvP
-- Primeiros 3 dias de jogo: não pode ter propriedades sabotadas
-- Enquanto a proteção estiver ativa, também não pode iniciar ações de PvP ofensivo
-- O contador corre a partir da criação do personagem
-- Pode cancelar proteção manualmente se quiser (para poder atacar outros)
+As regras antigas de proteção contra `PvP` e `Sabotagem` deixaram de se aplicar ao beta atual porque essas superfícies foram removidas do recorte.
+
+- o onboarding do beta deve privilegiar crimes, mercado, inventário, operações, facção e território
+- qualquer proteção contextual futura precisa ser redefinida como regra nova de produto, não reaproveitada do legado
+- o contador de onboarding continua correndo a partir da criação do personagem
 
 ---
 
@@ -2529,17 +2431,17 @@ Seção de referência sobre como jogadores experientes otimizam o jogo.
 - **Early game** (Pivete-Fogueteiro): focar em crimes solo para ganhar conceito e dinheiro
 - **Mid game** (Vapor-Gerente): investir em fábricas e bocas para renda passiva
 - **Late game** (Frente-Prefeito): domínio territorial e guerra de facção para receita máxima
-- Treinar consistentemente — ganho de atributos é exponencialmente importante
+- Empilhar passivos e progressão de vocação de forma consistente — ganho estrutural de build continua exponencialmente importante
 
 ### 23.4 Economia
-- Banco cedo: proteger dinheiro de perdas em PvP e prisão
+- Banco cedo: proteger dinheiro de perdas em cadeia, morte e conflitos sistêmicos
 - Diversificar: não depender de uma única fonte de renda
 - Investir em lavagem quando tiver capital excedente
 - Comprar armas/coletes usados no Mercado Negro (mais barato)
 
-### 23.5 PvP e Facção
-- Atacar jogadores vulneráveis (cansaço baixa, sem colete, sem facção)
-- Nunca atacar sem cansaço para fugir se necessário
+### 23.5 Território e Facção
+- Ler a favela rival antes de declarar guerra: satisfação, soldados, bandidos e serviços mudam o custo real da ofensiva
+- Nunca entrar em round decisivo sem budget, soldados e caixa preparados
 - Facção forte > jogador forte solo (proteção + renda territorial)
 - Político na facção é essencial para negociações de propina e tribunal
 

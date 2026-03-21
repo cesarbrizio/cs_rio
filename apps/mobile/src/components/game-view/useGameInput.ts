@@ -3,7 +3,7 @@ import { InputHandler, type InputRect } from '@engine/input-handler';
 import type { MovementController } from '@engine/movement';
 import { findPath } from '@engine/pathfinding';
 import type { Camera } from '@engine/camera';
-import type { CameraState, GridPoint, ParsedTilemap, ScreenPoint } from '@engine/types';
+import type { CameraMode, CameraState, GridPoint, ParsedTilemap, ScreenPoint } from '@engine/types';
 import { useCallback, useEffect, useMemo, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { type LayoutChangeEvent } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
@@ -20,7 +20,7 @@ interface UseGameInputInput {
   inertiaVelocityRef: MutableRefObject<ScreenPoint>;
   map: ParsedTilemap;
   movementRef: MutableRefObject<MovementController>;
-  onCameraModeChangeRef: MutableRefObject<((mode: 'follow' | 'free') => void) | undefined>;
+  onCameraModeChange?: (mode: CameraMode) => void;
   onEntityTap?: (entityId: string) => void;
   onTileTap?: (tile: GridPoint) => void;
   playSfx: ReturnType<typeof useAudio>['playSfx'];
@@ -49,7 +49,7 @@ export function useGameInput({
   inertiaVelocityRef,
   map,
   movementRef,
-  onCameraModeChangeRef,
+  onCameraModeChange,
   onEntityTap,
   onTileTap,
   playSfx,
@@ -110,7 +110,7 @@ export function useGameInput({
       }
 
       syncCameraDebug(cameraRef.current.setMode('follow'));
-      onCameraModeChangeRef.current?.('follow');
+      onCameraModeChange?.('follow');
       const nextMovementState = movementRef.current.setPath(path);
       debugPathLengthRef.current = nextMovementState.path.length;
       setPlayerPath(nextMovementState.path);
@@ -128,7 +128,7 @@ export function useGameInput({
       entities,
       map,
       movementRef,
-      onCameraModeChangeRef,
+      onCameraModeChange,
       onEntityTap,
       onTileTap,
       playSfx,
@@ -151,6 +151,62 @@ export function useGameInput({
   const handlePinch = useCallback((scale: number, anchor: ScreenPoint) => {
     syncCameraDebug(cameraRef.current.zoomTo(pinchStartZoomRef.current * scale, anchor));
   }, [cameraRef, syncCameraDebug]);
+
+  const handleTapGestureEnd = useCallback((x: number, y: number, success: boolean) => {
+    if (!success) {
+      return;
+    }
+
+    inputHandlerRef.current.handleTap({ x, y });
+  }, []);
+
+  const handleLongPressGestureStart = useCallback((x: number, y: number) => {
+    inputHandlerRef.current.handleLongPress({ x, y });
+  }, []);
+
+  const handlePanGestureStart = useCallback((x: number, y: number) => {
+    panOriginRef.current = { x, y };
+    panStartRef.current = cameraRef.current.getState();
+    inertiaVelocityRef.current = { x: 0, y: 0 };
+    isPanningRef.current = true;
+    syncCameraDebug(cameraRef.current.setMode('free'));
+    onCameraModeChange?.('free');
+  }, [cameraRef, inertiaVelocityRef, isPanningRef, onCameraModeChange, syncCameraDebug]);
+
+  const handlePanGestureUpdate = useCallback((
+    translationX: number,
+    translationY: number,
+    velocityX: number,
+    velocityY: number,
+  ) => {
+    inputHandlerRef.current.handlePan(panOriginRef.current, {
+      x: translationX,
+      y: translationY,
+    });
+    inertiaVelocityRef.current = {
+      x: velocityX,
+      y: velocityY,
+    };
+  }, [inertiaVelocityRef]);
+
+  const handlePanGestureEnd = useCallback((velocityX: number, velocityY: number) => {
+    isPanningRef.current = false;
+    inertiaVelocityRef.current = {
+      x: velocityX,
+      y: velocityY,
+    };
+  }, [inertiaVelocityRef, isPanningRef]);
+
+  const handlePinchGestureStart = useCallback(() => {
+    pinchStartZoomRef.current = cameraRef.current.getState().zoom;
+  }, [cameraRef]);
+
+  const handlePinchGestureUpdate = useCallback((scale: number, focalX: number, focalY: number) => {
+    inputHandlerRef.current.handlePinch(scale, {
+      x: focalX,
+      y: focalY,
+    });
+  }, []);
 
   useEffect(() => {
     const nextUiRects = [
@@ -212,13 +268,9 @@ export function useGameInput({
         .maxDuration(250)
         .maxDistance(12)
         .onEnd((event, success) => {
-          if (!success) {
-            return;
-          }
-
-          inputHandlerRef.current.handleTap({ x: event.x, y: event.y });
+          handleTapGestureEnd(event.x, event.y, success);
         }),
-    [],
+    [handleTapGestureEnd],
   );
 
   const longPressGesture = useMemo(
@@ -227,9 +279,9 @@ export function useGameInput({
         .runOnJS(true)
         .minDuration(350)
         .onStart((event) => {
-          inputHandlerRef.current.handleLongPress({ x: event.x, y: event.y });
+          handleLongPressGestureStart(event.x, event.y);
         }),
-    [],
+    [handleLongPressGestureStart],
   );
 
   const panGesture = useMemo(
@@ -238,31 +290,20 @@ export function useGameInput({
         .runOnJS(true)
         .minDistance(4)
         .onStart((event) => {
-          panOriginRef.current = { x: event.x, y: event.y };
-          panStartRef.current = cameraRef.current.getState();
-          inertiaVelocityRef.current = { x: 0, y: 0 };
-          isPanningRef.current = true;
-          syncCameraDebug(cameraRef.current.setMode('free'));
-          onCameraModeChangeRef.current?.('free');
+          handlePanGestureStart(event.x, event.y);
         })
         .onUpdate((event) => {
-          inputHandlerRef.current.handlePan(panOriginRef.current, {
-            x: event.translationX,
-            y: event.translationY,
-          });
-          inertiaVelocityRef.current = {
-            x: event.velocityX,
-            y: event.velocityY,
-          };
+          handlePanGestureUpdate(
+            event.translationX,
+            event.translationY,
+            event.velocityX,
+            event.velocityY,
+          );
         })
         .onEnd((event) => {
-          isPanningRef.current = false;
-          inertiaVelocityRef.current = {
-            x: event.velocityX,
-            y: event.velocityY,
-          };
+          handlePanGestureEnd(event.velocityX, event.velocityY);
         }),
-    [cameraRef, inertiaVelocityRef, isPanningRef, onCameraModeChangeRef, syncCameraDebug],
+    [handlePanGestureEnd, handlePanGestureStart, handlePanGestureUpdate],
   );
 
   const pinchGesture = useMemo(
@@ -270,15 +311,12 @@ export function useGameInput({
       Gesture.Pinch()
         .runOnJS(true)
         .onStart(() => {
-          pinchStartZoomRef.current = cameraRef.current.getState().zoom;
+          handlePinchGestureStart();
         })
         .onUpdate((event) => {
-          inputHandlerRef.current.handlePinch(event.scale, {
-            x: event.focalX,
-            y: event.focalY,
-          });
+          handlePinchGestureUpdate(event.scale, event.focalX, event.focalY);
         }),
-    [cameraRef],
+    [handlePinchGestureStart, handlePinchGestureUpdate],
   );
 
   const composedGesture = useMemo(

@@ -3,6 +3,12 @@ import { type PlayerInventoryItem } from '@cs-rio/shared';
 export type InventoryActionKind = 'consume' | 'equip' | 'repair' | 'unequip';
 export type InventoryStatusTone = 'accent' | 'danger' | 'info' | 'muted' | 'success' | 'warning';
 
+export const INVENTORY_SCREEN_DESCRIPTION =
+  'O card do proprio item virou a superficie principal de acao. Equipar, desequipar, reparar e consumir agora disparam feedback imediato no inventario.';
+
+export const INVENTORY_EXPANSION_HINT =
+  'Toque ou clique em um item para expandir o card e agir dali mesmo, sem depender de outro painel.';
+
 export interface InventoryResolvedAction {
   disabledReason: string | null;
   kind: InventoryActionKind;

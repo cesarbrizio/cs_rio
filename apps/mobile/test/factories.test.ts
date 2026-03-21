@@ -9,16 +9,6 @@ import {
   sanitizeFactoryQuantity,
 } from '../src/features/factories';
 
-const NORMAL_SABOTAGE_STATUS = {
-  blocked: false,
-  operationalMultiplier: 1,
-  recoveryCost: null,
-  recoveryReady: false,
-  recoveryReadyAt: null,
-  resolvedAt: null,
-  state: 'normal' as const,
-};
-
 describe('factory helpers', () => {
   it('sorts recipes by level and drug name', () => {
     const recipes = filterFactoryRecipes([
@@ -136,7 +126,6 @@ describe('factory helpers', () => {
             quantityPerCycle: 2,
           },
         ],
-        sabotageStatus: NORMAL_SABOTAGE_STATUS,
         storedOutput: 0,
       },
     );
@@ -170,7 +159,6 @@ describe('factory helpers', () => {
         outputPerCycle: 2,
         regionId: RegionId.ZonaNorte,
         requirements: [],
-        sabotageStatus: NORMAL_SABOTAGE_STATUS,
         storedOutput: 0,
       }),
     ).toBe('Parada por falta de componentes');

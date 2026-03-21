@@ -145,7 +145,7 @@ export function BichoScreen(): JSX.Element {
       <ScreenHero
         actions={
           <Button onClick={() => void loadBook()} variant="secondary">
-            {isLoading ? 'Sincronizando...' : 'Atualizar banca'}
+            {isLoading ? 'Atualizando...' : 'Atualizar banca'}
           </Button>
         }
         badges={[
@@ -157,7 +157,7 @@ export function BichoScreen(): JSX.Element {
         title="Jogo do Bicho"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Banca sincronizada" tone="success" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Banca atualizada" tone="success" /> : null}
       {error ? <FeedbackCard message={error} title="Falha na banca" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">

@@ -2,6 +2,7 @@ import { type PlayerCreationInput, VocationType } from '@cs-rio/shared';
 import { type CSSProperties, useMemo, useState } from 'react';
 
 import { Badge, Button, Card, useToast } from '../components/ui';
+import { CharacterPreview } from '../features/character/CharacterPreview';
 import {
   hairOptions,
   outfitOptions,
@@ -40,7 +41,7 @@ export function CharacterCreationScreen(): JSX.Element {
       setErrorMessage(null);
       await createCharacter(payload);
       pushToast({
-        description: 'Personagem persistido. O guard ja pode liberar as rotas de gameplay.',
+        description: 'Seu personagem foi criado. O mapa ja esta liberado para entrar no jogo.',
         title: 'Personagem criado',
         tone: 'success',
       });
@@ -54,17 +55,20 @@ export function CharacterCreationScreen(): JSX.Element {
   return (
     <section className="character-screen">
       <div className="character-screen__summary">
-        <Badge tone="warning">/create-char</Badge>
-        <h2>Entrada no jogo</h2>
+        <Badge tone="warning">CS RIO</Badge>
+        <h2>Criação de Personagem</h2>
         <p>
-          A conta <strong>{player?.nickname ?? 'autenticada'}</strong> ja existe. Falta definir a
-          vocacao inicial e a aparencia basica para o mapa liberar o gameplay.
+          Escolha a vocação e a aparência inicial para entrar no mapa com o perfil persistido.
         </p>
 
         <Card className="character-screen__preview">
-          <div className="character-screen__avatar">
-            <span style={{ backgroundColor: skinOptions.find((option) => option.id === skin)?.swatch }} />
-          </div>
+          <CharacterPreview
+            hairId={hair}
+            outfitId={outfit}
+            skinId={skin}
+            vocation={vocation}
+            vocationLabel={selectedVocation.label}
+          />
           <div className="character-screen__preview-copy">
             <strong>{selectedVocation.label}</strong>
             <span>{selectedVocation.summary}</span>

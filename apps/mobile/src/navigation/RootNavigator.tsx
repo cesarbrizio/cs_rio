@@ -15,17 +15,10 @@ import { colors } from '../theme/colors';
 export type RootStackParamList = {
   Bicho: undefined;
   CharacterCreation: undefined;
-  Combat: undefined;
   Contacts: undefined;
-  Contracts: undefined;
   Crimes: undefined;
   Events: undefined;
   Factories: undefined;
-  Sabotage:
-    | {
-        focusPropertyId?: string;
-      }
-    | undefined;
   DrugUse:
     | {
         initialInventoryItemId?: string;
@@ -58,6 +51,7 @@ export type RootStackParamList = {
     | undefined;
   Prison: undefined;
   Profile: undefined;
+  Ranking: undefined;
   Register: undefined;
   Settings: undefined;
   Territory:
@@ -65,7 +59,6 @@ export type RootStackParamList = {
         focusFavelaId?: string;
       }
     | undefined;
-  Training: undefined;
   Tribunal:
     | {
         focusFavelaId?: string;
@@ -111,16 +104,8 @@ const inGameDeferredScreens: readonly DeferredScreenDefinition[] = [
     name: 'Hospital',
   },
   {
-    getComponent: loadDeferredScreen(() => require('../screens/CombatScreen'), 'CombatScreen'),
-    name: 'Combat',
-  },
-  {
     getComponent: loadDeferredScreen(() => require('../screens/ContactsScreen'), 'ContactsScreen'),
     name: 'Contacts',
-  },
-  {
-    getComponent: loadDeferredScreen(() => require('../screens/ContractsScreen'), 'ContractsScreen'),
-    name: 'Contracts',
   },
   {
     getComponent: loadDeferredScreen(() => require('../screens/CrimesScreen'), 'CrimesScreen'),
@@ -147,6 +132,10 @@ const inGameDeferredScreens: readonly DeferredScreenDefinition[] = [
     name: 'Profile',
   },
   {
+    getComponent: loadDeferredScreen(() => require('../screens/RankingScreen'), 'RankingScreen'),
+    name: 'Ranking',
+  },
+  {
     getComponent: loadDeferredScreen(() => require('../screens/MapScreen'), 'MapScreen'),
     name: 'Map',
   },
@@ -163,16 +152,8 @@ const inGameDeferredScreens: readonly DeferredScreenDefinition[] = [
     name: 'Prison',
   },
   {
-    getComponent: loadDeferredScreen(() => require('../screens/SabotageScreen'), 'SabotageScreen'),
-    name: 'Sabotage',
-  },
-  {
     getComponent: loadDeferredScreen(() => require('../screens/SettingsScreen'), 'SettingsScreen'),
     name: 'Settings',
-  },
-  {
-    getComponent: loadDeferredScreen(() => require('../screens/TrainingScreen'), 'TrainingScreen'),
-    name: 'Training',
   },
   {
     getComponent: loadDeferredScreen(() => require('../screens/TribunalScreen'), 'TribunalScreen'),

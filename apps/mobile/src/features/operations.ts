@@ -114,7 +114,7 @@ export function resolveOperationsTabDescription(tab: OperationsTab): string {
 }
 
 export function isBusinessProperty(property: OwnedPropertySummary): boolean {
-  return property.definition.assetClass === 'business';
+  return property.definition.category === 'business';
 }
 
 export function sumPropertyDailyUpkeep(properties: OwnedPropertySummary[]): number {
@@ -175,6 +175,7 @@ export function buildSlotMachineAcquisitionState(input: {
   const isOwned = ownedCount > 0;
   const isUnlocked = definition ? input.playerLevel >= definition.unlockLevel : false;
   const canAfford = definition ? input.playerMoney >= definition.basePrice : false;
+  const hasStock = definition ? definition.stockAvailable === null || definition.stockAvailable > 0 : false;
   const purchaseInput =
     definition && currentRegionId
       ? {
@@ -191,13 +192,15 @@ export function buildSlotMachineAcquisitionState(input: {
   let blockerLabel: string | null = null;
 
   if (!definition) {
-    blockerLabel = 'Maquininha indisponível no catálogo autoritativo.';
+    blockerLabel = 'Esse ponto de maquininha não está liberado agora.';
   } else if (isOwned) {
     blockerLabel = 'Você já possui uma maquininha. Use o card do ativo para instalar, configurar e coletar.';
   } else if (!currentRegionId) {
     blockerLabel = 'Defina uma região válida antes de comprar a maquininha.';
   } else if (!isUnlocked) {
     blockerLabel = `Nível ${definition.unlockLevel} necessário para liberar esta compra.`;
+  } else if (!hasStock) {
+    blockerLabel = 'Sem slot livre para maquininha nesta região agora.';
   } else if (!canAfford) {
     blockerLabel = `Faltam ${formatOperationsCurrency(definition.basePrice - input.playerMoney)} para comprar agora.`;
   }
@@ -206,7 +209,7 @@ export function buildSlotMachineAcquisitionState(input: {
     baseCapacity,
     blockerLabel,
     canAfford,
-    canPurchase: Boolean(definition && purchaseInput && !isOwned && isUnlocked && canAfford),
+    canPurchase: Boolean(definition && purchaseInput && !isOwned && isUnlocked && hasStock && canAfford),
     currentRegionId,
     currentRegionLabel: currentRegionId ? resolvePropertyRegionLabel(currentRegionId) : null,
     definition,
@@ -234,6 +237,7 @@ export function buildPuteiroAcquisitionState(input: {
   const isOwned = ownedCount > 0;
   const isUnlocked = definition ? input.playerLevel >= definition.unlockLevel : false;
   const canAfford = definition ? input.playerMoney >= definition.basePrice : false;
+  const hasStock = definition ? definition.stockAvailable === null || definition.stockAvailable > 0 : false;
   const purchaseInput =
     definition && currentRegionId
       ? {
@@ -263,15 +267,17 @@ export function buildPuteiroAcquisitionState(input: {
   let blockerLabel: string | null = null;
 
   if (!definition) {
-    blockerLabel = 'Puteiro indisponível no catálogo autoritativo.';
+    blockerLabel = 'Esse puteiro não está liberado agora.';
   } else if (input.gpTemplates.length === 0) {
-    blockerLabel = 'Catálogo de GPs indisponível. Aguarde o backend liberar os templates.';
+    blockerLabel = 'As GPs ainda não apareceram para este puteiro.';
   } else if (isOwned) {
     blockerLabel = 'Você já possui um puteiro. Use o painel abaixo para contratar GPs e coletar o caixa.';
   } else if (!currentRegionId) {
     blockerLabel = 'Defina uma região válida antes de comprar o puteiro.';
   } else if (!isUnlocked) {
     blockerLabel = `Nível ${definition.unlockLevel} necessário para liberar esta compra.`;
+  } else if (!hasStock) {
+    blockerLabel = 'Sem slot livre para puteiro nesta região agora.';
   } else if (!canAfford) {
     blockerLabel = `Faltam ${formatOperationsCurrency(definition.basePrice - input.playerMoney)} para comprar agora.`;
   }
@@ -285,6 +291,7 @@ export function buildPuteiroAcquisitionState(input: {
         purchaseInput &&
         !isOwned &&
         isUnlocked &&
+        hasStock &&
         canAfford
     ),
     capacity: PUTEIRO_MAX_ACTIVE_GPS,
@@ -371,17 +378,26 @@ export function resolveTravelModeLabel(definition: PropertyDefinitionSummary): s
 }
 
 export function resolvePropertyAssetClassLabel(definition: PropertyDefinitionSummary): string {
-  switch (definition.assetClass) {
+  switch (definition.category) {
     case 'business':
       return 'Negócio';
-    case 'real_estate':
+    case 'realty':
       return 'Imóvel';
-    case 'vehicle':
-      return 'Veículo';
-    case 'luxury':
-    default:
-      return 'Ativo especial';
+    case 'luxury_item':
+      return 'Artigo de luxo';
   }
+}
+
+export function resolvePropertyStockLabel(definition: PropertyDefinitionSummary): string {
+  if (definition.stockAvailable === null) {
+    return 'Sem limite';
+  }
+
+  if (definition.stockAvailable <= 0) {
+    return 'Esgotado';
+  }
+
+  return `${definition.stockAvailable} restante(s)`;
 }
 
 export function resolvePropertyUtilityLines(definition: PropertyDefinitionSummary): string[] {
@@ -638,7 +654,6 @@ export function resolvePropertyTypeLabel(type: PropertyType): string {
     house: 'Casa',
     jet_ski: 'Jet Ski',
     jewelry: 'Joias',
-    luxury: 'Luxo',
     mansion: 'Mansão',
     puteiro: 'Puteiro',
     rave: 'Rave',

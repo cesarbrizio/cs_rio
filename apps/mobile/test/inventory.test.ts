@@ -118,12 +118,12 @@ describe('inventory helpers', () => {
 
     expect(buildInventoryBenefitLines(weapon)).toEqual([
       'Poder ofensivo: +22.',
-      'Combate direto soma +22 ao seu poder total de confronto.',
+      'Combate direto soma +22 ao poder do confronto.',
       'Crimes e guerra territorial somam +22 ao peso ofensivo do loadout.',
     ]);
     expect(buildInventoryBenefitLines(vest)).toEqual([
       'Defesa / absorcao: +9.',
-      'Combate direto soma +9 de protecao efetiva no confronto.',
+      'Combate direto soma +9 de protecao efetiva.',
       'Crimes e guerra territorial convertem isso em +54 de forca operacional.',
     ]);
     expect(resolveInventoryItemPresentation(vest, 9)).toMatchObject({
@@ -141,5 +141,37 @@ describe('inventory helpers', () => {
       statusTone: 'success',
     });
     expect(resolveInventoryItemTypeLabel(weapon)).toBe('Arma');
+  });
+
+  it('keeps drugs consumable inline in the shared inventory contract', () => {
+    const drug: PlayerInventoryItem = {
+      durability: null,
+      equipSlot: null,
+      equipment: null,
+      id: 'inventory-drug',
+      isEquipped: false,
+      itemId: 'drug-1',
+      itemName: 'Maconha',
+      itemType: 'drug',
+      levelRequired: null,
+      maxDurability: null,
+      proficiency: 0,
+      quantity: 3,
+      stackable: true,
+      totalWeight: 0.3,
+      unitWeight: 0.1,
+    };
+
+    expect(resolveInventoryItemPresentation(drug, 1)).toMatchObject({
+      primaryAction: {
+        disabledReason: null,
+        kind: 'consume',
+        label: 'Usar',
+      },
+      secondaryAction: null,
+      statusLabel: 'Consumivel',
+      statusTone: 'info',
+    });
+    expect(resolveInventoryItemTypeLabel(drug)).toBe('Droga');
   });
 });

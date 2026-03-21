@@ -1,4 +1,5 @@
 import {
+  type PropertySlotSummary,
   type TerritoryFavelaSummary,
   type TerritoryRegionSummary,
 } from '@cs-rio/shared';
@@ -31,6 +32,7 @@ import {
   type WorldContextSpot,
   type WorldPulseItem,
 } from './homeTypes';
+import { buildStaticStructures } from './useHomeMapSceneSupport';
 
 type RealtimePlayerEntry = RealtimeSnapshot['players'][number];
 
@@ -42,9 +44,11 @@ interface TerritoryOverview {
 interface UseHomeMapSceneInput {
   eventRuntimeState: EventRuntimeState | null;
   hudPlayerPosition: { x: number; y: number } | null | undefined;
+  playerId?: string | null | undefined;
   playerFaction: { abbreviation: string; id: string } | null | undefined;
   playerRegionId: string | null | undefined;
   playerSpawnPosition: { x: number; y: number } | null | undefined;
+  propertySlots?: PropertySlotSummary[];
   relevantRemotePlayers: Array<{
     distance: number;
     player: RealtimePlayerEntry;
@@ -59,9 +63,11 @@ export type { UseHomeMapSceneInput };
 export function useHomeMapScene({
   eventRuntimeState,
   hudPlayerPosition,
+  playerId,
   playerFaction,
   playerRegionId,
   playerSpawnPosition,
+  propertySlots = [],
   relevantRemotePlayers,
   selectedMapFavelaId,
   territoryOverview,
@@ -180,8 +186,12 @@ export function useHomeMapScene({
   );
   const baseStructures = useMemo(
     () =>
-      playerRegionId === 'zona_norte' ? mapStructures : mapVisualPreset.structures,
+      playerRegionId === 'zona_norte' && mapStructures.length > 0 ? mapStructures : mapVisualPreset.structures,
     [mapStructures, mapVisualPreset.structures, playerRegionId],
+  );
+  const currentRegionPropertySlots = useMemo(
+    () => propertySlots.filter((slot) => slot.regionId === playerRegionId),
+    [playerRegionId, propertySlots],
   );
   const currentRegionFavelas = useMemo(
     () => territoryOverview?.favelas?.filter((favela) => favela.regionId === playerRegionId) ?? [],
@@ -210,33 +220,14 @@ export function useHomeMapScene({
     [currentRegionFavelas, zoneSlots],
   );
   const staticStructures = useMemo<MapStructure[]>(
-    () => {
-      const nonFavelaStructures = baseStructures.filter(
-        (structure) => structure.kind !== 'favela-cluster',
-      );
-      const dynamicFavelaStructures = projectedFavelas.map(({ center, favela }) => {
-        const footprint =
-          favela.difficulty >= 8
-            ? { w: 5, h: 4 }
-            : favela.difficulty >= 6
-              ? { w: 5, h: 4 }
-              : { w: 4, h: 3 };
-
-        return {
-          footprint,
-          id: `favela-visual:${favela.id}`,
-          kind: 'favela-cluster' as const,
-          label: favela.name,
-          position: {
-            x: center.x - Math.floor(footprint.w / 2),
-            y: center.y - Math.floor(footprint.h / 2),
-          },
-        };
-      });
-
-      return [...nonFavelaStructures, ...dynamicFavelaStructures];
-    },
-    [baseStructures, projectedFavelas],
+    () =>
+      buildStaticStructures({
+        baseStructures,
+        currentRegionPropertySlots,
+        playerId,
+        projectedFavelas,
+      }),
+    [baseStructures, currentRegionPropertySlots, playerId, projectedFavelas],
   );
   const regionalPoliceEvents = useMemo(
     () =>

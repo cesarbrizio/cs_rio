@@ -210,13 +210,6 @@ export function buildLiveEntity(input: {
     };
   }
 
-  if (input.entity.kind === 'training') {
-    return {
-      ...input.entity,
-      label: 'Treino · liberado',
-    };
-  }
-
   if (input.entity.kind === 'university') {
     return {
       ...input.entity,

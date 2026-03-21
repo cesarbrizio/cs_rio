@@ -58,7 +58,7 @@ export function CrimesScreen(): JSX.Element {
           null
         );
       });
-      setFeedbackMessage('Catálogo criminal sincronizado.');
+      setFeedbackMessage('Catálogo criminal atualizado.');
     } catch (nextError) {
       setError(formatApiError(nextError).message);
       setFeedbackMessage(null);
@@ -110,7 +110,7 @@ export function CrimesScreen(): JSX.Element {
     <>
       <InGameScreenLayout
         subtitle="Escolha um crime, veja chance, custo e recompensa, e confirme a ação sem precisar adivinhar o que está liberado agora."
-        title="Crimes"
+        title="Fazer corre"
       >
         <View style={styles.summaryRow}>
           <SummaryCard

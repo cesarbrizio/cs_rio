@@ -15,8 +15,20 @@ import {
 import { useDesktopRuntimeStore } from '../stores/desktopRuntimeStore';
 import { FormField, MetricCard, ScreenHero } from './shared/DesktopScreenPrimitives';
 
+function formatDisplayMode(mode: 'borderless' | 'fullscreen' | 'windowed'): string {
+  if (mode === 'fullscreen') {
+    return 'Tela cheia';
+  }
+
+  if (mode === 'borderless') {
+    return 'Sem borda';
+  }
+
+  return 'Janela';
+}
+
 export function SettingsScreen(): JSX.Element {
-  const { audio, env, notify } = usePlatform();
+  const { audio, notify } = usePlatform();
   const { pushToast } = useToast();
   const audioSettings = useDesktopRuntimeStore((state) => state.audioSettings);
   const graphicsSettings = useDesktopRuntimeStore((state) => state.graphicsSettings);
@@ -74,15 +86,15 @@ export function SettingsScreen(): JSX.Element {
       setNotificationPermissionStatus(supported ? 'granted' : 'undetermined');
       pushToast({
         description: supported
-          ? 'O processo principal informou suporte a notificacoes.'
-          : 'Notification API indisponivel neste host.',
+          ? 'Este aparelho pode exibir alertas do jogo.'
+          : 'Este aparelho nao liberou alertas do sistema.',
         title: 'Verificacao concluida',
         tone: supported ? 'success' : 'warning',
       });
     } catch (error) {
       pushToast({
-        description: error instanceof Error ? error.message : 'Falha ao consultar o bridge de notificacao.',
-        title: 'Erro no shell',
+        description: error instanceof Error ? error.message : 'Falha ao consultar os alertas deste aparelho.',
+        title: 'Falha na janela',
         tone: 'danger',
       });
     }
@@ -95,14 +107,14 @@ export function SettingsScreen(): JSX.Element {
       setNotificationPermissionStatus(granted ? 'granted' : 'denied');
 
       pushToast({
-        description: granted ? 'Permissao concedida.' : 'Permissao negada pelo host.',
-        title: 'Notificacoes desktop',
+        description: granted ? 'Permissao concedida.' : 'Permissao negada neste aparelho.',
+        title: 'Alertas do jogo',
         tone: granted ? 'success' : 'warning',
       });
     } catch (error) {
       pushToast({
         description: error instanceof Error ? error.message : 'Falha ao requisitar notificacoes.',
-        title: 'Erro no shell',
+        title: 'Falha na janela',
         tone: 'danger',
       });
     }
@@ -111,19 +123,19 @@ export function SettingsScreen(): JSX.Element {
   const handleTestNotification = async () => {
     try {
       await notify.show({
-        body: 'Shell desktop e provider de notificacoes responderam ao teste local.',
+        body: 'Se este aviso chegou, os alertas do jogo estao funcionando neste aparelho.',
         id: `desktop-test:${Date.now()}`,
         title: 'Teste de notificacao',
       });
       pushToast({
-        description: 'Teste enviado para o bridge nativo.',
-        title: 'Notificacao desktop',
+        description: 'O alerta de teste foi enviado para este aparelho.',
+        title: 'Alertas do jogo',
         tone: 'success',
       });
     } catch (error) {
       pushToast({
         description: error instanceof Error ? error.message : 'Falha ao disparar notificacao de teste.',
-        title: 'Erro no shell',
+        title: 'Falha na janela',
         tone: 'danger',
       });
     }
@@ -133,14 +145,14 @@ export function SettingsScreen(): JSX.Element {
     try {
       await audio.playSfx('notification');
       pushToast({
-        description: 'SFX de notificacao reproduzido no renderer.',
-        title: 'Audio desktop',
+        description: 'O som de alerta tocou neste aparelho.',
+        title: 'Audio do jogo',
         tone: 'success',
       });
     } catch (error) {
       pushToast({
         description: error instanceof Error ? error.message : 'Falha ao tocar o audio.',
-        title: 'Erro no shell',
+        title: 'Falha na janela',
         tone: 'danger',
       });
     }
@@ -150,18 +162,17 @@ export function SettingsScreen(): JSX.Element {
     <section className="desktop-screen">
       <ScreenHero
         badges={[
-          { label: env.appEnv, tone: 'info' },
-          { label: shellSettings.displayMode, tone: 'neutral' },
+          { label: formatDisplayMode(shellSettings.displayMode), tone: 'neutral' },
           { label: `${graphicsSettings.fpsCap} FPS`, tone: 'warning' },
           { label: notificationSettings.enabled ? 'Notificacoes ativas' : 'Notificacoes off', tone: notificationSettings.enabled ? 'success' : 'warning' },
         ]}
-        description="Preferencias persistidas do shell desktop: janela, bandeja, atalhos rebindaveis, qualidade grafica, cursor customizado e audio."
-        title="Configuracoes"
+        description="Ajuste som, janela, atalhos e alertas para deixar o jogo do seu jeito neste aparelho."
+        title="Ajustar jogo"
       />
 
       <div className="desktop-metric-grid">
         <MetricCard label="Resolucao" tone="info" value={shellSettings.resolutionPresetId} />
-        <MetricCard label="Modo" tone="neutral" value={shellSettings.displayMode} />
+        <MetricCard label="Modo" tone="neutral" value={formatDisplayMode(shellSettings.displayMode)} />
         <MetricCard label="Detalhe" tone="warning" value={graphicsSettings.detailLevel} />
         <MetricCard label="Permissao" tone="success" value={formatNotificationPermissionStatus(notificationSettings.permissionStatus)} />
       </div>
@@ -192,8 +203,8 @@ export function SettingsScreen(): JSX.Element {
                 value={shellSettings.displayMode}
               >
                 <option value="windowed">Janela</option>
-                <option value="borderless">Borderless</option>
-                <option value="fullscreen">Fullscreen</option>
+                <option value="borderless">Sem borda</option>
+                <option value="fullscreen">Tela cheia</option>
               </select>
             </FormField>
           </div>
@@ -240,15 +251,15 @@ export function SettingsScreen(): JSX.Element {
               }}
               variant="ghost"
             >
-              Alternar fullscreen
+              Alternar tela cheia
             </Button>
           </div>
         </Card>
 
         <Card>
-          <h3>Render e atalhos</h3>
+          <h3>Video e atalhos</h3>
           <div className="desktop-grid-2">
-            <FormField label="FPS cap">
+            <FormField label="Limite de FPS">
               <select
                 onChange={(event) => setGraphicsFpsCap(Number(event.target.value))}
                 value={graphicsSettings.fpsCap}

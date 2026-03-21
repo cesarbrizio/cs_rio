@@ -200,19 +200,19 @@ export function MessagesScreen(): JSX.Element {
       <ScreenHero
         actions={
           <Button onClick={() => void loadBooks()} variant="secondary">
-            {isLoading ? 'Sincronizando...' : 'Atualizar mensagens'}
+            {isLoading ? 'Sincronizando...' : 'Atualizar contatos'}
           </Button>
         }
         badges={[
           { label: `${contactsBook?.contacts.length ?? 0} contatos`, tone: 'info' },
           { label: `${threadsBook?.threads.length ?? 0} threads`, tone: 'warning' },
         ]}
-        description="Lista real de contatos e mensagens privadas, com adicao, remocao, leitura da thread e envio de mensagens pelo backend."
-        title="Mensagens"
+        description="Abra contatos, acompanhe conversas privadas e mande recados sem sair da mesa."
+        title="Contatos"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Mensagens sincronizadas" tone="success" /> : null}
-      {error ? <FeedbackCard message={error} title="Falha nas mensagens" tone="danger" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Contatos atualizados" tone="success" /> : null}
+      {error ? <FeedbackCard message={error} title="Falha nos contatos" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">
         <MetricCard label="Conhecidos" tone="info" value={`${contactsBook?.limits.known.used ?? 0}/${contactsBook?.limits.known.max ?? 0}`} />

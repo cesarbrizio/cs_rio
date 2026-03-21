@@ -334,6 +334,145 @@
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
 }
 
+.desktop-map-visual {
+  overflow: hidden;
+}
+
+.desktop-map-board {
+  position: relative;
+  min-height: 38rem;
+  border-radius: 24px;
+  overflow: hidden;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.desktop-map-board__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.04), transparent 38%),
+    linear-gradient(180deg, rgba(3, 5, 9, 0.2), rgba(3, 5, 9, 0.36));
+}
+
+.desktop-map-board__header {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  z-index: 4;
+}
+
+.desktop-map-badge {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid rgba(243, 239, 223, 0.14);
+  background: rgba(8, 11, 16, 0.78);
+}
+
+.desktop-map-badge--current {
+  border-color: rgba(123, 178, 255, 0.34);
+}
+
+.desktop-map-badge--destination {
+  border-color: rgba(224, 176, 75, 0.44);
+}
+
+.desktop-map-badge--muted {
+  opacity: 0.82;
+}
+
+.desktop-map-badge__eyebrow {
+  color: rgba(243, 239, 223, 0.58);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.desktop-map-route {
+  position: absolute;
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(224, 176, 75, 0.55);
+  background: rgba(224, 176, 75, 0.2);
+  transform-origin: left center;
+  z-index: 1;
+}
+
+.desktop-map-node {
+  position: absolute;
+  z-index: 3;
+  min-width: 10.5rem;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(243, 239, 223, 0.14);
+  background: rgba(9, 11, 15, 0.88);
+  color: #f3efdf;
+  text-align: left;
+  transform: translate(-50%, -50%);
+}
+
+.desktop-map-node strong,
+.desktop-map-node small {
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.desktop-map-node small {
+  color: rgba(243, 239, 223, 0.66);
+}
+
+.desktop-map-node__halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4.4rem;
+  height: 4.4rem;
+  margin-left: -2.2rem;
+  margin-top: -2.2rem;
+  border-radius: 999px;
+  z-index: 0;
+}
+
+.desktop-map-node__halo--active {
+  width: 5.2rem;
+  height: 5.2rem;
+  margin-left: -2.6rem;
+  margin-top: -2.6rem;
+}
+
+.desktop-map-node--current {
+  box-shadow: 0 0 0 1px rgba(123, 178, 255, 0.34);
+}
+
+.desktop-map-node--active {
+  box-shadow: 0 0 0 1px rgba(224, 176, 75, 0.4);
+}
+
+.desktop-map-node__chip {
+  justify-self: start;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(123, 178, 255, 0.16);
+  color: #8ad4ff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
+
 .desktop-region-grid {
   display: grid;
   gap: 1rem;

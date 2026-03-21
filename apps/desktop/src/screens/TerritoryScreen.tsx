@@ -4,16 +4,21 @@ import {
   formatTerritoryCountdown,
   formatTerritoryCurrency,
   formatTerritoryTimestamp,
+  resolveWarSideForPlayer,
+  resolveWarSideLabel,
   resolveBaileStatusLabel,
   resolveFavelaStateLabel,
   resolvePropinaStatusLabel,
   resolveRegionLabel,
   resolveSatisfactionTierLabel,
   resolveServiceStatusLabel,
+  resolveTerritoryActionVisibility,
   resolveWarStatusLabel,
   resolveX9StatusLabel,
   useTerritoryController,
 } from '@cs-rio/ui/hooks';
+import type { FactionWarPrepareInput } from '@cs-rio/shared';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Badge, Button, Card } from '../components/ui';
@@ -21,6 +26,7 @@ import { territoryApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import {
   FeedbackCard,
+  FormField,
   MetricCard,
   ScreenHero,
 } from './shared/DesktopScreenPrimitives';
@@ -29,6 +35,11 @@ export function TerritoryScreen(): JSX.Element {
   const navigate = useNavigate();
   const player = useAuthStore((state) => state.player);
   const refreshPlayerProfile = useAuthStore((state) => state.refreshPlayerProfile);
+  const [warBudgetInput, setWarBudgetInput] = useState('25000');
+  const [warSoldierCommitmentInput, setWarSoldierCommitmentInput] = useState('12');
+  const [warError, setWarError] = useState<string | null>(null);
+  const [warFeedback, setWarFeedback] = useState<string | null>(null);
+  const [isWarMutating, setIsWarMutating] = useState(false);
   const {
     baileBook,
     conquerSelectedFavela,
@@ -40,9 +51,11 @@ export function TerritoryScreen(): JSX.Element {
     isDetailLoading,
     isLoading,
     isMutating,
+    loadTerritoryHub,
     lossFeed,
     negotiateSelectedPropina,
     nowMs,
+    overview,
     regionGroups,
     selectFavela,
     selectedFavela,
@@ -60,10 +73,86 @@ export function TerritoryScreen(): JSX.Element {
     return <></>;
   }
 
+  const playerFactionId = overview?.playerFactionId ?? player.faction?.id ?? null;
   const selectedServices = servicesBook?.services ?? [];
   const selectedWar = warBook?.war ?? selectedFavela?.war ?? null;
+  const selectedWarSide = resolveWarSideForPlayer(playerFactionId, selectedWar);
+  const selectedWarPreparation =
+    selectedWar && selectedWarSide
+      ? selectedWarSide === 'attacker'
+        ? selectedWar.attackerPreparation
+        : selectedWar.defenderPreparation
+      : null;
   const selectedAlerts = selectedFavela ? buildFavelaAlertLines(selectedFavela) : [];
   const selectedForceLines = selectedFavela ? buildFavelaForceSummaryLines(selectedFavela) : [];
+  const selectedActionVisibility = resolveTerritoryActionVisibility({
+    favela: selectedFavela,
+    playerFactionId,
+  });
+  const canPrepareSelectedWar = Boolean(
+    selectedWar &&
+      selectedWarSide &&
+      (selectedWar.status === 'declared' || selectedWar.status === 'preparing') &&
+      !selectedWarPreparation,
+  );
+  const canAdvanceSelectedWarRound = Boolean(
+    selectedWar &&
+      selectedWarSide &&
+      selectedWar.status === 'active',
+  );
+  const visibleFeedback = warFeedback ?? feedback;
+  const visibleError = warError ?? error;
+  const isAnyMutating = isMutating || isWarMutating;
+
+  async function handlePrepareWar(): Promise<void> {
+    if (!selectedFavela) {
+      return;
+    }
+
+    const parsedInput = parseWarPreparationInput(warBudgetInput, warSoldierCommitmentInput);
+
+    if (!parsedInput) {
+      setWarError('Informe budget e comprometimento de soldados validos para a guerra.');
+      setWarFeedback(null);
+      return;
+    }
+
+    setIsWarMutating(true);
+    setWarError(null);
+    setWarFeedback(null);
+
+    try {
+      const response = await territoryApi.prepareWar(selectedFavela.id, parsedInput);
+      await refreshPlayerProfile();
+      await loadTerritoryHub();
+      setWarFeedback(response.message);
+    } catch (nextError) {
+      setWarError(nextError instanceof Error ? nextError.message : 'Falha ao preparar o lado na guerra.');
+    } finally {
+      setIsWarMutating(false);
+    }
+  }
+
+  async function handleResolveWarRound(): Promise<void> {
+    if (!selectedFavela) {
+      return;
+    }
+
+    setIsWarMutating(true);
+    setWarError(null);
+    setWarFeedback(null);
+
+    try {
+      const response = await territoryApi.resolveWarRound(selectedFavela.id);
+      await refreshPlayerProfile();
+      await loadTerritoryHub();
+      setWarFeedback(response.message ?? `Round de guerra resolvido em ${selectedFavela.name}.`);
+    } catch (nextError) {
+      setWarError(nextError instanceof Error ? nextError.message : 'Falha ao resolver o round de guerra.');
+    } finally {
+      setIsWarMutating(false);
+    }
+  }
 
   return (
     <section className="desktop-screen">
@@ -71,7 +160,7 @@ export function TerritoryScreen(): JSX.Element {
         actions={
           <>
             <Button onClick={() => navigate('/map')} variant="secondary">
-              Ver macro mapa
+              Ver mapa
             </Button>
             <Button onClick={() => navigate('/home')} variant="ghost">
               Voltar para Home
@@ -83,12 +172,12 @@ export function TerritoryScreen(): JSX.Element {
           { label: selectedFavela ? selectedFavela.name : 'Sem favela', tone: 'warning' },
           { label: isLoading || isDetailLoading ? 'Sincronizando' : 'Ao vivo', tone: isLoading || isDetailLoading ? 'warning' : 'info' },
         ]}
-        description="Hub territorial desktop com leitura direta de soldados, bandidos, servicos, arrego, X9 e guerra por favela."
-        title="Territorio"
+        description="Leia cada favela de forma direta: dominio, servicos, arrego, X9 e guerra no mesmo painel."
+        title="Dominar area"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Territorio atualizado" tone="success" /> : null}
-      {error ? <FeedbackCard message={error} title="Falha territorial" tone="danger" /> : null}
+      {visibleFeedback ? <FeedbackCard message={visibleFeedback} title="Area atualizada" tone="success" /> : null}
+      {visibleError ? <FeedbackCard message={visibleError} title="Falha territorial" tone="danger" /> : null}
 
       <div className="desktop-metric-grid">
         <MetricCard label="Total de favelas" tone="neutral" value={`${headlineStats.totalFavelas}`} />
@@ -190,28 +279,41 @@ export function TerritoryScreen(): JSX.Element {
                   </div>
                 </div>
                 <div className="desktop-inline-actions">
-                  <Button
-                    disabled={isMutating}
-                    onClick={() => void conquerSelectedFavela()}
-                    variant="primary"
-                  >
-                    Conquistar
-                  </Button>
-                  <Button
-                    disabled={isMutating}
-                    onClick={() => void declareWarOnSelectedFavela()}
-                    variant="secondary"
-                  >
-                    Declarar guerra
-                  </Button>
-                  <Button
-                    disabled={isMutating}
-                    onClick={() => void negotiateSelectedPropina()}
-                    variant="ghost"
-                  >
-                    Negociar arrego
-                  </Button>
+                  {selectedActionVisibility.canConquer ? (
+                    <Button
+                      disabled={isAnyMutating}
+                      onClick={() => void conquerSelectedFavela()}
+                      variant="primary"
+                    >
+                      Conquistar
+                    </Button>
+                  ) : null}
+                  {selectedActionVisibility.canDeclareWar ? (
+                    <Button
+                      disabled={isAnyMutating}
+                      onClick={() => void declareWarOnSelectedFavela()}
+                      variant="secondary"
+                    >
+                      Declarar guerra
+                    </Button>
+                  ) : null}
+                  {selectedActionVisibility.showNegotiatePropina ? (
+                    <Button
+                      disabled={isAnyMutating}
+                      onClick={() => void negotiateSelectedPropina()}
+                      variant="ghost"
+                    >
+                      Negociar arrego
+                    </Button>
+                  ) : null}
                 </div>
+                {!selectedActionVisibility.canConquer &&
+                !selectedActionVisibility.canDeclareWar &&
+                !selectedActionVisibility.showNegotiatePropina ? (
+                  <small>
+                    Sem acao imediata liberada neste estado. Arrego, servicos e baile so aparecem quando sua faccao domina a favela.
+                  </small>
+                ) : null}
               </Card>
 
               {selectedAlerts.length > 0 ? (
@@ -231,53 +333,72 @@ export function TerritoryScreen(): JSX.Element {
               <div className="desktop-grid-2">
                 <Card className="desktop-panel">
                   <div className="desktop-panel__header">
-                    <h3>Servicos</h3>
-                    <Badge tone="info">{selectedServices.length} linhas</Badge>
+                    <h3>{selectedActionVisibility.showServices ? 'Servicos' : 'Comando local'}</h3>
+                    <Badge tone="info">
+                      {selectedActionVisibility.showServices ? `${selectedServices.length} linhas` : 'bloqueado'}
+                    </Badge>
                   </div>
-                  <div className="desktop-scroll-list">
-                    {selectedServices.map((service) => (
-                      <div className="desktop-list-row" key={service.definition.type}>
-                        <div className="desktop-list-row__headline">
-                          <strong>{service.definition.label}</strong>
-                          <Badge tone={service.active ? 'success' : service.installed ? 'warning' : 'neutral'}>
-                            {resolveServiceStatusLabel(service)}
-                          </Badge>
-                        </div>
-                        <small>
-                          Receita diaria {formatTerritoryCurrency(service.currentDailyRevenue)} · custo {formatTerritoryCurrency(service.definition.installCost)}
-                        </small>
-                        <small>{servicesBook?.canManage ? 'Instalacao disponivel.' : 'Sem permissao para instalar.'}</small>
-                        <Button
-                          disabled={isMutating || service.installed || !servicesBook?.canManage}
-                          onClick={() => void installSelectedService(service.definition.type)}
-                          size="sm"
-                          variant="secondary"
-                        >
-                          Instalar
-                        </Button>
+                  {selectedActionVisibility.showServices ? (
+                    servicesBook ? (
+                      <div className="desktop-scroll-list">
+                        {selectedServices.map((service) => (
+                          <div className="desktop-list-row" key={service.definition.type}>
+                            <div className="desktop-list-row__headline">
+                              <strong>{service.definition.label}</strong>
+                              <Badge tone={service.active ? 'success' : service.installed ? 'warning' : 'neutral'}>
+                                {resolveServiceStatusLabel(service)}
+                              </Badge>
+                            </div>
+                            <small>
+                              Receita diaria {formatTerritoryCurrency(service.currentDailyRevenue)} · custo {formatTerritoryCurrency(service.definition.installCost)}
+                            </small>
+                            <small>{servicesBook.canManage ? 'Instalacao disponivel.' : 'Sem permissao para instalar.'}</small>
+                            <Button
+                              disabled={isAnyMutating || service.installed || !servicesBook.canManage}
+                              onClick={() => void installSelectedService(service.definition.type)}
+                              size="sm"
+                              variant="secondary"
+                            >
+                              Instalar
+                            </Button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <p>Os servicos desta favela nao puderam ser carregados agora.</p>
+                    )
+                  ) : (
+                    <p>Sua faccao precisa dominar a favela para liberar arrego, servicos e baile.</p>
+                  )}
                 </Card>
 
                 <Card className="desktop-panel">
                   <div className="desktop-panel__header">
-                    <h3>Baile e guerra</h3>
+                    <h3>{selectedActionVisibility.showBaile ? 'Baile e guerra' : 'Conflito territorial'}</h3>
                     <Badge tone="warning">{selectedWar ? resolveWarStatusLabel(selectedWar.status) : 'Sem guerra'}</Badge>
                   </div>
                   <div className="desktop-detail-list">
-                    <div>
-                      <strong>Baile</strong>
-                      <small>
-                        {baileBook
-                          ? `${resolveBaileStatusLabel(baileBook.baile.status)} · budget ${formatTerritoryCurrency(baileBook.baile.budget ?? 0)}`
-                          : 'Baile indisponivel'}
-                      </small>
-                    </div>
-                    <div>
-                      <strong>Cooldown baile</strong>
-                      <small>{formatTerritoryCountdown(baileBook?.baile.cooldownEndsAt ?? null, nowMs) ?? '--'}</small>
-                    </div>
+                    {selectedActionVisibility.showBaile ? (
+                      <>
+                        <div>
+                          <strong>Baile</strong>
+                          <small>
+                            {baileBook
+                              ? `${resolveBaileStatusLabel(baileBook.baile.status)} · budget ${formatTerritoryCurrency(baileBook.baile.budget ?? 0)}`
+                              : 'Baile indisponivel'}
+                          </small>
+                        </div>
+                        <div>
+                          <strong>Cooldown baile</strong>
+                          <small>{formatTerritoryCountdown(baileBook?.baile.cooldownEndsAt ?? null, nowMs) ?? '--'}</small>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <strong>Gestao local</strong>
+                        <small>Baile e arrego so ficam disponiveis quando a favela esta sob a sua faccao.</small>
+                      </div>
+                    )}
                     <div>
                       <strong>Guerra</strong>
                       <small>
@@ -286,6 +407,18 @@ export function TerritoryScreen(): JSX.Element {
                           : 'Sem guerra ativa'}
                       </small>
                     </div>
+                    <div>
+                      <strong>Seu lado</strong>
+                      <small>{selectedWarSide ? resolveWarSideLabel(selectedWarSide) : 'Fora do conflito'}</small>
+                    </div>
+                    {selectedWarPreparation ? (
+                      <div>
+                        <strong>Seu preparo</strong>
+                        <small>
+                          Budget {formatTerritoryCurrency(selectedWarPreparation.budget)} · soldados {selectedWarPreparation.soldierCommitment}
+                        </small>
+                      </div>
+                    ) : null}
                     <div>
                       <strong>Proximo marco</strong>
                       <small>
@@ -303,6 +436,47 @@ export function TerritoryScreen(): JSX.Element {
                       </div>
                     ) : null}
                   </div>
+                  {canPrepareSelectedWar ? (
+                    <div className="desktop-screen__stack">
+                      <div className="desktop-grid-2">
+                        <FormField label="Budget de guerra">
+                          <input onChange={(event) => setWarBudgetInput(event.target.value)} value={warBudgetInput} />
+                        </FormField>
+                        <FormField label="Comprometimento de soldados">
+                          <input onChange={(event) => setWarSoldierCommitmentInput(event.target.value)} value={warSoldierCommitmentInput} />
+                        </FormField>
+                      </div>
+                      <Button disabled={isAnyMutating} onClick={() => void handlePrepareWar()} variant="danger">
+                        {isWarMutating ? 'Processando...' : 'Preparar lado'}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {canAdvanceSelectedWarRound ? (
+                    <Button disabled={isAnyMutating} onClick={() => void handleResolveWarRound()} variant="danger">
+                      {isWarMutating ? 'Processando...' : 'Resolver round'}
+                    </Button>
+                  ) : null}
+                  {selectedWar?.rounds.length ? (
+                    <div className="desktop-scroll-list">
+                      {selectedWar.rounds
+                        .slice()
+                        .reverse()
+                        .map((round) => (
+                          <div className="desktop-list-row" key={`${round.roundNumber}-${round.resolvedAt}`}>
+                            <div className="desktop-list-row__headline">
+                              <strong>Round {round.roundNumber}</strong>
+                              <Badge tone={round.outcome === 'draw' ? 'neutral' : 'warning'}>
+                                {round.outcome}
+                              </Badge>
+                            </div>
+                            <small>
+                              Poder {Math.round(round.attackerPower)} x {Math.round(round.defenderPower)} · HP {round.attackerHpLoss}/{round.defenderHpLoss}
+                            </small>
+                            <small>{round.message}</small>
+                          </div>
+                        ))}
+                    </div>
+                  ) : null}
                 </Card>
               </div>
             </>
@@ -334,4 +508,31 @@ export function TerritoryScreen(): JSX.Element {
       </div>
     </section>
   );
+}
+
+function parseWarPreparationInput(
+  budgetValue: string,
+  soldierCommitmentValue: string,
+): FactionWarPrepareInput | null {
+  const budget = parsePositiveInteger(budgetValue);
+  const soldierCommitment = parsePositiveInteger(soldierCommitmentValue);
+
+  if (budget === null || soldierCommitment === null) {
+    return null;
+  }
+
+  return {
+    budget,
+    soldierCommitment,
+  };
+}
+
+function parsePositiveInteger(value: string): number | null {
+  const parsed = Number.parseInt(value.replace(/\D/g, ''), 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
 }

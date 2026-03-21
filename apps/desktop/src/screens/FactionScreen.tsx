@@ -120,15 +120,15 @@ export function FactionScreen(): JSX.Element {
       <ScreenHero
         badges={[
           { label: currentFaction ? currentFaction.abbreviation : 'Sem faccao', tone: currentFaction ? 'warning' : 'neutral' },
-          { label: realtimeSnapshot.status, tone: realtimeSnapshot.status === 'connected' ? 'success' : 'warning' },
+          { label: formatFactionRoomStatus(realtimeSnapshot.status), tone: realtimeSnapshot.status === 'connected' ? 'success' : 'warning' },
           { label: `${onlineCount} online`, tone: 'info' },
         ]}
-        description="Hub de faccao no desktop com membros, banco, upgrades, sala de coordenacao e candidatura ligados aos hooks compartilhados e ao realtime da faccao."
-        title="Faccao"
+        description="Comande membros, caixa, melhorias, recados e disputa de liderança sem sair da base da faccao."
+        title="Falar com a faccao"
       />
 
-      {feedback ? <FeedbackCard message={feedback} title="Operacao de faccao" tone="success" /> : null}
-      {error ? <FeedbackCard message={error} title="Falha de faccao" tone="danger" /> : null}
+      {feedback ? <FeedbackCard message={feedback} title="Faccao atualizada" tone="success" /> : null}
+      {error ? <FeedbackCard message={error} title="Falha na faccao" tone="danger" /> : null}
 
       {!currentFaction ? (
         <div className="desktop-grid-2">
@@ -195,7 +195,7 @@ export function FactionScreen(): JSX.Element {
                   <small>
                     {faction.canSelfJoin
                       ? `Auto-join liberado${faction.availableJoinSlots !== null ? ` · ${faction.availableJoinSlots} vagas` : ''}`
-                      : 'Entrada depende de criterio do backend'}
+                      : 'Entrada so por convite da faccao'}
                   </small>
                   <Button
                     disabled={!faction.canSelfJoin || isMutating}
@@ -441,7 +441,7 @@ export function FactionScreen(): JSX.Element {
               <Card className="desktop-panel">
                 <div className="desktop-panel__header">
                   <h3>Sala de coordenacao</h3>
-                  <Badge tone="info">{realtimeSnapshot.status}</Badge>
+                  <Badge tone="info">{formatFactionRoomStatus(realtimeSnapshot.status)}</Badge>
                 </div>
                 <div className="desktop-grid-2">
                   <FormField label="Mensagem do chat">
@@ -623,4 +623,20 @@ export function FactionScreen(): JSX.Element {
       )}
     </section>
   );
+}
+
+function formatFactionRoomStatus(status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting'): string {
+  if (status === 'connected') {
+    return 'Sala aberta';
+  }
+
+  if (status === 'connecting') {
+    return 'Abrindo sala';
+  }
+
+  if (status === 'reconnecting') {
+    return 'Voltando';
+  }
+
+  return 'Offline';
 }
